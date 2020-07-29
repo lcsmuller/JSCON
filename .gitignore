@@ -1,0 +1,9 @@
+# Ignore everything
+*
+# Except these files
+!.gitignore
+!json_parser.h
+!main.c
+!makefile
+!src
+!src/*
