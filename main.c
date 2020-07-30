@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
   char *json_file = read_json_file(argv[1]);
   json_parse *parse = parse_json(json_file);
 
-  print_json_parse(parse, JSON_Number|JSON_String, f_out);
+  print_json_parse(parse, JSON_Object, f_out);
   destroy_json_parse(parse);
 
   free(json_file);

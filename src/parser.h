@@ -5,9 +5,12 @@
 
 enum trigger_mask {
   Found_Null    = 0,
-  Found_String  = 1 << 0,
-  Found_Object  = 1 << 1,
-  Found_Key     = 1 << 2,
+  Found_Boolean = 1 << 0,
+  Found_Number  = 1 << 1,
+  Found_String  = 1 << 2,
+  Found_Object  = 1 << 3,
+  Found_Array   = 1 << 4,
+  Found_Key     = 1 << 5,
 };
 
 enum json_datatype {

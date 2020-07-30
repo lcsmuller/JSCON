@@ -40,7 +40,7 @@ read_json_file(char file[])
 }
 
 static void
-create_property(json_parse *parse, char *buffer)
+create_property(json_parse *parse)
 {
   ++parse->obj.n;
 
@@ -57,7 +57,7 @@ create_property(json_parse *parse, char *buffer)
 static json_parse*
 new_property(json_parse *parse, char *buffer)
 {
-  create_property(parse, buffer);
+  create_property(parse);
   //saves left bracket location
   parse->obj.properties[parse->obj.n-1]->val.start = buffer-1;
 
@@ -79,7 +79,7 @@ wrap_property(json_parse *parse, char *buffer)
   return parse->obj.parent;
 }
 
-static enum json_datatype
+static void
 json_data_token(json_data* data, char **ptr_buffer, enum json_datatype datatype)
 {
   char *buffer = *ptr_buffer;
@@ -102,7 +102,7 @@ json_data_token(json_data* data, char **ptr_buffer, enum json_datatype datatype)
     case JSON_Null:
       break;
     default:
-      fprintf(stderr,"fix your code\n");
+      fprintf(stderr,"ERROR: invalid datatype\n");
       exit(1);
       break;
   }
@@ -110,24 +110,6 @@ json_data_token(json_data* data, char **ptr_buffer, enum json_datatype datatype)
   data->length = data->end - data->start;
 
   *ptr_buffer = buffer+1;
-
-  return datatype;
-}
-
-void
-set_json_val(json_parse **ptr_obj, json_data *data, enum json_datatype datatype, char **ptr_buffer)
-{
-  char *buffer = *ptr_buffer;
-  json_parse *parse = *ptr_obj;
-
-  parse = new_property(parse, buffer);
-  parse->key = *data;
-  parse->datatype = json_data_token(data, &buffer, datatype);
-  parse->val = *data;
-  parse = wrap_property(parse, buffer);
-
-  *ptr_buffer = buffer;
-  *ptr_obj = parse;
 }
 
 json_parse*
@@ -135,63 +117,87 @@ parse_json(char *buffer)
 {
   json_parse *root = calloc(1,sizeof(json_parse));
   enum trigger_mask mask=Found_Null;
+  assert(!mask);
   //iterate through buffer char by char, exits loop when '\0' found
   json_parse *parse=root;
   json_data *data=calloc(1,sizeof(json_data));
-  do {
+  enum json_datatype set_datatype = JSON_Null;
+  while (*buffer){ //while not null terminator character
     switch (*buffer++){
-      /* KEY FOUND */
+      /* KEY DETECTED */
       case COLON:
         BITMASK_SET(mask,Found_Key);
         break;
-      /* STRING FOUND, CHECK FOR VARIABLE'S KEY OR VALUE */
+      /* KEY or STRING DETECTED */
       case DOUBLE_QUOTES:
-        if (!(mask & Found_Key)){
-          //string is value
-          json_data_token(data, &buffer, JSON_String);
+        if (mask & Found_Key){
+          BITMASK_SET(mask,Found_String);
+          set_datatype = JSON_String;
+          BITMASK_CLEAR(mask,Found_Key);
           break;
         }
-        //string is key
-        set_json_val(&parse, data, JSON_String, &buffer);
-        BITMASK_CLEAR(mask,Found_Key);
+        json_data_token(data, &buffer, JSON_String);
         break;
-      /* ARRAY OR OBJECT FOUND */
+      /* OBJECT DETECTED */
       case OPEN_BRACKET:
         BITMASK_SET(mask,Found_Object);
-        /* FALLTHROUGH */
-      case OPEN_SQUARE_BRACKET:
-        parse = new_property(parse, buffer);
-        if (mask & Found_Key){
-          parse->key = *data;
-          BITMASK_CLEAR(mask,Found_Key);
-        }
-
-        if (mask & Found_Object){
-          parse->datatype = JSON_Object;
-          BITMASK_CLEAR(mask,Found_Object);
-        } else {
-          parse->datatype = JSON_Array;
-        }
+        set_datatype = JSON_Object;
         break;
-      /* ARRAY OR OBJECT WRAPPER FOUND */
+      /* ARRAY DETECTED */
+      case OPEN_SQUARE_BRACKET:
+        BITMASK_SET(mask,Found_Object);
+        set_datatype = JSON_Array;
+        break;
+      /* OBJECT OR ARRAY WRAPPER DETECTED */
       case CLOSE_BRACKET: case CLOSE_SQUARE_BRACKET:
         parse = wrap_property(parse, buffer);
         break;
       /* CHECK FOR REMAINING DATATYPES
        *    Number, Boolean and Null   */
       default:
-        if (!(mask & Found_Key)){
-          //no variable to assign to, break out
-          break;
-        } BITMASK_CLEAR(mask,Found_Key);
-
         if (isdigit(*(buffer-1))){
-          set_json_val(&parse, data, JSON_Number, &buffer);
+          BITMASK_SET(mask, Found_Number);
+          set_datatype = JSON_Number;
           break;
         }
         break;
     }
-  } while (*buffer);
+
+    if (mask & Found_Object){
+      parse = new_property(parse, buffer);
+      parse->datatype = set_datatype;
+
+      if (mask & Found_Key){
+        parse->key = *data;
+        BITMASK_CLEAR(mask,Found_Key);
+      }
+      BITMASK_CLEAR(mask,Found_Object);
+      continue;
+    }
+
+    if (mask & Found_String){
+      parse = new_property(parse, buffer);
+      parse->datatype = set_datatype;
+      parse->key = *data;
+      json_data_token(data, &buffer, set_datatype);
+      parse->val = *data;
+      parse = wrap_property(parse, buffer);
+      BITMASK_CLEAR(mask,Found_String);
+      continue;
+    }
+
+    if (mask & Found_Number){
+      parse = new_property(parse, buffer);
+      parse->datatype = set_datatype;
+      parse->key = *data;
+      json_data_token(data, &buffer, set_datatype);
+      parse->val = *data;
+      parse = wrap_property(parse, buffer);
+      BITMASK_CLEAR(mask,Found_Number);
+      continue;
+    }
+
+  }
 
   return root;
 }
@@ -214,7 +220,7 @@ void
 print_json_parse(json_parse *parse, enum json_datatype datatype, FILE *stream)
 {
   assert(!parse->val.length && parse->obj.n);
-  recursive_print(parse->obj.properties[0], datatype, stream);
+  recursive_print(parse, datatype, stream);
 }
 
 void
