@@ -11,10 +11,13 @@ int main(int argc, char *argv[])
 {
   FILE *f_out = select_output(argc, argv);
   char *json_file = read_json_file(argv[1]);
-  json_parse *parse = parse_json(json_file);
+  json_parse *global = parse_json(json_file);
 
-  print_json_parse(parse, JSON_Object, f_out);
-  destroy_json_parse(parse);
+  enum json_datatype JSON_All = JSON_Object|JSON_Array|JSON_Number|JSON_String;
+  assert(JSON_All);
+
+  print_json_parse(global, JSON_String, f_out);
+  destroy_json_parse(global);
 
   free(json_file);
   fclose(f_out);

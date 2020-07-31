@@ -11,6 +11,7 @@ enum trigger_mask {
   Found_Object  = 1 << 3,
   Found_Array   = 1 << 4,
   Found_Key     = 1 << 5,
+  Found_Wrapper = 1 << 6,
 };
 
 enum json_datatype {
