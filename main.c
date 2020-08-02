@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h> //for access()
+#include <limits.h> //for MAX_INT
 
 
 FILE *select_output(int argc, char *argv[]);
@@ -13,10 +14,7 @@ int main(int argc, char *argv[])
   char *json_file = read_json_file(argv[1]);
   json_item *global = parse_json(json_file);
 
-  enum json_datatype JSON_All = JSON_Object|JSON_Array|JSON_Number|JSON_String;
-  assert(JSON_All);
-
-  print_json_item(global, JSON_True|JSON_False|JSON_True|JSON_Object|JSON_Null, f_out);
+  print_json_item(global, JsonAll, f_out);
   destroy_json_item(global);
 
   free(json_file);

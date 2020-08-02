@@ -2,30 +2,31 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 enum trigger_mask {
-  Found_Null    = 1 << 0,
-  Found_True    = 1 << 1,
-  Found_False   = 1 << 2,
-  Found_Boolean = Found_True|Found_False,
-  Found_Number  = 1 << 3,
-  Found_String  = 1 << 4,
-  Found_Object  = 1 << 5,
-  Found_Array   = 1 << 6,
-  Found_Key     = 1 << 7,
-  Found_Wrapper = 1 << 8,
+  FoundNull    = 1 << 0,
+  FoundTrue    = 1 << 1,
+  FoundFalse   = 1 << 2,
+  FoundBoolean = FoundTrue|FoundFalse,
+  FoundNumber  = 1 << 3,
+  FoundString  = 1 << 4,
+  FoundObject  = 1 << 5,
+  FoundArray   = 1 << 6,
+  FoundKey     = 1 << 7,
+  FoundWrapper = 1 << 8,
 };
 
 enum json_datatype {
-  JSON_Null     = 1 << 0,
-  JSON_True     = 1 << 1,
-  JSON_False    = 1 << 2,
-  JSON_Boolean  = JSON_True|JSON_False,
-  JSON_Number   = 1 << 3,
-  JSON_String   = 1 << 4,
-  JSON_Object   = 1 << 5,
-  JSON_Array    = 1 << 6,
-  JSON_Key      = 1 << 7,
+  JsonNull     = 1 << 0,
+  JsonTrue     = 1 << 1,
+  JsonFalse    = 1 << 2,
+  JsonNumber   = 1 << 3,
+  JsonString   = 1 << 4,
+  JsonObject   = 1 << 5,
+  JsonArray    = 1 << 6,
+  JsonKey      = 1 << 7,
+  JsonAll      = ULONG_MAX,
 };
 
 #define OPEN_SQUARE_BRACKET '['
@@ -41,6 +42,7 @@ enum json_datatype {
 #define BITMASK_SET(A,B) ((A) |= (B))
 #define BITMASK_CLEAR(A,B) ((A) &= ~(B))
 #define BITMASK_TOGGLE(A,B) ((A) ^= (B))
+#define BITMASK_EQUALITY(A,B) ((A) == (B)) ? (1) : (0)
 
 typedef struct json_data {
   char *start, *end;
