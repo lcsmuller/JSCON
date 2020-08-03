@@ -17,7 +17,7 @@ static long fetch_filesize(FILE *ptr_file)
 
 static char *read_file(FILE* ptr_file, long filesize)
 {
-  char *buffer = malloc(filesize+1);
+  char *buffer=malloc(filesize+1);
   assert(buffer);
 
   fread(buffer, sizeof(char), filesize, ptr_file);
@@ -29,13 +29,13 @@ static char *read_file(FILE* ptr_file, long filesize)
 char*
 read_json_file(char file[])
 {
-  FILE *json_file = fopen(file, "rb");
+  FILE *json_file=fopen(file, "rb");
   assert(json_file);
 
   //stores file size
-  long filesize = fetch_filesize(json_file);
+  long filesize=fetch_filesize(json_file);
   //buffer reads file content
-  char *buffer = read_file(json_file, filesize);
+  char *buffer=read_file(json_file, filesize);
 
   fclose(json_file);
 
@@ -73,8 +73,8 @@ wrap_item(json_item *item, char *buffer)
 static json_data
 datatype_token(ulong datatype, char **ptr_buffer)
 {
-  json_data data = {NULL};
-  char *temp_buffer = *ptr_buffer;
+  json_data data={NULL};
+  char *temp_buffer=*ptr_buffer;
 
   data.start = temp_buffer-1;
   switch (datatype){
@@ -127,7 +127,7 @@ datatype_token(ulong datatype, char **ptr_buffer)
 static json_item*
 new_property(json_item *item, json_data key, ulong datatype, char **ptr_buffer)
 {
-  char *temp_buffer = *ptr_buffer;
+  char *temp_buffer=*ptr_buffer;
 
   item = new_item(item);
 
@@ -161,53 +161,47 @@ static void
 eval_json_token(ulong *datatype, ulong *mask, char *json_token)
 {
   switch (*json_token){
-    /* KEY DETECTED */
-    case COLON:
+    case COLON:/*KEY DETECTED*/
       BITMASK_SET(*mask,FoundKey);
       break;
-    /* KEY or STRING DETECTED */
-    case DOUBLE_QUOTES:
+    case DOUBLE_QUOTES:/*STRING DETECTED*/
       BITMASK_SET(*mask,FoundString);
       *datatype = JsonString;
       break;
-    /* OBJECT DETECTED */
-    case OPEN_BRACKET:
+    case OPEN_BRACKET:/*OBJECT DETECTED*/
       BITMASK_SET(*mask,FoundObject);
       *datatype = JsonObject;
       break;
-    /* ARRAY DETECTED */
-    case OPEN_SQUARE_BRACKET:
+    case OPEN_SQUARE_BRACKET:/*ARRAY DETECTED*/
       BITMASK_SET(*mask,FoundArray);
       *datatype = JsonArray;
       break;
-    /* OBJECT OR ARRAY WRAPPER DETECTED */
-    case CLOSE_BRACKET: case CLOSE_SQUARE_BRACKET:
+    case CLOSE_BRACKET:       /*WRAPPER*/
+    case CLOSE_SQUARE_BRACKET:/*DETECTED*/
       BITMASK_SET(*mask,FoundWrapper);
       break;
-    /* CHECK FOR REMAINING DATATYPES
-     *    Boolean(TRUE/FALSE), Null and Number  */
-    case 't':
+    case 't':/*CHECK FOR TRUE*/
       if (strncmp(json_token,"true",strlen("true")) != 0)
         break;
-      BITMASK_SET(*mask, FoundTrue);
+      BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonTrue;
       break;
-    case 'f':
+    case 'f':/*CHECK FOR FALSE*/
       if (strncmp(json_token,"false",strlen("false")) != 0)
         break;
-      BITMASK_SET(*mask, FoundFalse);
+      BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonFalse;
       break;
-    case 'n':
+    case 'n':/*CHECK FOR NULL*/
       if (strncmp(json_token,"null",strlen("null")) != 0)
         break;
-      BITMASK_SET(*mask, FoundNull);
+      BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonNull;
       break;
-    default:
+    default:/*CHECK FOR NUMBER*/
       if ((!isdigit(*json_token)) && (*json_token != '-'))
         break;
-      BITMASK_SET(*mask, FoundNumber);
+      BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonNumber;
       break;
   }
@@ -222,17 +216,9 @@ apply_json_token(json_item *item, json_data key, ulong datatype, ulong *mask, ch
 
   char *temp_buffer=*ptr_buffer;
 
-  if (*mask & FoundString)
+  if (*mask & FoundProperty)
     item = new_property(item, key, datatype, &temp_buffer);
-  else if (*mask & FoundNumber)
-    item = new_property(item, key, datatype, &temp_buffer);
-  else if (*mask & FoundBoolean)
-    item = new_property(item, key, datatype, &temp_buffer);
-  else if (*mask & FoundNull)
-    item = new_property(item, key, datatype, &temp_buffer);
-  else if (*mask & FoundObject)
-    item = new_nested_object(item, key, datatype, &temp_buffer);
-  else if (*mask & FoundArray)
+  else if (*mask & (FoundObject|FoundArray))
     item = new_nested_object(item, key, datatype, &temp_buffer);
   else if (*mask & FoundWrapper)
     item = wrap_item(item, temp_buffer);
@@ -247,7 +233,7 @@ apply_json_token(json_item *item, json_data key, ulong datatype, ulong *mask, ch
 json_item*
 parse_json(char *buffer)
 {
-  json_item *global = calloc(1,sizeof(json_item));
+  json_item *global=calloc(1,sizeof(json_item));
   assert(global);
   json_item *item=global;
 
@@ -276,7 +262,34 @@ recursive_print(json_item *item, ulong datatype, FILE *stream)
 {
   if (item->datatype & datatype){
     fwrite(item->key.start, 1, item->key.length, stream);
+    fputc(' ', stream);
     fwrite(item->val.start, 1, item->val.length, stream);
+    fputc(' ', stream);
+    switch (item->datatype){
+      case JsonNull:
+        fputs("Null", stream);
+        break;
+      case JsonTrue:
+      case JsonFalse:
+        fputs("Boolean", stream);
+        break;
+      case JsonNumber:
+        fputs("Number", stream);
+        break;
+      case JsonString:
+        fputs("String", stream);
+        break;
+      case JsonObject:
+        fputs("Object", stream);
+        break;
+      case JsonArray:
+        fputs("Array", stream);
+        break;
+      default:
+        fprintf(stderr,"undefined datatype\n");
+        exit(1);
+        break;
+    }
     fputc('\n', stream);
   }
 

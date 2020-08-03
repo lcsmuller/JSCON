@@ -7,16 +7,12 @@
 typedef unsigned long ulong;
 
 enum trigger_mask {
-  FoundNull    = 1 << 0,
-  FoundTrue    = 1 << 1,
-  FoundFalse   = 1 << 2,
-  FoundBoolean = FoundTrue|FoundFalse,
-  FoundNumber  = 1 << 3,
-  FoundString  = 1 << 4,
-  FoundObject  = 1 << 5,
-  FoundArray   = 1 << 6,
-  FoundKey     = 1 << 7,
-  FoundWrapper = 1 << 8,
+  FoundString  = 1 << 0,
+  FoundObject  = 1 << 1,
+  FoundArray   = 1 << 2,
+  FoundProperty= 1 << 3 | FoundString,
+  FoundKey     = 1 << 4,
+  FoundWrapper = 1 << 5,
 };
 
 enum json_datatype {
@@ -27,7 +23,6 @@ enum json_datatype {
   JsonString   = 1 << 4,
   JsonObject   = 1 << 5,
   JsonArray    = 1 << 6,
-  JsonKey      = 1 << 7,
   JsonAll      = ULONG_MAX,
 };
 
