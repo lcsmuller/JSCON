@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <limits.h>
 
+typedef unsigned long ulong;
+
 enum trigger_mask {
   FoundNull    = 1 << 0,
   FoundTrue    = 1 << 1,
@@ -45,7 +47,7 @@ enum json_datatype {
 #define BITMASK_EQUALITY(A,B) ((A) == (B)) ? (1) : (0)
 
 typedef struct json_data {
-  char *start, *end;
+  char *start;
   size_t length; //amt of chars between left&right quotes
 } json_data;
 
@@ -67,5 +69,5 @@ typedef struct json_item {
 char *read_json_file(char file[]);
 
 json_item *parse_json(char *json_file);
-void print_json_item(json_item *item, unsigned long datatype, FILE *stream);
+void print_json_item(json_item *item, ulong datatype, FILE *stream);
 void destroy_json_item(json_item *item);

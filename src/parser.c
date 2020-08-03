@@ -43,7 +43,7 @@ read_json_file(char file[])
 }
 
 static json_item*
-new_nested_object(json_item *item)
+new_item(json_item *item)
 {
   ++item->obj.n;
 
@@ -58,33 +58,25 @@ new_nested_object(json_item *item)
   return item->obj.properties[item->obj.n-1];
 }
 
-static void
-set_json_object(json_item *item, json_data *data, unsigned long datatype, char *buffer)
-{
-  item->val.start = buffer-1;
-  item->datatype = datatype;
-  item->key = *data;
-}
-
 /* closes item nest (found right bracket)
  * updates length with amount of chars between brackets
  * returns to its immediate parent nest
  */
 static json_item*
-wrap_nested_object(json_item *item, char *buffer)
+wrap_item(json_item *item, char *buffer)
 {
-  item->val.end = buffer;
-  item->val.length = item->val.end - item->val.start;
+  item->val.length = buffer - item->val.start;
 
   return item->obj.parent;
 }
 
-static void
-json_data_token(json_data *data, unsigned long datatype, char **ptr_buffer)
+static json_data
+datatype_token(ulong datatype, char **ptr_buffer)
 {
+  json_data data = {NULL};
   char *temp_buffer = *ptr_buffer;
 
-  data->start = temp_buffer-1;
+  data.start = temp_buffer-1;
   switch (datatype){
     case JsonString:
       while (*temp_buffer != DOUBLE_QUOTES){
@@ -125,33 +117,48 @@ json_data_token(json_data *data, unsigned long datatype, char **ptr_buffer)
       exit(1);
       break;
   }
-  data->end = temp_buffer+1;
-  data->length = data->end - data->start;
+  data.length = temp_buffer+1 - data.start;
 
   *ptr_buffer = temp_buffer+1;
+
+  return data;
 }
 
 static json_item*
-new_property(json_item *item, json_data *data, unsigned long datatype, char **ptr_buffer)
+new_property(json_item *item, json_data key, ulong datatype, char **ptr_buffer)
 {
   char *temp_buffer = *ptr_buffer;
 
-  item = new_nested_object(item);
+  item = new_item(item);
 
   item->datatype = datatype;
-  item->key = *data;
-  json_data_token(data, datatype, &temp_buffer);
-  item->val = *data;
+  item->key = key;
+  item->val = datatype_token(datatype, &temp_buffer);
 
-  item = wrap_nested_object(item, temp_buffer);
+  item = wrap_item(item, temp_buffer);
 
   *ptr_buffer = temp_buffer;
 
   return item;
 }
 
+static json_item*
+new_nested_object(json_item *item, json_data key, ulong datatype, char **ptr_buffer)
+{
+  char *temp_buffer=*ptr_buffer;
+
+  item = new_item(item);
+
+  item->val.start = temp_buffer-1;
+  item->datatype = datatype;
+  item->key = key;
+
+  return item;
+}
+
+
 static void
-eval_json_token(unsigned long *datatype, unsigned long *mask, char *json_token)
+eval_json_token(ulong *datatype, ulong *mask, char *json_token)
 {
   switch (*json_token){
     /* KEY DETECTED */
@@ -207,42 +214,30 @@ eval_json_token(unsigned long *datatype, unsigned long *mask, char *json_token)
 }
 
 static json_item*
-apply_json_token(json_item *item, json_data *data, unsigned long datatype, unsigned long *mask, char **ptr_buffer)
+apply_json_token(json_item *item, json_data key, ulong datatype, ulong *mask, char **ptr_buffer)
 {
-  /*early exit if mask is unset or set with only FoundKey*/
-  if (BITMASK_EQUALITY(*mask,0) || BITMASK_EQUALITY(*mask,FoundKey))
+  //early exit if mask is unset or set with only FoundKey
+  if (BITMASK_EQUALITY(*mask,FoundKey) || BITMASK_EQUALITY(*mask,0))
     return item;
 
   char *temp_buffer=*ptr_buffer;
 
-  if (*mask & FoundNumber){
-    item = new_property(item, data, datatype, &temp_buffer);
-  }
-  else if (*mask & FoundString){
-    if (!(*mask & FoundKey))
-      json_data_token(data, datatype, &temp_buffer);
-    else
-      item = new_property(item, data, datatype, &temp_buffer);
-  }
-  else if (*mask & FoundBoolean){
-    item = new_property(item, data, datatype, &temp_buffer);
-  }
-  else if (*mask & FoundNull){
-    item = new_property(item, data, datatype, &temp_buffer);
-  }
-  else if (*mask & FoundObject){
-    item = new_nested_object(item);
-    set_json_object(item, data, datatype, temp_buffer);
-  }
-  else if (*mask & FoundArray){
-    item = new_nested_object(item);
-    set_json_object(item, data, datatype, temp_buffer);
-  }
-  else if (*mask & FoundWrapper){
-    item = wrap_nested_object(item, temp_buffer);
-  }
-  
-  BITMASK_CLEAR(*mask,*mask); //sets mask to 0
+  if (*mask & FoundString)
+    item = new_property(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundNumber)
+    item = new_property(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundBoolean)
+    item = new_property(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundNull)
+    item = new_property(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundObject)
+    item = new_nested_object(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundArray)
+    item = new_nested_object(item, key, datatype, &temp_buffer);
+  else if (*mask & FoundWrapper)
+    item = wrap_item(item, temp_buffer);
+
+  BITMASK_CLEAR(*mask,*mask);
 
   *ptr_buffer = temp_buffer;
 
@@ -256,23 +251,28 @@ parse_json(char *buffer)
   assert(global);
   json_item *item=global;
 
-  json_data data={NULL};
+  json_data key={NULL};
 
-  unsigned long mask=0;
-  unsigned long datatype=0;
+  ulong mask=0;
+  ulong datatype=0;
   while (*buffer){ //while not null terminator character
     //get mask and datatype with item buffer's char evaluation
     eval_json_token(&datatype, &mask, buffer);
-    ++buffer; //skips token char
-    //applies evaluation to json's item
-    item = apply_json_token(item, &data, datatype, &mask, &buffer);
+    ++buffer; //fix this (ignore this comment)
+    //get string for key
+    if (BITMASK_EQUALITY(mask,FoundString)){
+      key = datatype_token(datatype, &buffer);
+      BITMASK_CLEAR(mask,mask);
+      continue;
+    }
+    item = apply_json_token(item, key, datatype, &mask, &buffer);
   }
 
   return global;
 }
 
 static void
-recursive_print(json_item *item, unsigned long datatype, FILE *stream)
+recursive_print(json_item *item, ulong datatype, FILE *stream)
 {
   if (item->datatype & datatype){
     fwrite(item->key.start, 1, item->key.length, stream);
@@ -286,7 +286,7 @@ recursive_print(json_item *item, unsigned long datatype, FILE *stream)
 }
 
 void
-print_json_item(json_item *item, unsigned long datatype, FILE *stream)
+print_json_item(json_item *item, ulong datatype, FILE *stream)
 {
   assert(!item->val.length && item->obj.n);
   recursive_print(item, datatype, stream);
