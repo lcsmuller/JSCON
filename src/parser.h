@@ -7,23 +7,24 @@
 typedef unsigned long ulong;
 
 enum trigger_mask {
-  FoundString  = 1 << 0,
-  FoundObject  = 1 << 1,
-  FoundArray   = 1 << 2,
-  FoundProperty= 1 << 3 | FoundString,
-  FoundKey     = 1 << 4,
-  FoundWrapper = 1 << 5,
+  FoundString   = 1 << 0,
+  FoundObject   = 1 << 1,
+  FoundArray    = 1 << 2,
+  FoundProperty = 1 << 3 | FoundString,
+  FoundKey      = 1 << 4,
+  FoundAssign   = 1 << 5,
+  FoundWrapper  = 1 << 6,
 };
 
 enum json_datatype {
-  JsonNull     = 1 << 0,
-  JsonTrue     = 1 << 1,
-  JsonFalse    = 1 << 2,
-  JsonNumber   = 1 << 3,
-  JsonString   = 1 << 4,
-  JsonObject   = 1 << 5,
-  JsonArray    = 1 << 6,
-  JsonAll      = ULONG_MAX,
+  JsonNull      = 1 << 0,
+  JsonTrue      = 1 << 1,
+  JsonFalse     = 1 << 2,
+  JsonNumber    = 1 << 3,
+  JsonString    = 1 << 4,
+  JsonObject    = 1 << 5,
+  JsonArray     = 1 << 6,
+  JsonAll       = ULONG_MAX,
 };
 
 #define OPEN_SQUARE_BRACKET '['
@@ -64,5 +65,5 @@ typedef struct json_item {
 char *read_json_file(char file[]);
 
 json_item *parse_json(char *json_file);
-void print_json_item(json_item *item, ulong datatype, FILE *stream);
-void destroy_json_item(json_item *item);
+void print_json(json_item *item, ulong datatype, FILE *stream);
+void destroy_json(json_item *item);

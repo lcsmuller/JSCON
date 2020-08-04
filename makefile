@@ -7,6 +7,7 @@ OBJDIR = obj
 
 OBJS = $(OBJDIR)/main.o
 OBJS += $(OBJDIR)/parser.o
+OBJS += $(OBJDIR)/manipulate.o
 
 HEADER = json_parser.h
 

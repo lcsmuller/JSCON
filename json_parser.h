@@ -2,5 +2,6 @@
 #define COMMON_H_
 
 #include "src/parser.h"
+#include "src/manipulate.h"
 
 #endif
