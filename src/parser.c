@@ -6,42 +6,48 @@
 #include <ctype.h>
 #include <assert.h>
 
-/*numerical key for arrays will be generated and
-  stored here*/
+/* numerical key for arrays will be generated and
+    stored here */
 struct global_numlist {
   char **list;
   long n; 
 } numlist;
 
-static long fetch_filesize(FILE *ptr_file)
+/* returns file size in long format */
+static long
+fetch_filesize(FILE *ptr_file)
 {
-  fseek(ptr_file, 0, SEEK_END);
-  long filesize=ftell(ptr_file);
+  fseek(ptr_file, 0, SEEK_END); //go to end of file
+  long filesize=ftell(ptr_file); //get value of file position
   assert(filesize > 0);
-  fseek(ptr_file, 0, SEEK_SET);
+  fseek(ptr_file, 0, SEEK_SET); //rewind to start of file
   return filesize;
 }
 
-static char *read_file(FILE* ptr_file, long filesize)
+/* returns file content */
+static char*
+read_file(FILE* ptr_file, long filesize)
 {
   char *buffer=malloc(filesize+1);
   assert(buffer);
 
-  fread(buffer, sizeof(char), filesize, ptr_file);
+  //read file into buffer
+  fread(buffer,sizeof(char),filesize,ptr_file);
   buffer[filesize] = '\0';
 
   return buffer;
 }
 
+/* returns buffer containing file content */
 char*
-read_json_file(char file[])
+read_json_file(char filename[])
 {
-  FILE *json_file=fopen(file, "rb");
+  FILE *json_file=fopen(filename, "rb");
   assert(json_file);
 
   //stores file size
   long filesize=fetch_filesize(json_file);
-  //buffer reads file content
+  //reads file content into buffer
   char *buffer=read_file(json_file, filesize);
 
   fclose(json_file);
@@ -49,57 +55,65 @@ read_json_file(char file[])
   return buffer;
 }
 
-static json_item*
-new_item(json_item *item)
+/* create new json item and return it's address */
+static CJSON_item_t*
+new_item(CJSON_item_t *item)
 {
-  ++item->obj.n;
-
-  item->obj.properties = realloc(item->obj.properties, sizeof(json_item*)*item->obj.n);
+  ++item->obj.n; //update object's properties count
+  //update memory space for property's list
+  item->obj.properties = realloc(item->obj.properties, sizeof(CJSON_item_t*)*item->obj.n);
   assert(item->obj.properties);
-
-  item->obj.properties[item->obj.n-1] = calloc(1, sizeof(json_item));
+  //allocate memory space for new property (which is a nested item)
+  item->obj.properties[item->obj.n-1] = calloc(1, sizeof(CJSON_item_t));
   assert(item->obj.properties[item->obj.n-1]);
-
+  //get parent address of the new property
   item->obj.properties[item->obj.n-1]->obj.parent = item;
-
+  //return new property address
   return item->obj.properties[item->obj.n-1];
 }
 
-/* closes item nest (found right bracket)
- * updates length with amount of chars between brackets
- * returns to its immediate parent nest
- */
-static json_item*
-wrap_item(json_item *item, char *buffer)
+/* wraps json item and returns its parent's address (if exists) */
+static CJSON_item_t*
+wrap_item(CJSON_item_t *item, char *buffer)
 {
+  assert(item->val.start);
+  //get value length by subtracting current buffer's
+  //position from start of data value
   item->val.length = buffer - item->val.start;
-
+  //return current's item parent address
   return item->obj.parent;
 }
 
-static json_data
-array_datatype(json_item *item)
+/* get numerical key for array type
+    json data, in string format */
+static CJSON_data_t
+array_datatype(CJSON_item_t *item)
 {
-  json_data data={NULL};
-
-  if (numlist.n < item->obj.n+1){
-    char number[25];
+  CJSON_data_t key={NULL};
+  //check if global number list already contains
+  //current object property's amount value
+  if (numlist.n <= item->obj.n){
+    char number[25]; //hold number in string format
+    //assign property's amount value to number
     snprintf(number,24,"\"%ld\"",item->obj.n);
+    //update global list size to include new number
     numlist.list = realloc(numlist.list,(item->obj.n+1)*sizeof(struct global_numlist));
+    //push new number to it and update list count
     numlist.list[item->obj.n] = strdup(number);
-    numlist.n = item->obj.n+1; 
+    numlist.n = item->obj.n+1;
   }
+  //updates key with global list's numerical string
+  key.start = numlist.list[item->obj.n];
+  key.length = strlen(key.start);
 
-  data.start = numlist.list[item->obj.n];
-  data.length = strlen(data.start);
-
-  return data;
+  return key;
 }
 
-static json_data
-datatype_token(ulong datatype, char **ptr_buffer)
+/* get and return data from appointed datatype */
+static CJSON_data_t
+datatype_token(CJSON_types_t datatype, char **ptr_buffer)
 {
-  json_data data={NULL};
+  CJSON_data_t data={NULL};
   char *temp_buffer=*ptr_buffer;
 
   data.start = temp_buffer-1;
@@ -150,43 +164,52 @@ datatype_token(ulong datatype, char **ptr_buffer)
   return data;
 }
 
-static json_item*
-new_property(json_item *item, json_data key, ulong datatype, char **ptr_buffer)
+/* create property from appointed JSON datatype
+    and return the item containing it */
+static CJSON_item_t*
+new_property(CJSON_item_t *item, CJSON_data_t key, CJSON_types_t datatype, char **ptr_buffer)
 {
   char *temp_buffer=*ptr_buffer;
 
   item = new_item(item);
-
   item->datatype = datatype;
   item->key = key;
-  item->val = datatype_token(datatype, &temp_buffer);
-
+  item->val = datatype_token(item->datatype, &temp_buffer);
   item = wrap_item(item, temp_buffer);
 
-  *ptr_buffer = temp_buffer;
+  *ptr_buffer = temp_buffer; //save buffer changes
 
   return item;
 }
 
-static json_item*
-new_nested_object(json_item *item, json_data key, ulong datatype, char **ptr_buffer)
+/* create nested object/array and return
+    the nested object/array address.
+
+   note that it only retrieves the value
+    start, but it doesn't know the value's
+    length until wrap_item() function has 
+    been called.
+  nested objects/array move
+    through json argument much like a binary tree */
+static CJSON_item_t*
+new_nested_object(CJSON_item_t *item, CJSON_data_t key, CJSON_types_t datatype, char **ptr_buffer)
 {
   char *temp_buffer=*ptr_buffer;
 
   item = new_item(item);
-
-  item->val.start = temp_buffer-1;
   item->datatype = datatype;
   item->key = key;
+  item->val.start = temp_buffer-1;
 
   return item;
 }
 
-
+/* get bitmask bits and json datatype by
+    evaluating buffer's current position */
 static void
-eval_json_token(ulong *datatype, ulong *mask, char *json_token)
+eval_json_token(CJSON_types_t *datatype, bitmask_t *mask, char *buffer)
 {
-  switch (*json_token){
+  switch (*buffer){
     case COMMA:/*NEW PROPERTY DETECTED*/
       BITMASK_SET(*mask,FoundKey);
       break;
@@ -210,25 +233,25 @@ eval_json_token(ulong *datatype, ulong *mask, char *json_token)
       BITMASK_SET(*mask,FoundWrapper);
       break;
     case 't':/*CHECK FOR TRUE*/
-      if (strncmp(json_token,"true",strlen("true")) != 0)
+      if (strncmp(buffer,"true",strlen("true")) != 0)
         break;
       BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonTrue;
       break;
     case 'f':/*CHECK FOR FALSE*/
-      if (strncmp(json_token,"false",strlen("false")) != 0)
+      if (strncmp(buffer,"false",strlen("false")) != 0)
         break;
       BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonFalse;
       break;
     case 'n':/*CHECK FOR NULL*/
-      if (strncmp(json_token,"null",strlen("null")) != 0)
+      if (strncmp(buffer,"null",strlen("null")) != 0)
         break;
       BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonNull;
       break;
     default:/*CHECK FOR NUMBER*/
-      if ((!isdigit(*json_token)) && (*json_token != '-'))
+      if ((!isdigit(*buffer)) && (*buffer != '-'))
         break;
       BITMASK_SET(*mask, FoundProperty);
       *datatype = JsonNumber;
@@ -236,8 +259,10 @@ eval_json_token(ulong *datatype, ulong *mask, char *json_token)
   }
 }
 
-static json_item*
-apply_json_token(json_item *item, json_data *key, ulong datatype, ulong *mask, char **ptr_buffer)
+/* perform actions appointed by bitmask and
+    return newly updated or retrieved item */
+static CJSON_item_t*
+apply_json_token(CJSON_item_t *item, CJSON_data_t *key, CJSON_types_t datatype, bitmask_t *mask, char **ptr_buffer)
 {
   //early exit if mask is 0 or set with only FoundKey or FoundAssign
   if (BITMASK_EQUALITY(*mask,FoundKey)      || 
@@ -249,58 +274,64 @@ apply_json_token(json_item *item, json_data *key, ulong datatype, ulong *mask, c
   char *temp_buffer=*ptr_buffer;
 
   if (*mask & FoundProperty){
+    //similar to updating current's node attributes in a binary tree
     item = new_property(item, *key, datatype, &temp_buffer);
     BITMASK_CLEAR(*mask,FoundProperty);
   }
   else if (*mask & (FoundObject|FoundArray)){
+    //similar to creating a new node in a binary tree
+    // and then returning its address
     item = new_nested_object(item, *key, datatype, &temp_buffer);
     BITMASK_CLEAR(*mask,(FoundObject|FoundArray));
   }
   else if (*mask & FoundWrapper){
+    //similar to retrieving the node's parent in a binary tree
     item = wrap_item(item, temp_buffer);
     BITMASK_CLEAR(*mask,FoundWrapper);
   }
 
-
   if (*mask & FoundAssign)
     BITMASK_CLEAR(*mask,FoundAssign);
-
 
   *ptr_buffer = temp_buffer;
 
   return item;
 }
 
-json_item*
+CJSON_item_t*
 parse_json(char *buffer)
 {
-  json_item *global=calloc(1,sizeof(json_item));
-  assert(global);
-  json_item *item=global;
+  CJSON_item_t *first_item=calloc(1,sizeof(CJSON_item_t));
+  assert(first_item);
+  CJSON_item_t *item=first_item;
 
-  json_data key={NULL};
+  CJSON_data_t key={NULL};
 
-  ulong mask=0,datatype=0;
-  while (*buffer){ //while not null terminator character
-    //get mask and datatype with item buffer's char evaluation
+  bitmask_t mask=0;
+  CJSON_types_t datatype=0;
+  while (*buffer){ //while not null terminator char
+    //get tokens(datatype, mask) with current buffer's position evaluation 
     eval_json_token(&datatype, &mask, buffer);
     ++buffer;
-    //get string for key
+    //deal if special key fetching case for when item is an array
     if (item->datatype == JsonArray)
       key = array_datatype(item);
+    //else check if bitmask demands a key's string to be fetched
     else if (BITMASK_EQUALITY(mask,FoundString|FoundKey)){
       key = datatype_token(datatype, &buffer);
       BITMASK_CLEAR(mask,mask);
+      continue;
     }
-
+    //perform actions indicated by bitmask, applying fetched tokens
     item = apply_json_token(item, &key, datatype, &mask, &buffer);
   }
 
-  return global;
+  return first_item;
 }
 
+/* destroy current item and all of its nested object/arrays */
 static void
-destroy_json_item(json_item *item)
+destroy_json_item(CJSON_item_t *item)
 {
   for (size_t i=0 ; i < item->obj.n ; ++i){
     destroy_json_item(item->obj.properties[i]);
@@ -308,8 +339,9 @@ destroy_json_item(json_item *item)
   free(item);
 }
 
+/* destroy global number list and json item */
 void
-destroy_json(json_item *item)
+destroy_json(CJSON_item_t *item)
 {
   if (numlist.n){
     while (numlist.n >= 0){
@@ -317,7 +349,6 @@ destroy_json(json_item *item)
       --numlist.n;
     } free(numlist.list);
   }
-
   assert(!item->val.length && item->obj.n);
   destroy_json_item(item);
 }

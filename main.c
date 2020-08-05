@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *json_file = read_json_file(argv[1]);
 
-  json_item *global = parse_json(json_file);
+  CJSON_item_t *item = parse_json(json_file);
 
-  print_json(global, JsonAll, f_out);
-  destroy_json(global);
+  print_json(item, JsonAll, f_out);
+  destroy_json(item);
 
   free(json_file);
   fclose(f_out);

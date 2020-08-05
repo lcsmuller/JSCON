@@ -5,7 +5,7 @@
 #include <assert.h>
 
 static void
-recursive_print(json_item *item, ulong datatype, FILE *stream)
+recursive_print(CJSON_item_t *item, CJSON_types_t datatype, FILE *stream)
 {
   if (item->datatype & datatype){
     fwrite(item->key.start, 1, item->key.length, stream);
@@ -46,7 +46,7 @@ recursive_print(json_item *item, ulong datatype, FILE *stream)
 }
 
 void
-print_json(json_item *item, ulong datatype, FILE *stream)
+print_json(CJSON_item_t *item, CJSON_types_t datatype, FILE *stream)
 {
   assert(!item->val.length && item->obj.n);
   recursive_print(item, datatype, stream);

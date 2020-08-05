@@ -4,19 +4,27 @@
 #include <stdio.h>
 #include <limits.h>
 
-typedef unsigned long ulong;
-
-enum trigger_mask {
-  FoundString   = 1 << 0,
+/* bits to be assigned to a mask so that an action
+    related to that bit can be performed */
+typedef enum {
+  FoundString   = 1 << 0, //will be checked for key or value
   FoundObject   = 1 << 1,
   FoundArray    = 1 << 2,
-  FoundProperty = 1 << 3 | FoundString,
+  FoundProperty = 1 << 3 | FoundString, 
   FoundKey      = 1 << 4,
   FoundAssign   = 1 << 5,
   FoundWrapper  = 1 << 6,
-};
+} bitmask_t;
 
-enum json_datatype {
+/* A for bitmask variable, B for bit to be performed action */
+#define BITMASK_SET(A,B) ((A) |= (B))
+#define BITMASK_CLEAR(A,B) ((A) &= ~(B))
+#define BITMASK_TOGGLE(A,B) ((A) ^= (B))
+#define BITMASK_EQUALITY(A,B) ((A) == (B)) ? (A) : (0)
+
+
+/* All of the possible JSON datatypes */
+typedef enum {
   JsonNull      = 1 << 0,
   JsonTrue      = 1 << 1,
   JsonFalse     = 1 << 2,
@@ -25,45 +33,53 @@ enum json_datatype {
   JsonObject    = 1 << 5,
   JsonArray     = 1 << 6,
   JsonAll       = ULONG_MAX,
-};
+} CJSON_types_t;
+
 
 #define OPEN_SQUARE_BRACKET '['
-#define OPEN_BRACKET '{'
 #define CLOSE_SQUARE_BRACKET ']'
+#define OPEN_BRACKET '{'
 #define CLOSE_BRACKET '}'
-
 #define DOUBLE_QUOTES '\"'
 #define COLON ':'
 #define COMMA ','
 
 
-#define BITMASK_SET(A,B) ((A) |= (B))
-#define BITMASK_CLEAR(A,B) ((A) &= ~(B))
-#define BITMASK_TOGGLE(A,B) ((A) ^= (B))
-#define BITMASK_EQUALITY(A,B) ((A) == (B)) ? (1) : (0)
+/* hold json data (key/value) as it is 
+    when parsed, in its string format */
+typedef struct CJSON_data {
+  char *start; //points to start of data
+  size_t length; //amt of chars contained in this data 
+} CJSON_data_t;
 
-typedef struct json_data {
-  char *start;
-  size_t length; //amt of chars between left&right quotes
-} json_data;
-
-typedef struct json_object {
-  struct json_item *parent; //point to parent if exists
-  struct json_item **properties; //and all of its properties
+/* hold json object/array related configuration
+    in the case that it's neither, then it won't
+    be used */
+typedef struct CJSON_object {
+  struct CJSON_item *parent; //point to parent if exists
+  struct CJSON_item **properties; //and all of its properties
   size_t n; //amount of enumerable properties
-} json_object;
+} CJSON_object_t;
 
-typedef struct json_item {
-  enum json_datatype datatype; //variable/property datatype
-  json_data key; //variable/property name
-  json_data val; //variable/property contents
+/* mainframe struct that holds every configuration
+    necessary for when parsing a json argument */
+typedef struct CJSON_item {
+  CJSON_types_t datatype; //variable/property datatype
+  CJSON_data_t key; //variable/property name
+  CJSON_data_t val; //variable/property contents
 
-  json_object obj; //if of object datatype will have properties
+  CJSON_object_t obj; //if of object datatype will have properties
 
-} json_item;
+} CJSON_item_t;
 
-char *read_json_file(char file[]);
 
-json_item *parse_json(char *json_file);
-void print_json(json_item *item, ulong datatype, FILE *stream);
-void destroy_json(json_item *item);
+/* read appointed file's filesize in long format,
+    reads file contents up to filesize and returns
+    a buffer with the fetched content */
+char *read_json_file(char filename[]);
+/* parse json arguments and returns a CJSON_item_t
+    variable with the extracted configurations */
+CJSON_item_t *parse_json(char *json_file);
+/* destroy CJSON_item_t variable, and all of its
+    nested objects/arrays */
+void destroy_json(CJSON_item_t *item);
