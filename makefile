@@ -5,14 +5,14 @@ CC = gcc
 SRCDIR = src
 OBJDIR = obj
 
-OBJS = $(OBJDIR)/main.o
+OBJS = $(OBJDIR)/test.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/manipulate.o
 
 HEADER = json_parser.h
 
-MAIN = main.c
-MAIN_O = $(OBJDIR)/main.o
+MAIN = test.c
+MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug
 
@@ -36,4 +36,4 @@ debug : $(MAIN) $(SRCDIR)/*.c
 	$(CC) -g $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)
 
 clean :
-	-rm -rf json_parser test.txt $(OBJDIR) debug.out
+	-rm -rf json_parser data.txt $(OBJDIR) debug.out

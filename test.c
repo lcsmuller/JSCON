@@ -4,21 +4,23 @@
 #include <stdio.h>
 #include <unistd.h> //for access()
 #include <limits.h> //for MAX_INT
+#include <string.h>
 
 
 FILE *select_output(int argc, char *argv[]);
+void reviver_test(CJSON_item_t *item);
 
 int main(int argc, char *argv[])
 {
   FILE *f_out = select_output(argc, argv);
-  char *json_file = read_json_file(argv[1]);
+  char *buffer = read_json_file(argv[1]);
 
-  CJSON_item_t *item = parse_json(json_file);
+  CJSON_item_t *item = parse_json_reviver(buffer, &reviver_test);
 
   print_json(item, JsonAll, f_out);
   destroy_json(item);
 
-  free(json_file);
+  free(buffer);
   fclose(f_out);
 
   return EXIT_SUCCESS;
@@ -40,3 +42,15 @@ FILE *select_output(int argc, char *argv[])
   }
   return fopen("data.txt", "w");
 }
+
+void reviver_test(CJSON_item_t *item){
+  if ((item->datatype == JsonString)
+       && !strncmp(item->key.start,"\"m\"",item->key.length)){
+      CJSON_item_t *user = item->obj.parent->obj.properties[0];
+      if (!strncmp(user->val.start,"5",user->val.length)){
+        fwrite(item->val.start,1,item->val.length,stdout);
+        fputc('\n',stdout);
+      }
+  }
+}
+

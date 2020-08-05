@@ -3,7 +3,7 @@
 # Except these files
 !.gitignore
 !json_parser.h
-!main.c
+!test.c
 !makefile
 !src
 !src/*

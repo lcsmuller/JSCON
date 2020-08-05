@@ -64,22 +64,24 @@ typedef struct CJSON_object {
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct CJSON_item {
-  CJSON_types_t datatype; //variable/property datatype
-  CJSON_data_t key; //variable/property name
-  CJSON_data_t val; //variable/property contents
-
-  CJSON_object_t obj; //if of object datatype will have properties
-
+  CJSON_types_t datatype; //item's json datatype
+  CJSON_data_t key; //key in string format
+  CJSON_data_t val; //value in string format
+  CJSON_object_t obj; //object datatype will have properties
 } CJSON_item_t;
-
 
 /* read appointed file's filesize in long format,
     reads file contents up to filesize and returns
     a buffer with the fetched content */
-char *read_json_file(char filename[]);
+char*
+read_json_file(char filename[]);
 /* parse json arguments and returns a CJSON_item_t
     variable with the extracted configurations */
-CJSON_item_t *parse_json(char *json_file);
+CJSON_item_t*
+parse_json(char *buffer);
+CJSON_item_t*
+parse_json_reviver(char *buffer, void (*fn)(CJSON_item_t*));
 /* destroy CJSON_item_t variable, and all of its
     nested objects/arrays */
-void destroy_json(CJSON_item_t *item);
+void
+destroy_json(CJSON_item_t *item);

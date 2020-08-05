@@ -17,10 +17,11 @@ struct global_numlist {
 static long
 fetch_filesize(FILE *ptr_file)
 {
-  fseek(ptr_file, 0, SEEK_END); //go to end of file
-  long filesize=ftell(ptr_file); //get value of file position
+  fseek(ptr_file, 0, SEEK_END);
+  long filesize=ftell(ptr_file);
   assert(filesize > 0);
-  fseek(ptr_file, 0, SEEK_SET); //rewind to start of file
+  fseek(ptr_file, 0, SEEK_SET);
+
   return filesize;
 }
 
@@ -45,9 +46,7 @@ read_json_file(char filename[])
   FILE *json_file=fopen(filename, "rb");
   assert(json_file);
 
-  //stores file size
   long filesize=fetch_filesize(json_file);
-  //reads file content into buffer
   char *buffer=read_file(json_file, filesize);
 
   fclose(json_file);
@@ -64,10 +63,11 @@ new_item(CJSON_item_t *item)
   item->obj.properties = realloc(item->obj.properties, sizeof(CJSON_item_t*)*item->obj.n);
   assert(item->obj.properties);
   //allocate memory space for new property (which is a nested item)
-  item->obj.properties[item->obj.n-1] = calloc(1, sizeof(CJSON_item_t));
+  item->obj.properties[item->obj.n-1] = calloc(1,sizeof(CJSON_item_t));
   assert(item->obj.properties[item->obj.n-1]);
   //get parent address of the new property
   item->obj.properties[item->obj.n-1]->obj.parent = item;
+
   //return new property address
   return item->obj.properties[item->obj.n-1];
 }
@@ -80,6 +80,7 @@ wrap_item(CJSON_item_t *item, char *buffer)
   //get value length by subtracting current buffer's
   //position from start of data value
   item->val.length = buffer - item->val.start;
+
   //return current's item parent address
   return item->obj.parent;
 }
@@ -327,6 +328,24 @@ parse_json(char *buffer)
   }
 
   return first_item;
+}
+
+static void
+apply_reviver(CJSON_item_t *item, void (*reviver)(CJSON_item_t*)){
+  (*reviver)(item);
+  for (size_t i=0 ; i < item->obj.n ; ++i){
+    apply_reviver(item->obj.properties[i], reviver);
+  }
+}
+
+CJSON_item_t*
+parse_json_reviver(char *buffer, void (*reviver)(CJSON_item_t*)){
+  CJSON_item_t *item = parse_json(buffer);
+  if (reviver != NULL){
+    apply_reviver(item, reviver);
+  }
+
+  return item;
 }
 
 /* destroy current item and all of its nested object/arrays */
