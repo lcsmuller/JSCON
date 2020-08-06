@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = read_json_file(argv[1]);
 
-  CJSON_item_t *item = parse_json_reviver(buffer, &reviver_test);
+  CJSON_item_t *item = parse_json_reviver(buffer, NULL);
 
   print_json(item, JsonAll, f_out);
   destroy_json(item);
@@ -44,13 +44,10 @@ FILE *select_output(int argc, char *argv[])
 }
 
 void reviver_test(CJSON_item_t *item){
-  if ((item->datatype == JsonString)
-       && !strncmp(item->key.start,"\"m\"",item->key.length)){
-      CJSON_item_t *user = item->obj.parent->obj.properties[0];
-      if (!strncmp(user->val.start,"5",user->val.length)){
-        fwrite(item->val.start,1,item->val.length,stdout);
+  if (item->datatype == JsonNumber){
+        fwrite(item->key.start,1,item->key.length,stdout);
+        fprintf(stdout,"%f",item->value.number);
         fputc('\n',stdout);
-      }
   }
 }
 

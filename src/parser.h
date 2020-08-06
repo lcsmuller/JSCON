@@ -26,12 +26,11 @@ typedef enum {
 /* All of the possible JSON datatypes */
 typedef enum {
   JsonNull      = 1 << 0,
-  JsonTrue      = 1 << 1,
-  JsonFalse     = 1 << 2,
-  JsonNumber    = 1 << 3,
-  JsonString    = 1 << 4,
-  JsonObject    = 1 << 5,
-  JsonArray     = 1 << 6,
+  JsonBoolean   = 1 << 1,
+  JsonNumber    = 1 << 2,
+  JsonString    = 1 << 3,
+  JsonObject    = 1 << 4,
+  JsonArray     = 1 << 5,
   JsonAll       = ULONG_MAX,
 } CJSON_types_t;
 
@@ -45,29 +44,32 @@ typedef enum {
 #define COMMA ','
 
 
-/* hold json data (key/value) as it is 
-    when parsed, in its string format */
+/* hold json key as it is when 
+  parsed, in its string format */
 typedef struct CJSON_data {
   char *start; //points to start of data
   size_t length; //amt of chars contained in this data 
 } CJSON_data_t;
 
-/* hold json object/array related configuration
-    in the case that it's neither, then it won't
-    be used */
-typedef struct CJSON_object {
-  struct CJSON_item *parent; //point to parent if exists
-  struct CJSON_item **properties; //and all of its properties
-  size_t n; //amount of enumerable properties
-} CJSON_object_t;
+typedef struct CJSON_value {
+  union {
+    short boolean;
+    double number;
+    char *string;
+  };
+} CJSON_value_t;
 
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct CJSON_item {
   CJSON_types_t datatype; //item's json datatype
+
+  struct CJSON_item *parent; //point to parent if exists
+  struct CJSON_item **properties; //and all of its properties
+  size_t n; //amount of enumerable properties
+
   CJSON_data_t key; //key in string format
-  CJSON_data_t val; //value in string format
-  CJSON_object_t obj; //object datatype will have properties
+  CJSON_value_t value; //literal value
 } CJSON_item_t;
 
 /* read appointed file's filesize in long format,
