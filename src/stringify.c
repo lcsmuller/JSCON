@@ -2,35 +2,52 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 static void
-recursive_print(CJSON_item_t *item, CJSON_types_t datatype, FILE *stream)
+cat_update(char *dest, char *src, int *i)
 {
+  while (*src){
+    dest[(*i)++] = *src++;
+  }
+}
+
+static void
+recursive_print(CJSON_item_t *item, CJSON_types_t datatype, char *buffer)
+{
+  static int i=0;
+
   if (item->datatype & datatype){
-    fwrite(item->key.start, 1, item->key.length, stream);
-    fputc(':', stream);
+    if (item->key){
+      buffer[i++] = '\"';
+      cat_update(buffer,item->key,&i);
+      buffer[i++] = '\"';
+      buffer[i++] = ':';
+    }
     switch (item->datatype){
       case JsonNull:
-        fprintf(stream, "null");
+        cat_update(buffer,"null",&i);
         break;
       case JsonBoolean:
         if (item->value.boolean)
-          fprintf(stream, "true");
+          cat_update(buffer,"true",&i);
         else
-          fprintf(stream, "false");
+          cat_update(buffer,"false",&i);
         break;
       case JsonNumber:
-        fprintf(stream,"%f",item->value.number);
+        buffer[i++] = '0';
         break;
       case JsonString:
-        fputs(item->value.string, stream);
+        buffer[i++] = '\"';
+        cat_update(buffer,item->value.string,&i);
+        buffer[i++] = '\"';
         break;
       case JsonObject:
-        fputc('{', stream);
+        buffer[i++] = '{';
         break;
       case JsonArray:
-        fputc('[', stream);
+        buffer[i++] = '[';
         break;
       default:
         fprintf(stderr,"ERROR: undefined datatype\n");
@@ -39,22 +56,34 @@ recursive_print(CJSON_item_t *item, CJSON_types_t datatype, FILE *stream)
     }
   }
 
-  for (size_t i=0 ; i < item->n ; ++i){
-    recursive_print(item->properties[i], datatype, stream);
-  }
-
+  for (size_t j=0 ; j < item->n ; ++j){
+    recursive_print(item->properties[j], datatype, buffer);
+    buffer[i++] = ',';
+  } 
+   
   if (datatype & (JsonObject|JsonArray)){
-    if (item->datatype == JsonObject)
-      fputc('}',stream);
-    else if (item->datatype == JsonArray)
-      fputc(']',stream);
-    fputc(',', stream);
+    if (item->datatype == JsonObject){
+      if (buffer[i-1] == ',')
+        --i;
+      buffer[i++] = '}';
+    } else if (item->datatype == JsonArray){
+      if (buffer[i-1] == ',')
+        --i;
+      buffer[i++] = ']';
+    }
   }
 }
 
-void
-print_json(CJSON_item_t *item, CJSON_types_t datatype, FILE *stream)
+char*
+stringify_json(CJSON_t *cjson, CJSON_types_t datatype)
 {
-  assert(item->n);
-  recursive_print(item, datatype, stream);
+  assert(cjson);
+  assert(cjson->item->n);
+
+  char *buffer=calloc(1,cjson->memsize+50);
+  recursive_print(cjson->item, datatype, buffer);
+  if(buffer[strlen(buffer)-1] == ',')
+    buffer[strlen(buffer)-1] = '\0';
+   
+  return buffer;
 }

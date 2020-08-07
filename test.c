@@ -15,10 +15,12 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = read_json_file(argv[1]);
 
-  CJSON_item_t *item = parse_json_reviver(buffer, NULL);
+  CJSON_t *cjson = parse_json_reviver(buffer, NULL);
 
-  print_json(item, JsonAll, f_out);
-  destroy_json(item);
+  char *json_str=stringify_json(cjson, JsonAll);
+  fwrite(json_str,1,strlen(json_str),f_out);
+  free(json_str);
+  destroy_json(cjson);
 
   free(buffer);
   fclose(f_out);
@@ -40,12 +42,13 @@ FILE *select_output(int argc, char *argv[])
       return fopen(file, "w");
     }
   }
+
   return fopen("data.txt", "w");
 }
 
 void reviver_test(CJSON_item_t *item){
   if (item->datatype == JsonNumber){
-        fwrite(item->key.start,1,item->key.length,stdout);
+        fprintf(stdout,"%s",item->key);
         fprintf(stdout,"%f",item->value.number);
         fputc('\n',stdout);
   }

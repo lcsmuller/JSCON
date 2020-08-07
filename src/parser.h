@@ -43,19 +43,13 @@ typedef enum {
 #define COLON ':'
 #define COMMA ','
 
-
-/* hold json key as it is when 
-  parsed, in its string format */
-typedef struct CJSON_data {
-  char *start; //points to start of data
-  size_t length; //amt of chars contained in this data 
-} CJSON_data_t;
+typedef char CJSON_data;
 
 typedef struct CJSON_value {
   union {
     short boolean;
     double number;
-    char *string;
+    CJSON_data* string;
   };
 } CJSON_value_t;
 
@@ -68,9 +62,18 @@ typedef struct CJSON_item {
   struct CJSON_item **properties; //and all of its properties
   size_t n; //amount of enumerable properties
 
-  CJSON_data_t key; //key in string format
+  CJSON_data *key; //key in string format
   CJSON_value_t value; //literal value
 } CJSON_item_t;
+
+typedef struct CJSON {
+  CJSON_item_t *item;
+  long memsize;
+  struct {
+    char **list;
+    long n; 
+  } keylist;
+} CJSON_t;
 
 /* read appointed file's filesize in long format,
     reads file contents up to filesize and returns
@@ -79,11 +82,11 @@ char*
 read_json_file(char filename[]);
 /* parse json arguments and returns a CJSON_item_t
     variable with the extracted configurations */
-CJSON_item_t*
+CJSON_t*
 parse_json(char *buffer);
-CJSON_item_t*
+CJSON_t*
 parse_json_reviver(char *buffer, void (*fn)(CJSON_item_t*));
 /* destroy CJSON_item_t variable, and all of its
     nested objects/arrays */
 void
-destroy_json(CJSON_item_t *item);
+destroy_json(CJSON_t *cjson);
