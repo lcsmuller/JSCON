@@ -56,7 +56,7 @@ typedef struct CJSON_value {
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct CJSON_item {
-  CJSON_types_t datatype; //item's json datatype
+  CJSON_types_t dtype; //item's json datatype
 
   struct CJSON_item *parent; //point to parent if exists
   struct CJSON_item **properties; //and all of its properties
@@ -68,11 +68,10 @@ typedef struct CJSON_item {
 
 typedef struct CJSON {
   CJSON_item_t *item;
+
   long memsize;
-  struct {
-    char **list;
-    long n; 
-  } keylist;
+  char **keylist;
+  long n; //key amt
 } CJSON_t;
 
 /* read appointed file's filesize in long format,

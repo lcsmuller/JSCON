@@ -47,7 +47,7 @@ FILE *select_output(int argc, char *argv[])
 }
 
 void reviver_test(CJSON_item_t *item){
-  if (item->datatype == JsonNumber){
+  if (item->dtype == JsonNumber){
         fprintf(stdout,"%s",item->key);
         fprintf(stdout,"%f",item->value.number);
         fputc('\n',stdout);

@@ -72,33 +72,33 @@ wrap_item(CJSON_item_t *item, char *buffer){
 static CJSON_data*
 store_keyname(CJSON_t *cjson, CJSON_data *keyname)
 {
-  ++cjson->keylist.n;
-  cjson->keylist.list = realloc(cjson->keylist.list,cjson->keylist.n*sizeof(char*));
-  assert(cjson->keylist.list);
+  ++cjson->n;
+  cjson->keylist = realloc(cjson->keylist,cjson->n*sizeof(char*));
+  assert(cjson->keylist);
 
-  int i=cjson->keylist.n-1;
-  while ((i > 0) && (strcmp(keyname, cjson->keylist.list[i-1]) < 0)){
-    cjson->keylist.list[i] = cjson->keylist.list[i-1];
+  int i=cjson->n-1;
+  while ((i > 0) && (strcmp(keyname, cjson->keylist[i-1]) < 0)){
+    cjson->keylist[i] = cjson->keylist[i-1];
     --i;
-  } cjson->keylist.list[i] = keyname;
+  } cjson->keylist[i] = keyname;
 
-  return cjson->keylist.list[i];
+  return cjson->keylist[i];
 }
 
 static CJSON_data*
 search_keyname(CJSON_t *cjson, CJSON_data *keyname)
 {
-  int top=cjson->keylist.n-1;
+  int top=cjson->n-1;
   int low=0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp=strcmp(keyname, cjson->keylist.list[mid]);
+    cmp=strcmp(keyname, cjson->keylist[mid]);
     if (cmp == 0){
       free(keyname);
-      return cjson->keylist.list[mid];
+      return cjson->keylist[mid];
     }
     if (cmp < 0)
       top = mid-1;
@@ -118,6 +118,7 @@ get_array_key(CJSON_t *cjson, CJSON_item_t *item)
   //will be free'd inside search_keyname if necessary
   CJSON_data *keyname=malloc(len*sizeof(CJSON_data));
   assert(keyname);
+
   snprintf(keyname,len,"%ld",item->n);
 
   return search_keyname(cjson, keyname);
@@ -149,12 +150,12 @@ get_json_number(char **ptr_buffer)
   char *start=*ptr_buffer-1;
   char *end=start;
 
-  if (*end == '-'){
+  if (*end == '-')
     ++end;
-  }
-  while (isdigit(*end)){
+
+  while (isdigit(*end))
     ++end;
-  }
+
   if (*end == '.'){
     while (isdigit(*++end))
       continue;
@@ -183,74 +184,59 @@ get_json_number(char **ptr_buffer)
 
 /* get and return data from appointed datatype */
 static CJSON_value_t
-datatype_token(CJSON_types_t datatype, char **ptr_buffer)
+datatype_token(CJSON_types_t new_dtype, char **ptr_buffer)
 {
-  char *temp_buffer=*ptr_buffer;
-
-  CJSON_value_t value={0};
-  switch (datatype){
+  CJSON_value_t new_value={0};
+  switch (new_dtype){
     case JsonString:
-      value.string = get_json_string(ptr_buffer);
+      new_value.string = get_json_string(ptr_buffer);
       break;
     case JsonNumber:
-      value.number = get_json_number(ptr_buffer);
+      new_value.number = get_json_number(ptr_buffer);
       break;
     case JsonBoolean:
-      if (*(temp_buffer-1) == 't'){
-        temp_buffer += strlen("true")-2;
-        value.boolean = 1;
-      } else {
-        temp_buffer += strlen("false")-2;
-        value.boolean = 0;
+      if ((*ptr_buffer)[-1] == 't'){
+        *ptr_buffer += 3; //length of "true"-1
+        new_value.boolean = 1;
+        break;
       }
-      *ptr_buffer = temp_buffer+1;
+      *ptr_buffer += 4; //length of "false"-1
+      new_value.boolean = 0;
       break;
     case JsonNull:
-      temp_buffer += strlen("null")-2;
-      *ptr_buffer = temp_buffer+1;
+      *ptr_buffer += 3; //length of "null"-1
       break;
     default:
-      fprintf(stderr,"ERROR: invalid datatype %ld\n", datatype);
-      exit(1);
+      fprintf(stderr,"ERROR: invalid datatype %ld\n", new_dtype);
+      exit(EXIT_FAILURE);
       break;
   }
 
-  return value;
+  return new_value;
 }
 
 /* create property from appointed JSON datatype
     and return the item containing it */
 static CJSON_item_t*
-new_property(CJSON_item_t *item, CJSON_data *key, CJSON_types_t datatype, char **ptr_buffer)
+new_property(CJSON_item_t *item, CJSON_data *new_key, CJSON_types_t new_dtype, char **ptr_buffer)
 {
-  char *temp_buffer=*ptr_buffer;
-
   item = new_item(item);
-  item->key = key;
-  item->datatype = datatype;
-  item->value = datatype_token(datatype, &temp_buffer);
-  item = wrap_item(item, temp_buffer);
-
-  *ptr_buffer = temp_buffer; //save buffer changes
+  item->key = new_key;
+  item->dtype = new_dtype;
+  item->value = datatype_token(new_dtype, ptr_buffer);
+  item = wrap_item(item, *ptr_buffer);
 
   return item;
 }
 
 /* create nested object/array and return
-    the nested object/array address.
-
-   note that it only retrieves the value
-    start, but it doesn't know the value's
-    length until wrap_item() function has 
-    been called.
-  nested objects/array move
-    through json argument much like a binary tree */
+    the nested object/array address. */
 static CJSON_item_t*
-new_nested_object(CJSON_item_t *item, CJSON_data *key, CJSON_types_t datatype, char **ptr_buffer)
+new_nested_object(CJSON_item_t *item, CJSON_data *new_key, CJSON_types_t new_dtype, char **ptr_buffer)
 {
   item = new_item(item);
-  item->key = key;
-  item->datatype = datatype;
+  item->key = new_key;
+  item->dtype = new_dtype;
 
   return item;
 }
@@ -258,26 +244,26 @@ new_nested_object(CJSON_item_t *item, CJSON_data *key, CJSON_types_t datatype, c
 /* get bitmask bits and json datatype by
     evaluating buffer's current position */
 static void
-eval_json_token(CJSON_types_t *datatype, bitmask_t *mask, char *buffer)
+eval_json_token(CJSON_types_t *new_dtype, bitmask_t *mask, char *buffer)
 {
   switch (*buffer){
-    case COMMA:/*NEW PROPERTY DETECTED*/
+    case COMMA:/*KEY DETECTED*/
       BITMASK_SET(*mask,FoundKey);
       break;
-    case COLON:/*KEY DETECTED*/
+    case COLON:/*KEY TO VALUE ASSIGNMENT DETECTED*/
       BITMASK_SET(*mask,FoundAssign);
       break;
     case DOUBLE_QUOTES:/*STRING DETECTED*/
       BITMASK_SET(*mask,FoundString);
-      *datatype = JsonString;
+      *new_dtype = JsonString;
       break;
     case OPEN_BRACKET:/*OBJECT DETECTED*/
       BITMASK_SET(*mask,FoundObject|FoundKey);
-      *datatype = JsonObject;
+      *new_dtype = JsonObject;
       break;
     case OPEN_SQUARE_BRACKET:/*ARRAY DETECTED*/
       BITMASK_SET(*mask,FoundArray);
-      *datatype = JsonArray;
+      *new_dtype = JsonArray;
       break;
     case CLOSE_BRACKET:       /*WRAPPER*/
     case CLOSE_SQUARE_BRACKET:/*DETECTED*/
@@ -289,19 +275,19 @@ eval_json_token(CJSON_types_t *datatype, bitmask_t *mask, char *buffer)
           && strncmp(buffer,"false",strlen("false")))
         break; //break if not true or false
       BITMASK_SET(*mask, FoundProperty);
-      *datatype = JsonBoolean;
+      *new_dtype = JsonBoolean;
       break;
     case 'n':/*CHECK FOR NULL*/
       if (strncmp(buffer,"null",strlen("null")))
         break; //break if not null
       BITMASK_SET(*mask, FoundProperty);
-      *datatype = JsonNull;
+      *new_dtype = JsonNull;
       break;
     default:/*CHECK FOR NUMBER*/
       if ((!isdigit(*buffer)) && (*buffer != '-'))
         break; //break if first char is not digit or minus sign
       BITMASK_SET(*mask, FoundProperty);
-      *datatype = JsonNumber;
+      *new_dtype = JsonNumber;
       break;
   }
 }
@@ -309,35 +295,31 @@ eval_json_token(CJSON_types_t *datatype, bitmask_t *mask, char *buffer)
 /* perform actions appointed by bitmask and
     return newly updated or retrieved item */
 static CJSON_item_t*
-apply_json_token(CJSON_item_t *item, CJSON_data *key, CJSON_types_t datatype, bitmask_t *mask, char **ptr_buffer)
+apply_json_token(CJSON_item_t *item, CJSON_data *key, CJSON_types_t dtype, bitmask_t *mask, char **ptr_buffer)
 {
   if (BITMASK_EQUALITY(*mask,FoundKey) || BITMASK_EQUALITY(*mask,FoundAssign)
       || BITMASK_EQUALITY(*mask,0))
     return item; //early exit if mask is 0 or set with only FoundKey or FoundAssign
 
-  char *temp_buffer=*ptr_buffer;
-
   if (*mask & FoundProperty){
     //similar to updating current's node attributes in a binary tree
-    item = new_property(item, key, datatype, &temp_buffer);
+    item = new_property(item, key, dtype, ptr_buffer);
     BITMASK_CLEAR(*mask,FoundProperty);
   }
   else if (*mask & (FoundObject|FoundArray)){
     //similar to creating a new node in a binary tree
     // and then returning its address
-    item = new_nested_object(item, key, datatype, &temp_buffer);
+    item = new_nested_object(item, key, dtype, ptr_buffer);
     BITMASK_CLEAR(*mask,(FoundObject|FoundArray));
   }
   else if (*mask & FoundWrapper){
     //similar to retrieving the node's parent in a binary tree
-    item = wrap_item(item, temp_buffer);
+    item = wrap_item(item, *ptr_buffer);
     BITMASK_CLEAR(*mask,FoundWrapper);
   }
 
   if (*mask & FoundAssign)
     BITMASK_CLEAR(*mask,FoundAssign);
-
-  *ptr_buffer = temp_buffer;
 
   return item;
 }
@@ -355,25 +337,25 @@ parse_json(char *buffer)
   cjson->memsize = strlen(buffer);
 
   bitmask_t mask=0;
-  CJSON_data *key=NULL;
-  CJSON_types_t datatype=0;
+  CJSON_data *new_key=NULL;
+  CJSON_types_t new_dtype=0;
   while (*buffer){ //while not null terminator char
     //get tokens(datatype, mask) with current buffer's position evaluation 
-    eval_json_token(&datatype, &mask, buffer);
+    eval_json_token(&new_dtype, &mask, buffer);
     ++buffer;
     //deal if special key fetching case for when item is an array
-    if (item->datatype == JsonArray)
-      key = get_array_key(cjson,item);
+    if (item->dtype == JsonArray)
+      new_key = get_array_key(cjson,item);
     //else check if bitmask demands a key's string to be fetched
     else if (BITMASK_EQUALITY(mask,FoundString|FoundKey)){
       CJSON_data *keyname=NULL;
       keyname = get_json_string(&buffer);
-      key = search_keyname(cjson,keyname);
+      new_key = search_keyname(cjson,keyname);
       BITMASK_CLEAR(mask,mask);
       continue;
     }
     //perform actions indicated by bitmask, applying fetched tokens
-    item = apply_json_token(item, key, datatype, &mask, &buffer);
+    item = apply_json_token(item, new_key, new_dtype, &mask, &buffer);
   }
 
   return cjson;
@@ -383,18 +365,16 @@ static void
 apply_reviver(CJSON_item_t *item, void (*reviver)(CJSON_item_t*))
 {
   (*reviver)(item);
-  for (size_t i=0 ; i < item->n ; ++i){
+  for (size_t i=0 ; i < item->n ; ++i)
     apply_reviver(item->properties[i], reviver);
-  }
 }
 
 CJSON_t*
 parse_json_reviver(char *buffer, void (*reviver)(CJSON_item_t*))
 {
   CJSON_t *cjson = parse_json(buffer);
-  if (reviver != NULL){
+  if (reviver)
     apply_reviver(cjson->item, reviver);
-  }
 
   return cjson;
 }
@@ -403,11 +383,11 @@ parse_json_reviver(char *buffer, void (*reviver)(CJSON_item_t*))
 static void
 destroy_json_item(CJSON_item_t *item)
 {
-  for (size_t i=0 ; i < item->n ; ++i){
+  for (size_t i=0 ; i < item->n ; ++i)
     destroy_json_item(item->properties[i]);
-  } free(item->properties);
+  free(item->properties);
 
-  if (item->datatype == JsonString)
+  if (item->dtype == JsonString)
     free(item->value.string);
   free(item);
 }
@@ -418,9 +398,10 @@ destroy_json(CJSON_t *cjson)
 {
   destroy_json_item(cjson->item);
   
-  if (cjson->keylist.n){
-    while (--cjson->keylist.n >= 0){
-      free(cjson->keylist.list[cjson->keylist.n]);
-    } free(cjson->keylist.list);
+  if (cjson->n){
+    do {
+      free(cjson->keylist[--cjson->n]);
+    } while (cjson->n);
+    free(cjson->keylist);
   } free(cjson);
 }

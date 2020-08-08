@@ -6,84 +6,89 @@
 #include <assert.h>
 
 static void
-cat_update(char *dest, char *src, int *i)
-{
-  while (*src){
+cat_update(char *dest, char *src, int *i){
+  while (*src)
     dest[(*i)++] = *src++;
-  }
 }
 
 static void
-recursive_print(CJSON_item_t *item, CJSON_types_t datatype, char *buffer)
+stringify_key(char *buffer, char *key, int *i)
 {
-  static int i=0;
+  if(!key)
 
-  if (item->datatype & datatype){
-    if (item->key){
-      buffer[i++] = '\"';
-      cat_update(buffer,item->key,&i);
-      buffer[i++] = '\"';
-      buffer[i++] = ':';
-    }
-    switch (item->datatype){
+    return; //return if no key found or is array key
+  buffer[(*i)++] = '\"';
+  cat_update(buffer,key,i);
+  buffer[(*i)++] = '\"';
+  buffer[(*i)++] = ':';
+}
+
+static void
+recursive_print(CJSON_item_t *item, CJSON_types_t dtype, char *buffer, int *i)
+{
+  if (item->dtype & dtype){
+    if (!(item->parent->dtype & JsonArray))
+      stringify_key(buffer,item->key,i);
+
+    switch (item->dtype){
       case JsonNull:
-        cat_update(buffer,"null",&i);
+        cat_update(buffer,"null",i);
         break;
       case JsonBoolean:
-        if (item->value.boolean)
-          cat_update(buffer,"true",&i);
-        else
-          cat_update(buffer,"false",&i);
+        if (item->value.boolean){
+          cat_update(buffer,"true",i);
+          break;
+        }
+        cat_update(buffer,"false",i);
         break;
       case JsonNumber:
-        buffer[i++] = '0';
+        buffer[(*i)++] = '0';
         break;
       case JsonString:
-        buffer[i++] = '\"';
-        cat_update(buffer,item->value.string,&i);
-        buffer[i++] = '\"';
+        buffer[(*i)++] = '\"';
+        cat_update(buffer,item->value.string,i);
+        buffer[(*i)++] = '\"';
         break;
       case JsonObject:
-        buffer[i++] = '{';
+        buffer[(*i)++] = '{';
         break;
       case JsonArray:
-        buffer[i++] = '[';
+        buffer[(*i)++] = '[';
         break;
       default:
         fprintf(stderr,"ERROR: undefined datatype\n");
-        exit(1);
+        exit(EXIT_FAILURE);
         break;
     }
   }
 
   for (size_t j=0 ; j < item->n ; ++j){
-    recursive_print(item->properties[j], datatype, buffer);
-    buffer[i++] = ',';
+    recursive_print(item->properties[j], dtype, buffer,i);
+    buffer[(*i)++] = ',';
   } 
    
-  if (datatype & (JsonObject|JsonArray)){
-    if (item->datatype == JsonObject){
-      if (buffer[i-1] == ',')
-        --i;
-      buffer[i++] = '}';
-    } else if (item->datatype == JsonArray){
-      if (buffer[i-1] == ',')
-        --i;
-      buffer[i++] = ']';
-    }
+  if ((item->dtype & dtype) & (JsonObject|JsonArray)){
+    if (buffer[(*i)-1] == ',')
+      --*i;
+
+    if (item->dtype == JsonObject)
+      buffer[(*i)++] = '}';
+    else //is array 
+      buffer[(*i)++] = ']';
   }
 }
 
 char*
-stringify_json(CJSON_t *cjson, CJSON_types_t datatype)
+stringify_json(CJSON_t *cjson, CJSON_types_t dtype)
 {
   assert(cjson);
   assert(cjson->item->n);
 
-  char *buffer=calloc(1,cjson->memsize+50);
-  recursive_print(cjson->item, datatype, buffer);
-  if(buffer[strlen(buffer)-1] == ',')
-    buffer[strlen(buffer)-1] = '\0';
+  char *buffer=calloc(1,cjson->memsize);
+
+  int i=0;
+  recursive_print(cjson->item, dtype, buffer, &i);
+  buffer[i-1] = '\0';
    
   return buffer;
 }
