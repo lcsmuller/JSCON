@@ -70,6 +70,9 @@ count_decimals(CJSON_data *temp_data, int *lcount, int *rcount)
     --rdecimals;
   }
 
+  if (temp_data[strlen(temp_data)-1] == '.')
+    temp_data[i] = '\0'; //fix: add this somewhere else
+
   i=0;
   int ldecimals=0; //positive decimals
   while (temp_data[i]){
@@ -112,10 +115,14 @@ eval_numdata(CJSON_data *eval_data)
   count_decimals(eval_data, &ldecimals, &rdecimals);
 
   /* CONVERT TO SCIENTIFIC NOTATION*/
-  if (ldecimals >= 18)
+  if (ldecimals >= 18){
     atoexp(eval_data,ldecimals);
-  if ((rdecimals+ldecimals) < 0)
+    return;
+  }
+  if ((rdecimals+ldecimals) < 0){
     atoexp(eval_data,rdecimals-ldecimals);
+    return; 
+  }
 }
 
 static void
