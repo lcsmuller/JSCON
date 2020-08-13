@@ -4,21 +4,22 @@ CC = gcc
 
 SRCDIR = src
 OBJDIR = obj
+EXEC = CJSON
 
 OBJS = $(OBJDIR)/test.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/stringify.o
 
-HEADER = json_parser.h
+HEADER = CJSON.h
 
 MAIN = test.c
 MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug
 
-all: json_parser
+all: $(EXEC)
 
-json_parser: build
+$(EXEC): build
 	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
 build: mkdir $(MAIN_O) $(OBJS)
@@ -36,4 +37,4 @@ debug : $(MAIN) $(SRCDIR)/*.c
 	$(CC) -g $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)
 
 clean :
-	-rm -rf json_parser data.txt $(OBJDIR) debug.out
+	-rm -rf $(EXEC) data.txt $(OBJDIR) debug.out
