@@ -13,17 +13,17 @@ void reviver_test(CjsonItem *item);
 int main(int argc, char *argv[])
 {
   FILE *f_out = select_output(argc, argv);
-  char *json_text = get_json_text(argv[1]);
+  char *buffer = get_buffer(argv[1]);
 
-  Cjson *cjson = Cjson_parse_reviver(json_text, NULL);
+  Cjson *cjson = Cjson_parse_reviver(buffer, NULL);
 
-  char *new_json_text=Cjson_stringify(cjson, All);
-  fwrite(new_json_text,1,strlen(new_json_text),f_out);
-  free(new_json_text);
+  char *new_buffer=Cjson_stringify(cjson, All);
+  fwrite(new_buffer,1,strlen(new_buffer),f_out);
+  free(new_buffer);
 
   Cjson_destroy(cjson);
 
-  free(json_text);
+  free(buffer);
   fclose(f_out);
 
   return EXIT_SUCCESS;

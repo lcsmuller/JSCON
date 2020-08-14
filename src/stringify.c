@@ -9,17 +9,17 @@
 #define DOUBLE_LEN 24
 
 static void
-cat_update(CjsonString *data, char *json_text, int *i) {
+cat_update(CjsonString *data, char *buffer, int *i) {
   while (*data)
-    json_text[(*i)++] = *data++;
+    buffer[(*i)++] = *data++;
 }
 
 static void
-stringify_data(CjsonString *data, char *json_text, int *i)
+stringify_data(CjsonString *data, char *buffer, int *i)
 {
-  json_text[(*i)++] = '\"';
-  cat_update(data,json_text,i);
-  json_text[(*i)++] = '\"';
+  buffer[(*i)++] = '\"';
+  cat_update(data,buffer,i);
+  buffer[(*i)++] = '\"';
 }
 
 static void 
@@ -61,46 +61,46 @@ format_number(CjsonString new_data[], CjsonNumber number)
 }
 
 static void
-stringify_number(CjsonNumber number, char *json_text, int *i)
+stringify_number(CjsonNumber number, char *buffer, int *i)
 {
   CjsonString new_data[DOUBLE_LEN]={'\0'};
   format_number(new_data, number);
 
-  cat_update(new_data,json_text,i); //store value in json_text
+  cat_update(new_data,buffer,i); //store value in buffer
 }
 
 static void
-CjsonItem_recprint(CjsonItem *item, CjsonDType dtype, char *json_text, int *i)
+CjsonItem_recprint(CjsonItem *item, CjsonDType dtype, char *buffer, int *i)
 {
   if (item->dtype & dtype){
     if ((item->key) && !(item->parent->dtype & Array)){
-      stringify_data(item->key,json_text,i);
-      json_text[(*i)++] = ':';
+      stringify_data(item->key,buffer,i);
+      buffer[(*i)++] = ':';
     }
 
     switch (item->dtype){
       case Null:
-        cat_update("null",json_text,i);
+        cat_update("null",buffer,i);
         break;
       case Boolean:
         if (item->value.boolean){
-          cat_update("true",json_text,i);
+          cat_update("true",buffer,i);
           break;
         }
-        cat_update("false",json_text,i);
+        cat_update("false",buffer,i);
         break;
       case Number:
-        stringify_number(item->value.number,json_text,i);
+        stringify_number(item->value.number,buffer,i);
         break;
       case String:
-        stringify_data(item->value.string,json_text,i);
+        stringify_data(item->value.string,buffer,i);
         break;
       case Object:
-        json_text[*i] = '{';
+        buffer[*i] = '{';
         ++*i;
         break;
       case Array:
-        json_text[*i] = '[';
+        buffer[*i] = '[';
         ++*i;
         break;
       default:
@@ -111,19 +111,19 @@ CjsonItem_recprint(CjsonItem *item, CjsonDType dtype, char *json_text, int *i)
   }
 
   for (size_t j=0 ; j < item->n ; ++j){
-    CjsonItem_recprint(item->property[j], dtype, json_text,i);
-    json_text[*i] = ',';
+    CjsonItem_recprint(item->property[j], dtype, buffer,i);
+    buffer[*i] = ',';
     ++*i;
   } 
    
   if ((item->dtype & dtype) & (Object|Array)){
-    if (json_text[(*i)-1] == ',')
+    if (buffer[(*i)-1] == ',')
       --*i;
 
     if (item->dtype == Object)
-      json_text[*i] = '}';
+      buffer[*i] = '}';
     else //is array 
-      json_text[*i] = ']';
+      buffer[*i] = ']';
     ++*i;
   }
 }
@@ -134,11 +134,11 @@ Cjson_stringify(Cjson *cjson, CjsonDType dtype)
   assert(cjson);
   assert(cjson->item->n);
 
-  char *json_text=calloc(1,611097);
+  char *buffer=calloc(1,611097);
 
   int i=0;
-  CjsonItem_recprint(cjson->item, dtype, json_text, &i);
-  json_text[i-1] = '\0';
+  CjsonItem_recprint(cjson->item, dtype, buffer, &i);
+  buffer[i-1] = '\0';
    
-  return json_text;
+  return buffer;
 }

@@ -61,28 +61,28 @@ fetch_filesize(FILE *ptr_file)
 static char*
 read_file(FILE* ptr_file, long filesize)
 {
-  char *json_text=malloc(filesize+1);
-  assert(json_text);
-  //read file into json_text
-  fread(json_text,sizeof(char),filesize,ptr_file);
-  json_text[filesize] = '\0';
+  char *buffer=malloc(filesize+1);
+  assert(buffer);
+  //read file into buffer
+  fread(buffer,sizeof(char),filesize,ptr_file);
+  buffer[filesize] = '\0';
 
-  return json_text;
+  return buffer;
 }
 
-/* returns json_text containing file content */
+/* returns buffer containing file content */
 char*
-get_json_text(char filename[])
+get_buffer(char filename[])
 {
   FILE *file=fopen(filename, "rb");
   assert(file);
 
   long filesize=fetch_filesize(file);
-  char *json_text=read_file(file, filesize);
+  char *buffer=read_file(file, filesize);
 
   fclose(file);
 
-  return json_text;
+  return buffer;
 }
 
 /* create new json item and return it's address */
@@ -158,9 +158,9 @@ CjsonString_set_array_key(Cjson *cjson, CjsonItem *item)
 }
 
 static CjsonString*
-CjsonString_set(char **ptr_json_text)
+CjsonString_set(char **ptr_buffer)
 {
-  char *start=*ptr_json_text;
+  char *start=*ptr_buffer;
   char *end=start;
 
   while (*end != '\"'){
@@ -171,15 +171,15 @@ CjsonString_set(char **ptr_json_text)
 
   CjsonString *data=strndup(start, end-start);
 
-  *ptr_json_text = end+1;
+  *ptr_buffer = end+1;
 
   return data;
 }
 
 static CjsonNumber
-CjsonNumber_set(char **ptr_json_text)
+CjsonNumber_set(char **ptr_buffer)
 {
-  char *start=*ptr_json_text-1;
+  char *start=*ptr_buffer-1;
   char *end=start;
 
   if (*end == '-')
@@ -209,55 +209,55 @@ CjsonNumber_set(char **ptr_json_text)
 
   free(data);
 
-  *ptr_json_text = end;
+  *ptr_buffer = end;
 
   return number;
 }
 
 /* get and return data from appointed datatype */
 static CjsonValue
-CjsonValue_set(CjsonDType new_dtype, char **ptr_json_text)
+CjsonValue_set(CjsonDType set_dtype, char **ptr_buffer)
 {
-  CjsonValue new_value={0};
-  switch (new_dtype){
+  CjsonValue set_value={0};
+  switch (set_dtype){
     case String:
-      new_value.string = CjsonString_set(ptr_json_text);
+      set_value.string = CjsonString_set(ptr_buffer);
       break;
     case Number:
-      new_value.number = CjsonNumber_set(ptr_json_text);
+      set_value.number = CjsonNumber_set(ptr_buffer);
       break;
     case Boolean:
-      if ((*ptr_json_text)[-1] == 't'){
-        *ptr_json_text += 3; //length of "true"-1
-        new_value.boolean = 1;
+      if ((*ptr_buffer)[-1] == 't'){
+        *ptr_buffer += 3; //length of "true"-1
+        set_value.boolean = 1;
         break;
       }
-      *ptr_json_text += 4; //length of "false"-1
-      new_value.boolean = 0;
+      *ptr_buffer += 4; //length of "false"-1
+      set_value.boolean = 0;
       break;
     case Null:
-      *ptr_json_text += 3; //length of "null"-1
+      *ptr_buffer += 3; //length of "null"-1
       break;
     default:
-      fprintf(stderr,"ERROR: invalid datatype %ld\n", new_dtype);
+      fprintf(stderr,"ERROR: invalid datatype %ld\n", set_dtype);
       exit(EXIT_FAILURE);
       break;
   }
 
-  return new_value;
+  return set_value;
 }
 
 /* create property from appointed JSON datatype
     and return the item containing it */
 static CjsonItem*
-CjsonItem_set_wrap(CjsonItem *item, CjsonString *new_key, CjsonDType new_dtype, char **ptr_json_text)
+CjsonItem_set_wrap(CjsonItem *item, CjsonString *get_key, CjsonDType get_dtype, char **ptr_buffer)
 {
   item = CjsonItem_create(item);
-  item->key = new_key;
-  item->dtype = new_dtype;
-  item->value = CjsonValue_set(new_dtype, ptr_json_text);
+  item->key = get_key;
+  item->dtype = get_dtype;
+  item->value = CjsonValue_set(item->dtype, ptr_buffer);
 
-  item = item->parent;
+  item = item->parent; //wraps item
 
   return item;
 }
@@ -265,122 +265,96 @@ CjsonItem_set_wrap(CjsonItem *item, CjsonString *new_key, CjsonDType new_dtype, 
 /* create nested object/array and return
     the nested object/array address. */
 static CjsonItem*
-CjsonItem_set(CjsonItem *item, CjsonString *new_key, CjsonDType new_dtype, char **ptr_json_text)
+CjsonItem_set(CjsonItem *item, CjsonString *get_key, CjsonDType get_dtype, char **ptr_buffer)
 {
   item = CjsonItem_create(item);
-  item->key = new_key;
-  item->dtype = new_dtype;
+  item->key = get_key;
+  item->dtype = get_dtype;
 
   return item;
 }
 
 /* get bitmask bits and json datatype by
-    evaluating json_text's current position */
-static void
-CjsonItem_eval(CjsonDType *new_dtype, CjsonDetectDType *bitmask, char *json_text)
+    evaluating buffer's current position */
+static CjsonItem*
+CjsonItem_build(Cjson *cjson, CjsonItem *item, short *bitmask, CjsonString **ptr_set_key, char **ptr_buffer)
 {
-  switch (*json_text){
+  CjsonItem* (*setter)(CjsonItem *item, CjsonString *set_key, CjsonDType set_dtype, char **ptr_buffer) = NULL;
+
+  CjsonDType set_dtype=0;
+
+  switch (*(*ptr_buffer)++){
     case ',':/*KEY DETECTED*/
-      BITMASK_SET(*bitmask,FoundKey);
-      break;
-    case ':':/*KEY TO VALUE ASSIGNMENT DETECTED*/
-      BITMASK_SET(*bitmask,FoundAssign);
-      break;
+      BITMASK_SET(*bitmask,FOUND_KEY);
+      return item;
     case '\"':/*STRING DETECTED*/
-      BITMASK_SET(*bitmask,FoundString);
-      *new_dtype = String;
+      if ((item->dtype != Array) && (*bitmask & FOUND_KEY)){
+        /* is a key string */
+        *ptr_set_key = CjsonString_get_key(cjson,CjsonString_set(ptr_buffer));
+        BITMASK_CLEAR(*bitmask,FOUND_KEY);
+        return item;
+      }
+      /* is normal string value */
+      setter = &CjsonItem_set_wrap;
+      set_dtype = String;
       break;
     case '{':/*OBJECT DETECTED*/
-      BITMASK_SET(*bitmask,FoundObject|FoundKey);
-      *new_dtype = Object;
+      setter = &CjsonItem_set;
+      set_dtype = Object;
+      BITMASK_SET(*bitmask,FOUND_KEY);
       break;
     case '[':/*ARRAY DETECTED*/
-      BITMASK_SET(*bitmask,FoundArray);
-      *new_dtype = Array;
+      setter = &CjsonItem_set;
+      set_dtype = Array;
       break;
     case '}': /*WRAPPER*/
     case ']':/*DETECTED*/
-      BITMASK_SET(*bitmask,FoundWrapper);
-      break;
+      //WRAPS OBJECT or ARRAY, ALL OF ITS MEMBERS HAVE BEEN FOUND
+      return item->parent;
     case 't': /* CHECK FOR */
     case 'f':/*TRUE or FALSE*/
-      if (strncmp(json_text,"true",strlen("true"))
-          && strncmp(json_text,"false",strlen("false")))
-        break; //break if not true or false
-      BITMASK_SET(*bitmask, FoundProperty);
-      *new_dtype = Boolean;
+      if (strncmp(*ptr_buffer-1,"true",4) && strncmp(*ptr_buffer-1,"false",5))
+        return item;
+      setter = &CjsonItem_set_wrap;
+      set_dtype = Boolean;
       break;
     case 'n':/*CHECK FOR NULL*/
-      if (strncmp(json_text,"null",strlen("null")))
-        break; //break if not null
-      BITMASK_SET(*bitmask, FoundProperty);
-      *new_dtype = Null;
+      if (strncmp(*ptr_buffer-1,"null",4))
+        return item;
+      setter = &CjsonItem_set_wrap;
+      set_dtype = Null;
       break;
     default:/*CHECK FOR NUMBER*/
-      if ((!isdigit(*json_text)) && (*json_text != '-'))
-        break; //break if first char is not digit or minus sign
-      BITMASK_SET(*bitmask, FoundProperty);
-      *new_dtype = Number;
+      if ((!isdigit((*ptr_buffer)[-1])) && ((*ptr_buffer)[-1] != '-'))
+        return item;
+      setter = &CjsonItem_set_wrap;
+      set_dtype = Number;
       break;
   }
-}
 
-/* perform actions appointed by bitmask and
-    return newly updated or retrieved item */
-static CjsonItem*
-CjsonItem_apply(CjsonItem *item, CjsonString *key, CjsonDType dtype, CjsonDetectDType *bitmask, char **ptr_json_text)
-{
-  if (BITMASK_EQUALITY(*bitmask,FoundKey) || BITMASK_EQUALITY(*bitmask,FoundAssign)
-      || BITMASK_EQUALITY(*bitmask,0))
-    return item; //early exit if bitmask is 0 or set with only FoundKey or FoundAssign
+  /* if hasn't reach a return thus far, it means the json item
+    is ready to be created (all of its composing information
+    have been found) */
 
-  if (*bitmask & FoundProperty){
-    //create and wrap item
-    item = CjsonItem_set_wrap(item, key, dtype, ptr_json_text);
-    BITMASK_CLEAR(*bitmask,FoundProperty);
-  }
-  else if (*bitmask & (FoundObject|FoundArray)){
-    //create and return new nested item address
-    item = CjsonItem_set(item, key, dtype, ptr_json_text);
-    BITMASK_CLEAR(*bitmask,(FoundObject|FoundArray));
-  }
-  else if (*bitmask & FoundWrapper){
-    item = item->parent; //wraps object/array
-    BITMASK_CLEAR(*bitmask,FoundWrapper);
-  }
+  if (item->dtype == Array) //creates key for array element
+    *ptr_set_key = CjsonString_set_array_key(cjson,item);
 
-  if (*bitmask & FoundAssign)
-    BITMASK_CLEAR(*bitmask,FoundAssign);
+  item = (*setter)(item, *ptr_set_key, set_dtype, ptr_buffer);
+  *ptr_set_key=NULL;
 
   return item;
 }
 
 Cjson*
-Cjson_parse(char *json_text)
+Cjson_parse(char *buffer)
 {
   Cjson *cjson=Cjson_create();
 
   CjsonItem *item=cjson->item;
-  CjsonDetectDType bitmask=0;
-  CjsonString *new_key=NULL;
-  CjsonDType new_dtype=0;
-
-  while (*json_text){ //while not null terminator char
-    //get tokens(datatype, bitmask) with current json_text's position evaluation 
-    CjsonItem_eval(&new_dtype, &bitmask, json_text);
-    ++json_text;
-    //deal if special key fetching case for when item is an array
-    if (item->dtype == Array)
-      new_key = CjsonString_set_array_key(cjson,item);
-    //else check if bitmask demands a key's string to be fetched
-    else if (BITMASK_EQUALITY(bitmask,FoundString|FoundKey)){
-      CjsonString *cache_entry=NULL;
-      cache_entry = CjsonString_set(&json_text);
-      new_key = CjsonString_get_key(cjson,cache_entry);
-      BITMASK_CLEAR(bitmask,bitmask);
-    }
-    //set item by performing actions indicated by bitmask
-    item = CjsonItem_apply(item, new_key, new_dtype, &bitmask, &json_text);
+  CjsonString *set_key=NULL;
+  short bitmask=0;
+  while (*buffer){ //while not null terminator char
+    item = CjsonItem_build(cjson, item, &bitmask, &set_key, &buffer);
   }
 
   return cjson;
@@ -395,9 +369,9 @@ apply_reviver(CjsonItem *item, void (*reviver)(CjsonItem*))
 }
 
 Cjson*
-Cjson_parse_reviver(char *json_text, void (*reviver)(CjsonItem*))
+Cjson_parse_reviver(char *buffer, void (*reviver)(CjsonItem*))
 {
-  Cjson *cjson = Cjson_parse(json_text);
+  Cjson *cjson = Cjson_parse(buffer);
 
   if (reviver)
     apply_reviver(cjson->item, reviver);

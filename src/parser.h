@@ -4,24 +4,12 @@
 #include <stdio.h>
 #include <limits.h>
 
-/* bits to be assigned to a mask so that an action
-    related to that bit can be performed */
-typedef enum {
-  FoundString   = 1 << 0, //will be checked for key or value
-  FoundObject   = 1 << 1,
-  FoundArray    = 1 << 2,
-  FoundProperty = 1 << 3 | FoundString, 
-  FoundKey      = 1 << 4,
-  FoundAssign   = 1 << 5,
-  FoundWrapper  = 1 << 6,
-} CjsonDetectDType;
+#define FOUND_KEY 1
 
 /* A for bitmask variable, B for bit to be performed action */
 #define BITMASK_SET(A,B) ((A) |= (B))
 #define BITMASK_CLEAR(A,B) ((A) &= ~(B))
 #define BITMASK_TOGGLE(A,B) ((A) ^= (B))
-#define BITMASK_EQUALITY(A,B) ((A) == (B))?(A):(0)
-
 
 /* All of the possible JSON datatypes */
 typedef enum {
@@ -68,13 +56,13 @@ typedef struct {
 
 /* read appointed file's filesize in long format,
     reads file contents up to filesize and returns
-    a json_text with the fetched content */
-char* get_json_text(char filename[]);
+    a buffer with the fetched content */
+char* get_buffer(char filename[]);
 
 /* parse json arguments and returns a CjsonItem
     variable with the extracted configurations */
-Cjson* Cjson_parse(char *json_text);
-Cjson* Cjson_parse_reviver(char *json_text, void (*fn)(CjsonItem*));
+Cjson* Cjson_parse(char *buffer);
+Cjson* Cjson_parse_reviver(char *buffer, void (*fn)(CjsonItem*));
 
 Cjson* Cjson_create();
 void Cjson_destroy(Cjson *cjson);
