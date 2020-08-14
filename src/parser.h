@@ -14,78 +14,67 @@ typedef enum {
   FoundKey      = 1 << 4,
   FoundAssign   = 1 << 5,
   FoundWrapper  = 1 << 6,
-} bitmask_t;
+} CjsonDetectDType;
 
 /* A for bitmask variable, B for bit to be performed action */
 #define BITMASK_SET(A,B) ((A) |= (B))
 #define BITMASK_CLEAR(A,B) ((A) &= ~(B))
 #define BITMASK_TOGGLE(A,B) ((A) ^= (B))
-#define BITMASK_EQUALITY(A,B) ((A) == (B)) ? (A) : (0)
+#define BITMASK_EQUALITY(A,B) ((A) == (B))?(A):(0)
 
 
 /* All of the possible JSON datatypes */
 typedef enum {
-  JsonNull      = 1 << 0,
-  JsonBoolean   = 1 << 1,
-  JsonNumber    = 1 << 2,
-  JsonString    = 1 << 3,
-  JsonObject    = 1 << 4,
-  JsonArray     = 1 << 5,
-  JsonAll       = ULONG_MAX,
-} CJSON_types_t;
+  Null      = 1 << 0,
+  Boolean   = 1 << 1,
+  Number    = 1 << 2,
+  String    = 1 << 3,
+  Object    = 1 << 4,
+  Array     = 1 << 5,
+  All       = ULONG_MAX,
+} CjsonDType;
 
+typedef char CjsonString;
+typedef double CjsonNumber;
+typedef short CjsonBool;
 
-#define OPEN_SQUARE_BRACKET '['
-#define CLOSE_SQUARE_BRACKET ']'
-#define OPEN_BRACKET '{'
-#define CLOSE_BRACKET '}'
-#define DOUBLE_QUOTES '\"'
-#define COLON ':'
-#define COMMA ','
-
-typedef char CJSON_data;
-
-typedef struct CJSON_value {
+typedef struct {
   union {
-    short boolean;
-    double number;
-    CJSON_data* string;
+    CjsonString* string;
+    CjsonNumber number;
+    CjsonBool boolean;
   };
-} CJSON_value_t;
+} CjsonValue;
 
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
-typedef struct CJSON_item {
-  CJSON_types_t dtype; //item's json datatype
+typedef struct CjsonItem {
+  CjsonDType dtype; //item's json datatype
 
-  struct CJSON_item *parent; //point to parent if exists
-  struct CJSON_item **properties; //and all of its properties
+  struct CjsonItem *parent; //point to parent if exists
+  struct CjsonItem **property; //and all of its properties
   size_t n; //amount of enumerable properties
 
-  CJSON_data *key; //key in string format
-  CJSON_value_t value; //literal value
-} CJSON_item_t;
+  CjsonString *key; //key in string format
+  CjsonValue value; //literal value
+} CjsonItem;
 
-typedef struct CJSON {
-  CJSON_item_t *item;
+typedef struct {
+  CjsonItem *item;
 
-  long memsize;
   char **keylist;
-  long n; //key amt
-} CJSON_t;
+  size_t list_size;
+} Cjson;
 
 /* read appointed file's filesize in long format,
     reads file contents up to filesize and returns
-    a buffer with the fetched content */
-char*
-read_json_file(char filename[]);
-/* parse json arguments and returns a CJSON_item_t
+    a json_text with the fetched content */
+char* get_json_text(char filename[]);
+
+/* parse json arguments and returns a CjsonItem
     variable with the extracted configurations */
-CJSON_t*
-parse_json(char *buffer);
-CJSON_t*
-parse_json_reviver(char *buffer, void (*fn)(CJSON_item_t*));
-/* destroy CJSON_item_t variable, and all of its
-    nested objects/arrays */
-void
-destroy_json(CJSON_t *cjson);
+Cjson* Cjson_parse(char *json_text);
+Cjson* Cjson_parse_reviver(char *json_text, void (*fn)(CjsonItem*));
+
+Cjson* Cjson_create();
+void Cjson_destroy(Cjson *cjson);

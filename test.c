@@ -8,21 +8,22 @@
 
 
 FILE *select_output(int argc, char *argv[]);
-void reviver_test(CJSON_item_t *item);
+void reviver_test(CjsonItem *item);
 
 int main(int argc, char *argv[])
 {
   FILE *f_out = select_output(argc, argv);
-  char *buffer = read_json_file(argv[1]);
+  char *json_text = get_json_text(argv[1]);
 
-  CJSON_t *cjson = parse_json_reviver(buffer, NULL);
+  Cjson *cjson = Cjson_parse_reviver(json_text, NULL);
 
-  char *json_str=stringify_json(cjson, JsonAll);
-  fwrite(json_str,1,strlen(json_str),f_out);
-  free(json_str);
-  destroy_json(cjson);
+  char *new_json_text=Cjson_stringify(cjson, All);
+  fwrite(new_json_text,1,strlen(new_json_text),f_out);
+  free(new_json_text);
 
-  free(buffer);
+  Cjson_destroy(cjson);
+
+  free(json_text);
   fclose(f_out);
 
   return EXIT_SUCCESS;
@@ -46,8 +47,8 @@ FILE *select_output(int argc, char *argv[])
   return fopen("data.txt", "w");
 }
 
-void reviver_test(CJSON_item_t *item){
-  if (item->dtype == JsonNumber){
+void reviver_test(CjsonItem *item){
+  if (item->dtype == Number){
         fprintf(stdout,"%s",item->key);
         fprintf(stdout,"%f",item->value.number);
         fputc('\n',stdout);
