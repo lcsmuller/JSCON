@@ -4,13 +4,13 @@ CC = gcc
 
 SRCDIR = src
 OBJDIR = obj
-EXEC = CJSON
+EXEC = JSON
 
 OBJS = $(OBJDIR)/test.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/stringify.o
 
-HEADER = CJSON.h
+HEADER = JSON.h
 
 MAIN = test.c
 MAIN_O = $(OBJDIR)/test.o

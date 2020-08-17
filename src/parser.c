@@ -1,4 +1,4 @@
-#include "../CJSON.h"
+#include "../JSON.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,132 +6,92 @@
 #include <ctype.h>
 #include <assert.h>
 
-Cjson*
-Cjson_create()
+Json*
+Json_create()
 {
-  Cjson *new_cjson=calloc(1,sizeof(Cjson));
-  assert(new_cjson);
+  Json *new_json=calloc(1,sizeof(Json));
+  assert(new_json);
 
-  new_cjson->item=calloc(1,sizeof(CjsonItem));
-  assert(new_cjson->item);
+  new_json->root=calloc(1,sizeof(JsonItem));
+  assert(new_json->root);
 
-  return new_cjson;
+  return new_json;
 }
 
 /* destroy current item and all of its nested object/arrays */
 static void
-CjsonItem_destroy(CjsonItem *item)
+JsonItem_destroy(JsonItem *item)
 {
-  for (size_t i=0 ; i < item->n ; ++i)
-    CjsonItem_destroy(item->property[i]);
+  for (size_t i=0; i < item->n_property; ++i)
+    JsonItem_destroy(item->property[i]);
   free(item->property);
 
   if (item->dtype == String)
-    free(item->value.string);
+    free(item->string);
   free(item);
 }
 
-/* destroy cjson struct */
+/* destroy json struct */
 void
-Cjson_destroy(Cjson *cjson)
+Json_destroy(Json *json)
 {
-  CjsonItem_destroy(cjson->item);
+  JsonItem_destroy(json->root);
   
-  if (cjson->list_size){
-    do {
-      free(cjson->keylist[--cjson->list_size]);
-    } while (cjson->list_size);
-    free(cjson->keylist);
-  } free(cjson);
-}
-
-/* returns file size in long format */
-static long
-fetch_filesize(FILE *ptr_file)
-{
-  fseek(ptr_file, 0, SEEK_END);
-  long filesize=ftell(ptr_file);
-  assert(filesize > 0);
-  fseek(ptr_file, 0, SEEK_SET);
-
-  return filesize;
-}
-
-/* returns file content */
-static char*
-read_file(FILE* ptr_file, long filesize)
-{
-  char *buffer=malloc(filesize+1);
-  assert(buffer);
-  //read file into buffer
-  fread(buffer,sizeof(char),filesize,ptr_file);
-  buffer[filesize] = '\0';
-
-  return buffer;
-}
-
-/* returns buffer containing file content */
-char*
-get_buffer(char filename[])
-{
-  FILE *file=fopen(filename, "rb");
-  assert(file);
-
-  long filesize=fetch_filesize(file);
-  char *buffer=read_file(file, filesize);
-
-  fclose(file);
-
-  return buffer;
+  while (json->n_keylist){
+    free(json->keylist[--json->n_keylist]);
+  }
+  free(json->keylist);
+  free(json);
 }
 
 /* create new json item and return it's address */
-static CjsonItem*
-CjsonItem_create(CjsonItem *item)
+static JsonItem*
+JsonItem_create(JsonItem *item)
 {
-  ++item->n; //update object's property count
+  ++item->n_property; //update object's property count
   //update memory space for property's list
-  item->property = realloc(item->property, item->n*sizeof(CjsonItem*));
+  item->property = realloc(item->property, item->n_property*sizeof(JsonItem*));
   assert(item->property);
   //allocate memory space for new property (which is a nested item)
-  item->property[item->n-1] = calloc(1,sizeof(CjsonItem));
-  assert(item->property[item->n-1]);
+  item->property[item->n_property-1] = calloc(1,sizeof(JsonItem));
+  assert(item->property[item->n_property-1]);
   //get parent address of the new property
-  item->property[item->n-1]->parent = item;
+  item->property[item->n_property-1]->parent = item;
   //return new property address
-  return item->property[item->n-1];
+  return item->property[item->n_property-1];
 }
 
-static CjsonString*
-CjsonString_cache_key(Cjson *cjson, CjsonString *cache_entry)
+static JsonString*
+JsonString_cache_key(Json *json, JsonString *cache_entry)
 {
-  ++cjson->list_size;
-  cjson->keylist = realloc(cjson->keylist,cjson->list_size*sizeof(char*));
-  assert(cjson->keylist);
+  ++json->n_keylist;
+  json->keylist = realloc(json->keylist,json->n_keylist*sizeof(char*));
+  assert(json->keylist);
 
-  int i=cjson->list_size-1;
-  while ((i > 0) && (strcmp(cache_entry, cjson->keylist[i-1]) < 0)){
-    cjson->keylist[i] = cjson->keylist[i-1];
+  int i=json->n_keylist-1;
+  while ((i > 0) && (strcmp(cache_entry, json->keylist[i-1]) < 0)){
+    json->keylist[i] = json->keylist[i-1];
     --i;
-  } cjson->keylist[i] = cache_entry;
+  }
+  json->keylist[i] = cache_entry;
 
-  return cjson->keylist[i];
+  return json->keylist[i];
 }
 
-static CjsonString*
-CjsonString_get_key(Cjson *cjson, char *cache_entry)
+static JsonString*
+JsonString_getkey(Json *json, char *cache_entry)
 {
-  int top=cjson->list_size-1;
+  int top=json->n_keylist-1;
   int low=0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp=strcmp(cache_entry, cjson->keylist[mid]);
+    cmp=strcmp(cache_entry, json->keylist[mid]);
     if (cmp == 0){
       free(cache_entry);
-      return cjson->keylist[mid];
+      return json->keylist[mid];
     }
     if (cmp < 0)
       top = mid-1;
@@ -139,26 +99,26 @@ CjsonString_get_key(Cjson *cjson, char *cache_entry)
       low = mid+1;
   }
 
-  return CjsonString_cache_key(cjson, cache_entry);
+  return JsonString_cache_key(json, cache_entry);
 }
 
 /* get numerical key for array type
     json data, in string format */
-static CjsonString*
-CjsonString_set_array_key(Cjson *cjson, CjsonItem *item)
+static JsonString*
+JsonString_setarray_key(Json *json, JsonItem *item)
 {
   const int len=25;
-  //will be free'd inside CjsonString_get_key if necessary
-  CjsonString *cache_entry=malloc(len);
+  //will be free'd inside jsonString_getkey if necessary
+  JsonString *cache_entry=malloc(len);
   assert(cache_entry);
 
-  snprintf(cache_entry,len,"%ld",item->n);
+  snprintf(cache_entry,len-1,"%ld",item->n_property);
 
-  return CjsonString_get_key(cjson, cache_entry);
+  return JsonString_getkey(json, cache_entry);
 }
 
-static CjsonString*
-CjsonString_set(char **ptr_buffer)
+static JsonString*
+JsonString_set(char **ptr_buffer)
 {
   char *start=*ptr_buffer;
   char *end=start;
@@ -169,15 +129,15 @@ CjsonString_set(char **ptr_buffer)
     }
   }
 
-  CjsonString *data=strndup(start, end-start);
+  JsonString *data=strndup(start, end-start);
 
   *ptr_buffer = end+1;
 
   return data;
 }
 
-static CjsonNumber
-CjsonNumber_set(char **ptr_buffer)
+static JsonNumber
+JsonNumber_set(char **ptr_buffer)
 {
   char *start=*ptr_buffer-1;
   char *end=start;
@@ -201,10 +161,10 @@ CjsonNumber_set(char **ptr_buffer)
       ++end;
   }
 
-  CjsonString *data=strndup(start, end-start);
+  JsonString *data=strndup(start, end-start);
   assert(data);
 
-  CjsonNumber number;
+  JsonNumber number;
   sscanf(data,"%lf",&number);
 
   free(data);
@@ -215,96 +175,88 @@ CjsonNumber_set(char **ptr_buffer)
 }
 
 /* get and return data from appointed datatype */
-static CjsonValue
-CjsonValue_set(CjsonDType set_dtype, char **ptr_buffer)
+static void
+JsonItem_setvalue(JsonItem *item, char **ptr_buffer)
 {
-  CjsonValue set_value={0};
-  switch (set_dtype){
+  switch (item->dtype){
     case String:
-      set_value.string = CjsonString_set(ptr_buffer);
+      item->string = JsonString_set(ptr_buffer);
       break;
     case Number:
-      set_value.number = CjsonNumber_set(ptr_buffer);
+      item->number = JsonNumber_set(ptr_buffer);
       break;
     case Boolean:
       if ((*ptr_buffer)[-1] == 't'){
         *ptr_buffer += 3; //length of "true"-1
-        set_value.boolean = 1;
+        item->boolean = 1;
         break;
       }
       *ptr_buffer += 4; //length of "false"-1
-      set_value.boolean = 0;
+      item->boolean = 0;
       break;
     case Null:
       *ptr_buffer += 3; //length of "null"-1
       break;
     default:
-      fprintf(stderr,"ERROR: invalid datatype %ld\n", set_dtype);
+      fprintf(stderr,"ERROR: invalid datatype %ld\n", item->dtype);
       exit(EXIT_FAILURE);
-      break;
   }
-
-  return set_value;
-}
-
-/* create property from appointed JSON datatype
-    and return the item containing it */
-static CjsonItem*
-CjsonItem_set_wrap(CjsonItem *item, CjsonString *get_key, CjsonDType get_dtype, char **ptr_buffer)
-{
-  item = CjsonItem_create(item);
-  item->key = get_key;
-  item->dtype = get_dtype;
-  item->value = CjsonValue_set(item->dtype, ptr_buffer);
-
-  item = item->parent; //wraps item
-
-  return item;
 }
 
 /* create nested object/array and return
     the nested object/array address. */
-static CjsonItem*
-CjsonItem_set(CjsonItem *item, CjsonString *get_key, CjsonDType get_dtype, char **ptr_buffer)
+static JsonItem*
+JsonItem_setobject(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  item = CjsonItem_create(item);
+  item = JsonItem_create(item);
   item->key = get_key;
   item->dtype = get_dtype;
 
   return item;
 }
 
-/* get bitmask bits and json datatype by
-    evaluating buffer's current position */
-static CjsonItem*
-CjsonItem_build(Cjson *cjson, CjsonItem *item, short *bitmask, CjsonString **ptr_set_key, char **ptr_buffer)
-{
-  CjsonItem* (*setter)(CjsonItem *item, CjsonString *set_key, CjsonDType set_dtype, char **ptr_buffer) = NULL;
 
-  CjsonDType set_dtype=0;
+/* create property from appointed JSON datatype
+    and return the item containing it */
+static JsonItem*
+JsonItem_setproperty(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+{
+  item = JsonItem_setobject(item, get_key, get_dtype, ptr_buffer);
+  JsonItem_setvalue(item, ptr_buffer);
+
+  return item->parent; //wraps item
+}
+
+/* get json  by evaluating buffer's current position */
+static JsonItem*
+JsonItem_build(Json *json, JsonItem *item, short *found_key, JsonString **ptr_set_key, char **ptr_buffer)
+{
+  JsonItem* (*setter)(JsonItem *item, JsonString *key, JsonDType dtype, char **ptr_buffer) = NULL;
+
+  JsonDType set_dtype=0;
 
   switch (*(*ptr_buffer)++){
     case ',':/*KEY DETECTED*/
-      BITMASK_SET(*bitmask,FOUND_KEY);
+      *found_key = 1;
       return item;
     case '\"':/*STRING DETECTED*/
-      if ((item->dtype != Array) && (*bitmask & FOUND_KEY)){
+      if ((item->dtype != Array) && (*found_key)){
         /* is a key string */
-        *ptr_set_key = CjsonString_get_key(cjson,CjsonString_set(ptr_buffer));
-        BITMASK_CLEAR(*bitmask,FOUND_KEY);
+        *ptr_set_key = JsonString_getkey(json,JsonString_set(ptr_buffer));
+        *found_key = 0;
         return item;
       }
-      /* is normal string value */
-      setter = &CjsonItem_set_wrap;
+      /* is normal string  */
+      setter = &JsonItem_setproperty;
       set_dtype = String;
       break;
     case '{':/*OBJECT DETECTED*/
-      setter = &CjsonItem_set;
+      setter = &JsonItem_setobject;
       set_dtype = Object;
-      BITMASK_SET(*bitmask,FOUND_KEY);
+      *found_key = 1;
       break;
     case '[':/*ARRAY DETECTED*/
-      setter = &CjsonItem_set;
+      setter = &JsonItem_setobject;
       set_dtype = Array;
       break;
     case '}': /*WRAPPER*/
@@ -315,19 +267,19 @@ CjsonItem_build(Cjson *cjson, CjsonItem *item, short *bitmask, CjsonString **ptr
     case 'f':/*TRUE or FALSE*/
       if (strncmp(*ptr_buffer-1,"true",4) && strncmp(*ptr_buffer-1,"false",5))
         return item;
-      setter = &CjsonItem_set_wrap;
+      setter = &JsonItem_setproperty;
       set_dtype = Boolean;
       break;
     case 'n':/*CHECK FOR NULL*/
       if (strncmp(*ptr_buffer-1,"null",4))
         return item;
-      setter = &CjsonItem_set_wrap;
+      setter = &JsonItem_setproperty;
       set_dtype = Null;
       break;
     default:/*CHECK FOR NUMBER*/
       if ((!isdigit((*ptr_buffer)[-1])) && ((*ptr_buffer)[-1] != '-'))
         return item;
-      setter = &CjsonItem_set_wrap;
+      setter = &JsonItem_setproperty;
       set_dtype = Number;
       break;
   }
@@ -337,45 +289,45 @@ CjsonItem_build(Cjson *cjson, CjsonItem *item, short *bitmask, CjsonString **ptr
     have been found) */
 
   if (item->dtype == Array) //creates key for array element
-    *ptr_set_key = CjsonString_set_array_key(cjson,item);
+    *ptr_set_key = JsonString_setarray_key(json,item);
 
   item = (*setter)(item, *ptr_set_key, set_dtype, ptr_buffer);
-  *ptr_set_key=NULL;
+  *ptr_set_key = NULL;
 
   return item;
 }
 
-Cjson*
-Cjson_parse(char *buffer)
+Json*
+Json_parse(char *buffer)
 {
-  Cjson *cjson=Cjson_create();
+  Json *json=Json_create();
 
-  CjsonItem *item=cjson->item;
-  CjsonString *set_key=NULL;
-  short bitmask=0;
+  JsonItem *item=json->root;
+  JsonString *set_key=NULL;
+  short found_key=0;
   while (*buffer){ //while not null terminator char
-    item = CjsonItem_build(cjson, item, &bitmask, &set_key, &buffer);
+    item = JsonItem_build(json, item, &found_key, &set_key, &buffer);
   }
 
-  return cjson;
+  return json;
 }
 
 static void
-apply_reviver(CjsonItem *item, void (*reviver)(CjsonItem*))
+apply_reviver(JsonItem *item, void (*reviver)(JsonItem*))
 {
   (*reviver)(item);
-  for (size_t i=0 ; i < item->n ; ++i)
+  for (size_t i=0; i < item->n_property; ++i)
     apply_reviver(item->property[i], reviver);
 }
 
-Cjson*
-Cjson_parse_reviver(char *buffer, void (*reviver)(CjsonItem*))
+Json*
+Json_parse_reviver(char *buffer, void (*reviver)(JsonItem*))
 {
-  Cjson *cjson = Cjson_parse(buffer);
+  Json *json=Json_parse(buffer);
 
   if (reviver)
-    apply_reviver(cjson->item, reviver);
+    apply_reviver(json->root, reviver);
 
-  return cjson;
+  return json;
 }
 

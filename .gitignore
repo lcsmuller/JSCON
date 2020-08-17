@@ -2,7 +2,7 @@
 *
 # Except these files
 !.gitignore
-!CJSON.h
+!JSON.h
 !test.c
 !makefile
 !src

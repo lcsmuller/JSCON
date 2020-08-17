@@ -1,15 +1,8 @@
-#include "../CJSON.h"
+#include "../JSON.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
-
-#define FOUND_KEY 1
-
-/* A for bitmask variable, B for bit to be performed action */
-#define BITMASK_SET(A,B) ((A) |= (B))
-#define BITMASK_CLEAR(A,B) ((A) &= ~(B))
-#define BITMASK_TOGGLE(A,B) ((A) ^= (B))
 
 /* All of the possible JSON datatypes */
 typedef enum {
@@ -20,49 +13,41 @@ typedef enum {
   Object    = 1 << 4,
   Array     = 1 << 5,
   All       = ULONG_MAX,
-} CjsonDType;
+} JsonDType;
 
-typedef char CjsonString;
-typedef double CjsonNumber;
-typedef short CjsonBool;
-
-typedef struct {
-  union {
-    CjsonString* string;
-    CjsonNumber number;
-    CjsonBool boolean;
-  };
-} CjsonValue;
+typedef char JsonString;
+typedef double JsonNumber;
+typedef short JsonBool;
 
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
-typedef struct CjsonItem {
-  CjsonDType dtype; //item's json datatype
+typedef struct JsonItem {
+  JsonDType dtype; //item's json datatype
 
-  struct CjsonItem *parent; //point to parent if exists
-  struct CjsonItem **property; //and all of its properties
-  size_t n; //amount of enumerable properties
+  struct JsonItem *parent; //point to parent if exists
+  struct JsonItem **property; //and all of its properties
+  size_t n_property; //amount of enumerable properties
 
-  CjsonString *key; //key in string format
-  CjsonValue value; //literal value
-} CjsonItem;
+  JsonString *key; //key in string format
+
+  union { //literal value
+    JsonString* string;
+    JsonNumber number;
+    JsonBool boolean;
+  };
+} JsonItem;
 
 typedef struct {
-  CjsonItem *item;
+  JsonItem *root;
 
   char **keylist;
-  size_t list_size;
-} Cjson;
+  size_t n_keylist;
+} Json;
 
-/* read appointed file's filesize in long format,
-    reads file contents up to filesize and returns
-    a buffer with the fetched content */
-char* get_buffer(char filename[]);
-
-/* parse json arguments and returns a CjsonItem
+/* parse json arguments and returns a JsonItem
     variable with the extracted configurations */
-Cjson* Cjson_parse(char *buffer);
-Cjson* Cjson_parse_reviver(char *buffer, void (*fn)(CjsonItem*));
+Json* Json_parse(char *buffer);
+Json* Json_parse_reviver(char *buffer, void (*fn)(JsonItem*));
 
-Cjson* Cjson_create();
-void Cjson_destroy(Cjson *cjson);
+Json* Json_create();
+void Json_destroy(Json *json);
