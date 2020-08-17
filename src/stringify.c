@@ -132,14 +132,13 @@ char*
 Json_stringify(Json *cjson, JsonDType dtype)
 {
   assert(cjson);
-  assert(cjson->root->n_property);
 
-  char *buffer=calloc(1,611097);
+  char *buffer=calloc(1,611098);
   assert(buffer);
 
   int i=0;
   JsonItem_recprint(cjson->root, dtype, buffer, &i);
-  buffer[i-1] = '\0';
+  buffer[i] = '\0';
    
   return buffer;
 }

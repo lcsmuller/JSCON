@@ -7,7 +7,7 @@
 #include <assert.h>
 
 Json*
-Json_create()
+Json_Create()
 {
   Json *new_json=calloc(1,sizeof(Json));
   assert(new_json);
@@ -79,7 +79,7 @@ JsonString_cache_key(Json *json, JsonString *cache_entry)
 }
 
 static JsonString*
-JsonString_getkey(Json *json, char *cache_entry)
+JsonString_GetKey(Json *json, char *cache_entry)
 {
   int top=json->n_keylist-1;
   int low=0;
@@ -105,20 +105,20 @@ JsonString_getkey(Json *json, char *cache_entry)
 /* get numerical key for array type
     json data, in string format */
 static JsonString*
-JsonString_setarray_key(Json *json, JsonItem *item)
+JsonString_SetArrKey(Json *json, JsonItem *item)
 {
   const int len=25;
-  //will be free'd inside jsonString_getkey if necessary
+  //will be free'd inside jsonString_GetKey if necessary
   JsonString *cache_entry=malloc(len);
   assert(cache_entry);
 
   snprintf(cache_entry,len-1,"%ld",item->n_property);
 
-  return JsonString_getkey(json, cache_entry);
+  return JsonString_GetKey(json, cache_entry);
 }
 
 static JsonString*
-JsonString_set(char **ptr_buffer)
+JsonString_Set(char **ptr_buffer)
 {
   char *start=*ptr_buffer;
   char *end=start;
@@ -176,11 +176,11 @@ JsonNumber_set(char **ptr_buffer)
 
 /* get and return data from appointed datatype */
 static void
-JsonItem_setvalue(JsonItem *item, char **ptr_buffer)
+JsonItem_SetValue(JsonItem *item, char **ptr_buffer)
 {
   switch (item->dtype){
     case String:
-      item->string = JsonString_set(ptr_buffer);
+      item->string = JsonString_Set(ptr_buffer);
       break;
     case Number:
       item->number = JsonNumber_set(ptr_buffer);
@@ -203,110 +203,167 @@ JsonItem_setvalue(JsonItem *item, char **ptr_buffer)
   }
 }
 
-/* create nested object/array and return
-    the nested object/array address. */
+/* create nested object and return
+    the nested object address. */
 static JsonItem*
-JsonItem_setobject(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetIncomplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
   item = JsonItem_create(item);
   item->key = get_key;
   item->dtype = get_dtype;
 
+  get_key = NULL;
+
   return item;
 }
-
 
 /* create property from appointed JSON datatype
     and return the item containing it */
 static JsonItem*
-JsonItem_setproperty(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetComplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  item = JsonItem_setobject(item, get_key, get_dtype, ptr_buffer);
-  JsonItem_setvalue(item, ptr_buffer);
+  item = JsonItem_SetIncomplete(item, get_key, get_dtype, ptr_buffer);
+  JsonItem_SetValue(item, ptr_buffer);
 
-  return item->parent; //wraps item
+  return item->parent; //wraps property in item
 }
 
-/* get json  by evaluating buffer's current position */
 static JsonItem*
-JsonItem_build(Json *json, JsonItem *item, short *found_key, JsonString **ptr_set_key, char **ptr_buffer)
+JsonItem_BuildArray(Json *json, JsonItem *item, short *found_key, char **ptr_buffer)
 {
-  JsonItem* (*setter)(JsonItem *item, JsonString *key, JsonDType dtype, char **ptr_buffer) = NULL;
+    switch (*(*ptr_buffer)++){
+      case ']':/*ARRAY WRAPPER DETECTED*/
+        return item->parent;
+      case '\"':/*STRING DETECTED*/
+        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),String,ptr_buffer);
+      case '{':/*OBJECT DETECTED*/
+        *found_key = 1;
+        return JsonItem_SetIncomplete(item,JsonString_SetArrKey(json,item),Object,ptr_buffer);
+      case '[':/*ARRAY DETECTED*/
+        return JsonItem_SetIncomplete(item,JsonString_SetArrKey(json,item),Array,ptr_buffer);
+      case 't':/*CHECK FOR*/
+      case 'f':/* BOOLEAN */
+        if (strncmp(*ptr_buffer-1,"true",4) 
+            && strncmp(*ptr_buffer-1,"false",5))
+          return item;
+        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Boolean,ptr_buffer);
+      case 'n':/*CHECK FOR NULL*/
+        if (strncmp(*ptr_buffer-1,"null",4))
+          return item;
+        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Null,ptr_buffer);
+      default:/*CHECK FOR NUMBER*/
+        if (!isdigit((*ptr_buffer)[-1])
+            && ((*ptr_buffer)[-1] != '-'))
+          return item;
+        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Number,ptr_buffer);
+    }
+}
 
-  JsonDType set_dtype=0;
-
+static JsonItem*
+JsonItem_BuildObject(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+{
   switch (*(*ptr_buffer)++){
+    case '}':/*OBJECT WRAPPER DETECTED*/
+      return item->parent;
     case ',':/*KEY DETECTED*/
       *found_key = 1;
       return item;
     case '\"':/*STRING DETECTED*/
-      if ((item->dtype != Array) && (*found_key)){
-        /* is a key string */
-        *ptr_set_key = JsonString_getkey(json,JsonString_set(ptr_buffer));
+      if (*found_key){
+        /*key string is set*/
+        *ptr_key = JsonString_GetKey(json,JsonString_Set(ptr_buffer));
         *found_key = 0;
         return item;
       }
-      /* is normal string  */
-      setter = &JsonItem_setproperty;
-      set_dtype = String;
-      break;
+      /*value string is set*/
+      return JsonItem_SetComplete(item,*ptr_key,String,ptr_buffer);
     case '{':/*OBJECT DETECTED*/
-      setter = &JsonItem_setobject;
-      set_dtype = Object;
       *found_key = 1;
-      break;
+      return JsonItem_SetIncomplete(item,*ptr_key,Object,ptr_buffer);
     case '[':/*ARRAY DETECTED*/
-      setter = &JsonItem_setobject;
-      set_dtype = Array;
-      break;
-    case '}': /*WRAPPER*/
-    case ']':/*DETECTED*/
-      //WRAPS OBJECT or ARRAY, ALL OF ITS MEMBERS HAVE BEEN FOUND
-      return item->parent;
-    case 't': /* CHECK FOR */
-    case 'f':/*TRUE or FALSE*/
-      if (strncmp(*ptr_buffer-1,"true",4) && strncmp(*ptr_buffer-1,"false",5))
+      return JsonItem_SetIncomplete(item,*ptr_key,Array,ptr_buffer);
+    case 't':/*CHECK FOR*/
+    case 'f':/* BOOLEAN */
+      if (strncmp(*ptr_buffer-1,"true",4) 
+          && strncmp(*ptr_buffer-1,"false",5))
         return item;
-      setter = &JsonItem_setproperty;
-      set_dtype = Boolean;
+      return JsonItem_SetComplete(item,*ptr_key,Boolean,ptr_buffer);
+    case 'n':/*CHECK FOR NULL*/
+      if (strncmp(*ptr_buffer-1,"null",4))
+        return item;
+      return JsonItem_SetComplete(item,*ptr_key,Null,ptr_buffer);
+    default:/*CHECK FOR NUMBER*/
+      if (!isdigit((*ptr_buffer)[-1])
+          && ((*ptr_buffer)[-1] != '-'))
+        return item;
+      return JsonItem_SetComplete(item,*ptr_key,Number,ptr_buffer);
+  }
+}
+
+static JsonItem*
+JsonItem_BuildEntity(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+{
+  switch (*(*ptr_buffer)++){
+    case '{':/*OBJECT DETECTED*/
+      *found_key = 1;
+      return JsonItem_SetIncomplete(item,*ptr_key,Object,ptr_buffer);
+    case '[':/*ARRAY DETECTED*/
+      return JsonItem_SetIncomplete(item,*ptr_key,Array,ptr_buffer);
+    case '\"':/*STRING DETECTED*/
+      item->dtype = String;
+      break;
+    case 't':/*CHECK FOR*/
+    case 'f':/* BOOLEAN */
+      if (strncmp(*ptr_buffer-1,"true",4) 
+          && strncmp(*ptr_buffer-1,"false",5))
+        return item;
+      item->dtype = Boolean;
       break;
     case 'n':/*CHECK FOR NULL*/
       if (strncmp(*ptr_buffer-1,"null",4))
         return item;
-      setter = &JsonItem_setproperty;
-      set_dtype = Null;
+      item->dtype = Null;
       break;
     default:/*CHECK FOR NUMBER*/
-      if ((!isdigit((*ptr_buffer)[-1])) && ((*ptr_buffer)[-1] != '-'))
+      if (!isdigit((*ptr_buffer)[-1])
+          && ((*ptr_buffer)[-1] != '-'))
         return item;
-      setter = &JsonItem_setproperty;
-      set_dtype = Number;
+      item->dtype = Number;
       break;
   }
 
-  /* if hasn't reach a return thus far, it means the json item
-    is ready to be created (all of its composing information
-    have been found) */
-
-  if (item->dtype == Array) //creates key for array element
-    *ptr_set_key = JsonString_setarray_key(json,item);
-
-  item = (*setter)(item, *ptr_set_key, set_dtype, ptr_buffer);
-  *ptr_set_key = NULL;
-
+  JsonItem_SetValue(item, ptr_buffer);
   return item;
+}
+
+/* get json  by evaluating buffer's current position */
+static JsonItem*
+JstonItem_Build(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+{
+  switch(item->dtype){
+    case Array:
+      return JsonItem_BuildArray(json,item,found_key,ptr_buffer);
+    case Object:
+      return JsonItem_BuildObject(json,item,found_key,ptr_key,ptr_buffer);
+    case Undefined:
+      return JsonItem_BuildEntity(json,item,found_key,ptr_key,ptr_buffer);
+    default: //nothing else to do
+      ++*ptr_buffer;
+      return item;
+  }
 }
 
 Json*
 Json_parse(char *buffer)
 {
-  Json *json=Json_create();
+  Json *json=Json_Create();
 
   JsonItem *item=json->root;
   JsonString *set_key=NULL;
   short found_key=0;
+
   while (*buffer){ //while not null terminator char
-    item = JsonItem_build(json, item, &found_key, &set_key, &buffer);
+    item = JstonItem_Build(json,item,&found_key,&set_key,&buffer);
   }
 
   return json;
@@ -316,8 +373,9 @@ static void
 apply_reviver(JsonItem *item, void (*reviver)(JsonItem*))
 {
   (*reviver)(item);
-  for (size_t i=0; i < item->n_property; ++i)
+  for (size_t i=0; i < item->n_property; ++i){
     apply_reviver(item->property[i], reviver);
+  }
 }
 
 Json*
@@ -325,8 +383,9 @@ Json_parse_reviver(char *buffer, void (*reviver)(JsonItem*))
 {
   Json *json=Json_parse(buffer);
 
-  if (reviver)
+  if (reviver){
     apply_reviver(json->root, reviver);
+  }
 
   return json;
 }

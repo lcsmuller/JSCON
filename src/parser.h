@@ -6,6 +6,7 @@
 
 /* All of the possible JSON datatypes */
 typedef enum {
+  Undefined = 0,
   Null      = 1 << 0,
   Boolean   = 1 << 1,
   Number    = 1 << 2,
