@@ -5,6 +5,7 @@
 #include <unistd.h> //for access()
 #include <limits.h> //for MAX_INT
 #include <string.h>
+#include <locale.h>
 
 
 FILE *select_output(int argc, char *argv[]);
@@ -13,10 +14,13 @@ void reviver_test(JsonItem *item);
 
 int main(int argc, char *argv[])
 {
+  char *locale=setlocale(LC_CTYPE, "");
+  assert(locale);
+
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  Json *json = Json_ParseReviver(buffer, NULL);
+  Json *json = Json_ParseReviver(buffer, &reviver_test);
 
   char *new_buffer=Json_stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
@@ -89,9 +93,11 @@ get_buffer(char filename[])
 }
 
 void reviver_test(JsonItem *item){
-  if (item->dtype == Number){
-        fprintf(stdout,"%s",item->key);
-        fprintf(stdout,"%f",item->number);
-        fputc('\n',stdout);
+  if (JsonItem_KeyCmp(item,"u") && JsonItem_NumberCmp(item,3)){
+        JsonItem *sibling=JsonItem_GetSibling(item,2);
+        if (JsonItem_KeyCmp(sibling,"m")){
+          fputs(JsonItem_GetString(sibling),stdout);
+          fputc('\n',stdout);
+        }
   }
 }

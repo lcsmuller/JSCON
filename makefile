@@ -9,6 +9,7 @@ EXEC = JSON
 OBJS = $(OBJDIR)/test.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/stringify.o
+OBJS += $(OBJDIR)/public.o
 
 HEADER = JSON.h
 

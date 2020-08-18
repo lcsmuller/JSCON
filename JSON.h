@@ -3,6 +3,7 @@
 
 #include "src/parser.h"
 #include "src/stringify.h"
+#include "src/public.h"
 
 #endif
 
