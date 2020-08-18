@@ -18,12 +18,12 @@ Json_Create()
   return new_json;
 }
 
-/* destroy current item and all of its nested object/arrays */
+/* Destroy current item and all of its nested object/arrays */
 static void
-JsonItem_destroy(JsonItem *item)
+JsonItem_Destroy(JsonItem *item)
 {
   for (size_t i=0; i < item->n_property; ++i)
-    JsonItem_destroy(item->property[i]);
+    JsonItem_Destroy(item->property[i]);
   free(item->property);
 
   if (item->dtype == String)
@@ -31,11 +31,11 @@ JsonItem_destroy(JsonItem *item)
   free(item);
 }
 
-/* destroy json struct */
+/* Destroy json struct */
 void
-Json_destroy(Json *json)
+Json_Destroy(Json *json)
 {
-  JsonItem_destroy(json->root);
+  JsonItem_Destroy(json->root);
   
   while (json->n_keylist){
     free(json->keylist[--json->n_keylist]);
@@ -46,7 +46,7 @@ Json_destroy(Json *json)
 
 /* create new json item and return it's address */
 static JsonItem*
-JsonItem_create(JsonItem *item)
+JsonItem_Create(JsonItem *item)
 {
   ++item->n_property; //update object's property count
   //update memory space for property's list
@@ -62,7 +62,7 @@ JsonItem_create(JsonItem *item)
 }
 
 static JsonString*
-JsonString_cache_key(Json *json, JsonString *cache_entry)
+JsonString_CacheKey(Json *json, JsonString *cache_entry)
 {
   ++json->n_keylist;
   json->keylist = realloc(json->keylist,json->n_keylist*sizeof(char*));
@@ -88,7 +88,7 @@ JsonString_GetKey(Json *json, char *cache_entry)
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp=strcmp(cache_entry, json->keylist[mid]);
+    cmp = strcmp(cache_entry, json->keylist[mid]);
     if (cmp == 0){
       free(cache_entry);
       return json->keylist[mid];
@@ -99,7 +99,7 @@ JsonString_GetKey(Json *json, char *cache_entry)
       low = mid+1;
   }
 
-  return JsonString_cache_key(json, cache_entry);
+  return JsonString_CacheKey(json, cache_entry);
 }
 
 /* get numerical key for array type
@@ -137,17 +137,17 @@ JsonString_Set(char **ptr_buffer)
 }
 
 static JsonNumber
-JsonNumber_set(char **ptr_buffer)
+JsonNumber_Set(char **ptr_buffer)
 {
   char *start=*ptr_buffer-1;
   char *end=start;
 
-  if (*end == '-')
+  if (*end == '-'){
     ++end;
-
-  while (isdigit(*end))
+  }
+  while (isdigit(*end)){
     ++end;
-
+  }
   if (*end == '.'){
     while (isdigit(*++end))
       continue;
@@ -155,10 +155,12 @@ JsonNumber_set(char **ptr_buffer)
   //check for exponent
   if ((*end == 'e') || (*end == 'E')){
     ++end;
-    if ((*end == '+') || (*end == '-'))
+    if ((*end == '+') || (*end == '-')){
       ++end;
-    while (isdigit(*end))
+    }
+    while (isdigit(*end)){
       ++end;
+    }
   }
 
   JsonString *data=strndup(start, end-start);
@@ -175,15 +177,16 @@ JsonNumber_set(char **ptr_buffer)
 }
 
 /* get and return data from appointed datatype */
-static void
-JsonItem_SetValue(JsonItem *item, char **ptr_buffer)
+static JsonItem*
+JsonItem_SetValue(JsonDType get_dtype, JsonItem *item, char **ptr_buffer)
 {
+  item->dtype = get_dtype;
   switch (item->dtype){
     case String:
       item->string = JsonString_Set(ptr_buffer);
       break;
     case Number:
-      item->number = JsonNumber_set(ptr_buffer);
+      item->number = JsonNumber_Set(ptr_buffer);
       break;
     case Boolean:
       if ((*ptr_buffer)[-1] == 't'){
@@ -197,10 +200,15 @@ JsonItem_SetValue(JsonItem *item, char **ptr_buffer)
     case Null:
       *ptr_buffer += 3; //length of "null"-1
       break;
+    case Array:
+    case Object:
+      break;
     default:
       fprintf(stderr,"ERROR: invalid datatype %ld\n", item->dtype);
       exit(EXIT_FAILURE);
   }
+
+  return item;
 }
 
 /* create nested object and return
@@ -208,9 +216,10 @@ JsonItem_SetValue(JsonItem *item, char **ptr_buffer)
 static JsonItem*
 JsonItem_SetIncomplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  item = JsonItem_create(item);
+  item = JsonItem_Create(item);
   item->key = get_key;
-  item->dtype = get_dtype;
+
+  item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
 
   get_key = NULL;
 
@@ -223,147 +232,218 @@ static JsonItem*
 JsonItem_SetComplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
   item = JsonItem_SetIncomplete(item, get_key, get_dtype, ptr_buffer);
-  JsonItem_SetValue(item, ptr_buffer);
-
-  return item->parent; //wraps property in item
+  return item->parent; //wraps property in item (completes it)
 }
 
 static JsonItem*
-JsonItem_BuildArray(Json *json, JsonItem *item, short *found_key, char **ptr_buffer)
+JsonItem_BuildArray(Json *json, JsonItem *item, char **ptr_buffer)
 {
-    switch (*(*ptr_buffer)++){
-      case ']':/*ARRAY WRAPPER DETECTED*/
-        return item->parent;
-      case '\"':/*STRING DETECTED*/
-        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),String,ptr_buffer);
-      case '{':/*OBJECT DETECTED*/
-        *found_key = 1;
-        return JsonItem_SetIncomplete(item,JsonString_SetArrKey(json,item),Object,ptr_buffer);
-      case '[':/*ARRAY DETECTED*/
-        return JsonItem_SetIncomplete(item,JsonString_SetArrKey(json,item),Array,ptr_buffer);
-      case 't':/*CHECK FOR*/
-      case 'f':/* BOOLEAN */
-        if (strncmp(*ptr_buffer-1,"true",4) 
-            && strncmp(*ptr_buffer-1,"false",5))
-          return item;
-        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Boolean,ptr_buffer);
-      case 'n':/*CHECK FOR NULL*/
-        if (strncmp(*ptr_buffer-1,"null",4))
-          return item;
-        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Null,ptr_buffer);
-      default:/*CHECK FOR NUMBER*/
-        if (!isdigit((*ptr_buffer)[-1])
-            && ((*ptr_buffer)[-1] != '-'))
-          return item;
-        return JsonItem_SetComplete(item,JsonString_SetArrKey(json,item),Number,ptr_buffer);
-    }
+  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
+  JsonDType set_dtype;
+  switch (*(*ptr_buffer)++){
+    case ']':/*ARRAY WRAPPER DETECTED*/
+      return item->parent;
+    case '{':/*OBJECT DETECTED*/
+      set_dtype = Object;
+      item_setter = &JsonItem_SetIncomplete;
+      break;
+    case '[':/*ARRAY DETECTED*/
+      set_dtype = Array;
+      item_setter = &JsonItem_SetIncomplete;
+      break;
+    case '\"':/*STRING DETECTED*/
+      set_dtype = String;
+      item_setter = &JsonItem_SetComplete;
+      break;
+    case 't':/*CHECK FOR*/
+    case 'f':/* BOOLEAN */
+      if (strncmp(*ptr_buffer-1,"true",4) 
+          && strncmp(*ptr_buffer-1,"false",5)){
+        goto error;
+      }
+      set_dtype = Boolean;
+      item_setter = &JsonItem_SetComplete;
+      break;
+    case 'n':/*CHECK FOR NULL*/
+      if (strncmp(*ptr_buffer-1,"null",4)){
+        goto error;
+      }
+      set_dtype = Null;
+      item_setter = &JsonItem_SetComplete;
+      break;
+    case ',': /*ignore comma*/
+      return item;
+    default:
+      /*IGNORE CONTROL CHARACTER*/
+      if (isspace((*ptr_buffer)[-1]) || iscntrl((*ptr_buffer)[-1])){
+        return item;
+      }
+      /*CHECK FOR NUMBER*/
+      if (!isdigit((*ptr_buffer)[-1]) && ((*ptr_buffer)[-1] != '-')){
+        goto error;
+      }
+      set_dtype = Number;
+      item_setter = &JsonItem_SetComplete;
+      break;
+  }
+
+  return (*item_setter)(item,JsonString_SetArrKey(json,item),set_dtype,ptr_buffer);
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token\n");
+    exit(EXIT_FAILURE);
 }
 
 static JsonItem*
-JsonItem_BuildObject(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildObject(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
 {
+  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
+  JsonDType set_dtype;
   switch (*(*ptr_buffer)++){
     case '}':/*OBJECT WRAPPER DETECTED*/
       return item->parent;
-    case ',':/*KEY DETECTED*/
-      *found_key = 1;
-      return item;
-    case '\"':/*STRING DETECTED*/
-      if (*found_key){
-        /*key string is set*/
+    case '\"':/*KEY STRING DETECTED*/
         *ptr_key = JsonString_GetKey(json,JsonString_Set(ptr_buffer));
-        *found_key = 0;
+        return item;
+    case ':':/*VALUE DETECTED*/
+        switch (*(*ptr_buffer)++){ //fix: move to function
+          case '{':/*OBJECT DETECTED*/
+            set_dtype = Object;
+            item_setter = &JsonItem_SetIncomplete;
+            break;
+          case '[':/*ARRAY DETECTED*/
+            set_dtype = Array;
+            item_setter = &JsonItem_SetIncomplete;
+            break;
+          case '\"':/*STRING DETECTED*/
+            set_dtype = String;
+            item_setter = &JsonItem_SetComplete;
+            break;
+          case 't':/*CHECK FOR*/
+          case 'f':/* BOOLEAN */
+            if (strncmp(*ptr_buffer-1,"true",4)
+                && strncmp(*ptr_buffer-1,"false",5)){
+              goto error;
+            }
+            set_dtype = Boolean;
+            item_setter = &JsonItem_SetComplete;
+            break;
+          case 'n':/*CHECK FOR NULL*/
+            if (strncmp(*ptr_buffer-1,"null",4)){
+              goto error; 
+            }
+            set_dtype = Null;
+            item_setter = &JsonItem_SetComplete;
+            break;
+          default:
+            /*CHECK FOR NUMBER*/
+            if (!isdigit((*ptr_buffer)[-1])
+                && ((*ptr_buffer)[-1] != '-')){
+              goto error;
+            }
+            set_dtype = Number;
+            item_setter = &JsonItem_SetComplete;
+            break;
+        }
+      return (*item_setter)(item,*ptr_key,set_dtype,ptr_buffer);
+    case ',': //ignore comma
+      return item;
+    default:
+      /*IGNORE CONTROL CHARACTER*/
+      if (isspace((*ptr_buffer)[-1]) || iscntrl((*ptr_buffer)[-1])){
         return item;
       }
-      /*value string is set*/
-      return JsonItem_SetComplete(item,*ptr_key,String,ptr_buffer);
-    case '{':/*OBJECT DETECTED*/
-      *found_key = 1;
-      return JsonItem_SetIncomplete(item,*ptr_key,Object,ptr_buffer);
-    case '[':/*ARRAY DETECTED*/
-      return JsonItem_SetIncomplete(item,*ptr_key,Array,ptr_buffer);
-    case 't':/*CHECK FOR*/
-    case 'f':/* BOOLEAN */
-      if (strncmp(*ptr_buffer-1,"true",4) 
-          && strncmp(*ptr_buffer-1,"false",5))
-        return item;
-      return JsonItem_SetComplete(item,*ptr_key,Boolean,ptr_buffer);
-    case 'n':/*CHECK FOR NULL*/
-      if (strncmp(*ptr_buffer-1,"null",4))
-        return item;
-      return JsonItem_SetComplete(item,*ptr_key,Null,ptr_buffer);
-    default:/*CHECK FOR NUMBER*/
-      if (!isdigit((*ptr_buffer)[-1])
-          && ((*ptr_buffer)[-1] != '-'))
-        return item;
-      return JsonItem_SetComplete(item,*ptr_key,Number,ptr_buffer);
+      goto error;
   }
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n", (*ptr_buffer)[-1]);
+    exit(EXIT_FAILURE);
 }
 
 static JsonItem*
-JsonItem_BuildEntity(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildEntity(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
 {
+  JsonDType set_dtype=0;
   switch (*(*ptr_buffer)++){
     case '{':/*OBJECT DETECTED*/
-      *found_key = 1;
-      return JsonItem_SetIncomplete(item,*ptr_key,Object,ptr_buffer);
+      item->parent = item;
+      set_dtype = Object;
+      break;
     case '[':/*ARRAY DETECTED*/
-      return JsonItem_SetIncomplete(item,*ptr_key,Array,ptr_buffer);
+      item->parent = item;
+      set_dtype = Array;
+      break;
     case '\"':/*STRING DETECTED*/
-      item->dtype = String;
+      set_dtype = String;
       break;
     case 't':/*CHECK FOR*/
     case 'f':/* BOOLEAN */
-      if (strncmp(*ptr_buffer-1,"true",4) 
-          && strncmp(*ptr_buffer-1,"false",5))
-        return item;
-      item->dtype = Boolean;
+      if (strncmp(*ptr_buffer-1,"true",4) && strncmp(*ptr_buffer-1,"false",5)){
+        goto error;
+      }
+      set_dtype = Boolean;
       break;
     case 'n':/*CHECK FOR NULL*/
-      if (strncmp(*ptr_buffer-1,"null",4))
-        return item;
-      item->dtype = Null;
+      if (strncmp(*ptr_buffer-1,"null",4)){
+        goto error;
+      }
+      set_dtype = Null;
       break;
-    default:/*CHECK FOR NUMBER*/
-      if (!isdigit((*ptr_buffer)[-1])
-          && ((*ptr_buffer)[-1] != '-'))
+    default:
+      /*IGNORE CONTROL CHARACTER*/
+      if (isspace((*ptr_buffer)[-1]) || iscntrl((*ptr_buffer)[-1])){
         return item;
-      item->dtype = Number;
+      }
+      /*CHECK FOR NUMBER*/
+      if (!isdigit((*ptr_buffer)[-1]) && ((*ptr_buffer)[-1] != '-')){
+        goto error;
+      }
+      set_dtype = Number;
       break;
   }
 
-  JsonItem_SetValue(item, ptr_buffer);
-  return item;
+  return JsonItem_SetValue(set_dtype, item, ptr_buffer);
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token\n");
+    exit(EXIT_FAILURE);
 }
 
 /* get json  by evaluating buffer's current position */
 static JsonItem*
-JstonItem_Build(Json *json, JsonItem *item, short *found_key, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_Build(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
 {
   switch(item->dtype){
-    case Array:
-      return JsonItem_BuildArray(json,item,found_key,ptr_buffer);
     case Object:
-      return JsonItem_BuildObject(json,item,found_key,ptr_key,ptr_buffer);
+      return JsonItem_BuildObject(json,item,ptr_key,ptr_buffer);
+    case Array:
+      return JsonItem_BuildArray(json,item,ptr_buffer);
     case Undefined:
-      return JsonItem_BuildEntity(json,item,found_key,ptr_key,ptr_buffer);
-    default: //nothing else to do
-      ++*ptr_buffer;
-      return item;
+      return JsonItem_BuildEntity(json,item,ptr_key,ptr_buffer);
+    default: //nothing else to build, check buffer for potential error
+      if (isspace(**ptr_buffer) || iscntrl(**ptr_buffer)){
+        ++*ptr_buffer; //moves if cntrl character found ('\n','\b',..)
+        return item;
+      }
+      goto error;
   }
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n",**ptr_buffer);
+    exit(EXIT_FAILURE);
 }
 
 Json*
-Json_parse(char *buffer)
+Json_Parse(char *buffer)
 {
   Json *json=Json_Create();
 
   JsonItem *item=json->root;
   JsonString *set_key=NULL;
-  short found_key=0;
 
   while (*buffer){ //while not null terminator char
-    item = JstonItem_Build(json,item,&found_key,&set_key,&buffer);
+    item = JsonItem_Build(json,item,&set_key,&buffer);
   }
 
   return json;
@@ -379,9 +459,9 @@ apply_reviver(JsonItem *item, void (*reviver)(JsonItem*))
 }
 
 Json*
-Json_parse_reviver(char *buffer, void (*reviver)(JsonItem*))
+Json_ParseReviver(char *buffer, void (*reviver)(JsonItem*))
 {
-  Json *json=Json_parse(buffer);
+  Json *json=Json_Parse(buffer);
 
   if (reviver){
     apply_reviver(json->root, reviver);

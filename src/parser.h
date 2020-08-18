@@ -47,8 +47,8 @@ typedef struct {
 
 /* parse json arguments and returns a JsonItem
     variable with the extracted configurations */
-Json* Json_parse(char *buffer);
-Json* Json_parse_reviver(char *buffer, void (*fn)(JsonItem*));
+Json* Json_Parse(char *buffer);
+Json* Json_ParseReviver(char *buffer, void (*fn)(JsonItem*));
 
-Json* Json_create();
-void Json_destroy(Json *json);
+Json* Json_Create();
+void Json_Destroy(Json *json);

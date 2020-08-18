@@ -16,13 +16,13 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  Json *json = Json_parse_reviver(buffer, NULL);
+  Json *json = Json_ParseReviver(buffer, NULL);
 
   char *new_buffer=Json_stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
 
-  Json_destroy(json);
+  Json_Destroy(json);
 
   free(buffer);
   fclose(f_out);
