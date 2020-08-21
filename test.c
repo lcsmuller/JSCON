@@ -14,15 +14,16 @@ void reviver_test(JsonItem *item);
 
 int main(int argc, char *argv[])
 {
-  char *locale=setlocale(LC_CTYPE, "");
+  char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
 
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  Json *json = Json_ParseReviver(buffer, &reviver_test);
+  Json *json = Json_ParseReviver(buffer, NULL);
+  //Json_SubKey(json,"name","n");
 
-  char *new_buffer=Json_stringify(json, All);
+  char *new_buffer = Json_Stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
 
@@ -38,7 +39,7 @@ FILE *select_output(int argc, char *argv[])
 {
   char *arg_ptr=NULL;
   while (argc--){
-    arg_ptr=*argv++;
+    arg_ptr = *argv++;
     if ((*arg_ptr++ == '-') && (*arg_ptr++ == 'o') && (*arg_ptr == '\0')){
       assert (argc == 1); //check if theres exactly one arg left
 
@@ -57,7 +58,7 @@ static long
 fetch_filesize(FILE *ptr_file)
 {
   fseek(ptr_file, 0, SEEK_END);
-  long filesize=ftell(ptr_file);
+  long filesize = ftell(ptr_file);
   assert(filesize > 0);
   fseek(ptr_file, 0, SEEK_SET);
 
@@ -68,7 +69,7 @@ fetch_filesize(FILE *ptr_file)
 static char*
 read_file(FILE* ptr_file, long filesize)
 {
-  char *buffer=malloc(filesize+1);
+  char *buffer = malloc(filesize+1);
   assert(buffer);
   //read file into buffer
   fread(buffer,sizeof(char),filesize,ptr_file);
@@ -81,11 +82,11 @@ read_file(FILE* ptr_file, long filesize)
 char*
 get_buffer(char filename[])
 {
-  FILE *file=fopen(filename, "rb");
+  FILE *file = fopen(filename, "rb");
   assert(file);
 
-  long filesize=fetch_filesize(file);
-  char *buffer=read_file(file, filesize);
+  long filesize = fetch_filesize(file);
+  char *buffer = read_file(file, filesize);
 
   fclose(file);
 
@@ -94,7 +95,7 @@ get_buffer(char filename[])
 
 void reviver_test(JsonItem *item){
   if (JsonItem_KeyCmp(item,"u") && JsonItem_NumberCmp(item,3)){
-        JsonItem *sibling=JsonItem_GetSibling(item,2);
+        JsonItem *sibling = JsonItem_GetSibling(item,2);
         if (JsonItem_KeyCmp(sibling,"m")){
           fputs(JsonItem_GetString(sibling),stdout);
           fputc('\n',stdout);

@@ -9,11 +9,13 @@
 Json*
 Json_Create()
 {
-  Json *new_json=calloc(1,sizeof(Json));
+  Json *new_json = calloc(1,sizeof(Json));
   assert(new_json);
 
-  new_json->root=calloc(1,sizeof(JsonItem));
+  new_json->root = calloc(1,sizeof(JsonItem));
   assert(new_json->root);
+
+  new_json->ptr = new_json->root;
 
   return new_json;
 }
@@ -48,7 +50,7 @@ Json_Destroy(Json *json)
 
 /* create new json item and return it's address */
 static JsonItem*
-JsonItem_Create(JsonItem *item)
+JsonItem_PropertyCreate(JsonItem *item)
 {
   ++item->n_property; //update object's property count
   //update memory space for property's list
@@ -70,7 +72,7 @@ JsonString_CacheKey(Json *json, JsonString *cache_entry)
   json->keylist = realloc(json->keylist,json->n_keylist*sizeof(char*));
   assert(json->keylist);
 
-  int i=json->n_keylist-1;
+  int i = json->n_keylist-1;
   while ((i > 0) && (strcmp(cache_entry, json->keylist[i-1]) < 0)){
     json->keylist[i] = json->keylist[i-1];
     --i;
@@ -83,24 +85,11 @@ JsonString_CacheKey(Json *json, JsonString *cache_entry)
 static JsonString*
 JsonString_GetKey(Json *json, char *cache_entry)
 {
-  int top=json->n_keylist-1;
-  int low=0;
-  int mid;
-
-  int cmp;
-  while (low <= top){
-    mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(cache_entry, json->keylist[mid]);
-    if (cmp == 0){
-      free(cache_entry);
-      return json->keylist[mid];
-    }
-    if (cmp < 0)
-      top = mid-1;
-    else
-      low = mid+1;
+  JsonString *ptr_key = Json_SearchKey(json, cache_entry);
+  if (ptr_key){
+    free(cache_entry);
+    return ptr_key;
   }
-
   return JsonString_CacheKey(json, cache_entry);
 }
 
@@ -109,9 +98,9 @@ JsonString_GetKey(Json *json, char *cache_entry)
 static JsonString* //fix: get asprintf to work
 JsonString_SetArrKey(Json *json, JsonItem *item)
 {
-  const int len=25;
+  const int len = 25;
   //will be free'd inside jsonString_GetKey if necessary
-  JsonString *cache_entry=malloc(len);
+  JsonString *cache_entry = malloc(len);
   assert(cache_entry);
 
   snprintf(cache_entry,len-1,"%ld",item->n_property);
@@ -122,10 +111,10 @@ JsonString_SetArrKey(Json *json, JsonItem *item)
 static JsonString*
 JsonString_Set(char **ptr_buffer)
 {
-  char *start=*ptr_buffer;
+  char *start = *ptr_buffer;
   assert(*start == '\"');
 
-  char *end=++start;
+  char *end = ++start;
   while ((*end) && (*end != '\"')){
     if (*end++ == '\\'){ //skips \" char
       ++end;
@@ -134,7 +123,7 @@ JsonString_Set(char **ptr_buffer)
   assert(*end == '\"');
   *ptr_buffer = end+1; //store position after double quotes
 
-  JsonString *get_str=strndup(start, end-start);
+  JsonString *get_str = strndup(start, end-start);
   assert(get_str);
 
   return get_str;
@@ -143,8 +132,8 @@ JsonString_Set(char **ptr_buffer)
 static JsonNumber
 JsonNumber_Set(char **ptr_buffer)
 {
-  char *start=*ptr_buffer;
-  char *end=start;
+  char *start = *ptr_buffer;
+  char *end = start;
 
   if (*end == '-'){
     ++end;
@@ -224,7 +213,7 @@ JsonItem_SetValue(JsonDType get_dtype, JsonItem *item, char **ptr_buffer)
 static JsonItem*
 JsonItem_SetIncomplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  item = JsonItem_Create(item);
+  item = JsonItem_PropertyCreate(item);
   item->key = get_key;
 
   item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
@@ -244,8 +233,9 @@ JsonItem_SetComplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, c
 }
 
 static JsonItem*
-JsonItem_BuildArray(Json *json, JsonItem *item, char **ptr_buffer)
+JsonItem_BuildArray(Json *json, char **ptr_buffer)
 {
+  JsonItem *item = json->ptr;
   JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
 
@@ -309,11 +299,12 @@ JsonItem_BuildArray(Json *json, JsonItem *item, char **ptr_buffer)
 }
 
 static JsonItem*
-JsonItem_BuildObject(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
   JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
 
+  JsonItem *item = json->ptr;
   switch (**ptr_buffer){
     case '}':/*OBJECT WRAPPER DETECTED*/
       ++*ptr_buffer;
@@ -384,9 +375,11 @@ JsonItem_BuildObject(Json *json, JsonItem *item, JsonString **ptr_key, char **pt
 }
 
 static JsonItem*
-JsonItem_BuildEntity(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildEntity(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
-  JsonDType set_dtype=0;
+  JsonDType set_dtype;
+
+  JsonItem *item = json->ptr;
   switch (**ptr_buffer){
     case '{':/*OBJECT DETECTED*/
       item->parent = item;
@@ -438,15 +431,16 @@ JsonItem_BuildEntity(Json *json, JsonItem *item, JsonString **ptr_key, char **pt
 
 /* get json  by evaluating buffer's current position */
 static JsonItem*
-JsonItem_Build(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_Build(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
+  JsonItem *item = json->ptr;
   switch(item->dtype){
     case Object:
-      return JsonItem_BuildObject(json,item,ptr_key,ptr_buffer);
+      return JsonItem_BuildObject(json,ptr_key,ptr_buffer);
     case Array:
-      return JsonItem_BuildArray(json,item,ptr_buffer);
+      return JsonItem_BuildArray(json,ptr_buffer);
     case Undefined:
-      return JsonItem_BuildEntity(json,item,ptr_key,ptr_buffer);
+      return JsonItem_BuildEntity(json,ptr_key,ptr_buffer);
     default: //nothing else to build, check buffer for potential error
       if (isspace(**ptr_buffer) || iscntrl(**ptr_buffer)){
         ++*ptr_buffer; //moves if cntrl character found ('\n','\b',..)
@@ -463,13 +457,12 @@ JsonItem_Build(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buff
 Json*
 Json_Parse(char *buffer)
 {
-  Json *json=Json_Create();
+  Json *json = Json_Create();
 
-  JsonItem *item=json->root;
   JsonString *set_key=NULL;
 
   while (*buffer){ //while not null terminator char
-    item = JsonItem_Build(json,item,&set_key,&buffer);
+    json->ptr = JsonItem_Build(json,&set_key,&buffer);
   }
 
   return json;
@@ -487,7 +480,7 @@ apply_reviver(JsonItem *item, void (*reviver)(JsonItem*))
 Json*
 Json_ParseReviver(char *buffer, void (*reviver)(JsonItem*))
 {
-  Json *json=Json_Parse(buffer);
+  Json *json = Json_Parse(buffer);
 
   if (reviver){
     apply_reviver(json->root, reviver);

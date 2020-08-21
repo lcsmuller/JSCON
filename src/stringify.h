@@ -4,4 +4,4 @@
 #include <stdio.h>
 
 /* prints json item content and its nests */
-char* Json_stringify(Json *cjson, JsonDType datatype);
+JsonString* Json_Stringify(Json *json, JsonDType datatype);

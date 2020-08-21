@@ -6,102 +6,79 @@
 #include <ctype.h>
 #include <assert.h>
 
-#define DOUBLE_LEN 24
+struct Buffer {
+  char *ptr;
+  ulong offset;
+  void (*method)(char get_char, struct Buffer* buffer);
+};
 
 static void
-cat_update(JsonString *data, char *buffer, int *i) {
-  while (*data)
-    buffer[(*i)++] = *data++;
+BufferMethod_Count(char get_char, struct Buffer *buffer){
+  ++buffer->offset;
 }
 
 static void
-stringify_data(JsonString *data, char *buffer, int *i)
+BufferMethod_Update(char get_char, struct Buffer *buffer)
 {
-  buffer[(*i)++] = '\"';
-  cat_update(data,buffer,i);
-  buffer[(*i)++] = '\"';
-}
-
-static void 
-format_number(JsonString new_data[], JsonNumber number)
-{
-  int decimal=0, sign=0;
-  JsonString *temp_data=fcvt(number,DOUBLE_LEN-1,&decimal,&sign);
-
-  //check if value is integer
-  if (number <= LLONG_MIN || number >= LLONG_MAX || number == (long long)number){
-    sprintf(new_data,"%.lf",number); //convert integer to string
-    return;
-  }
-
-  int i=0;
-  if (sign < 0)
-    new_data[i++] = '-';
-
-  if ((decimal < -7) || (decimal > 17)){ //print scientific notation 
-    sprintf(new_data+i,"%c.%.7se%d",*temp_data,temp_data+1,decimal-1);
-    return;
-  }
-
-  char format[100];
-  if (decimal > 0){
-    sprintf(format,"%%.%ds.%%.7s",decimal);
-    sprintf(new_data+i,format,temp_data,temp_data+decimal);
-    return;
-  }
-
-  if (decimal < 0){
-    sprintf(format,"0.%0*d%%.7s",abs(decimal),0);
-    sprintf(new_data+i,format,temp_data);
-    return;
-  }
-
-  sprintf(format,"0.%%.7s");
-  sprintf(new_data+i,format,temp_data);
+  buffer->ptr[buffer->offset] = get_char;
+  ++buffer->offset;
 }
 
 static void
-stringify_number(JsonNumber number, char *buffer, int *i)
+Buffer_SetString(JsonString *string, struct Buffer *buffer)
 {
-  JsonString new_data[DOUBLE_LEN]={'\0'};
-  format_number(new_data, number);
-
-  cat_update(new_data,buffer,i); //store value in buffer
+  while (*string){
+    (*buffer->method)(*string,buffer);
+    ++string;
+  }
 }
 
 static void
-JsonItem_recprint(JsonItem *item, JsonDType dtype, char *buffer, int *i)
+Buffer_SetNumber(JsonNumber number, struct Buffer *buffer)
+{
+  JsonString *get_strnum = JsonNumber_StrFormat(number);
+  assert(get_strnum);
+
+  Buffer_SetString(get_strnum,buffer); //store value in buffer
+
+  free(get_strnum);
+}
+
+static void
+JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
 {
   if (item->dtype & dtype){
     if ((item->key) && !(item->parent->dtype & Array)){
-      stringify_data(item->key,buffer,i);
-      buffer[(*i)++] = ':';
+      (*buffer->method)('\"',buffer);
+      Buffer_SetString(item->key,buffer);
+      (*buffer->method)('\"',buffer);
+      (*buffer->method)(':',buffer);
     }
 
     switch (item->dtype){
       case Null:
-        cat_update("null",buffer,i);
+        Buffer_SetString("null",buffer);
         break;
       case Boolean:
         if (item->boolean){
-          cat_update("true",buffer,i);
+          Buffer_SetString("true",buffer);
           break;
         }
-        cat_update("false",buffer,i);
+        Buffer_SetString("false",buffer);
         break;
       case Number:
-        stringify_number(item->number,buffer,i);
+        Buffer_SetNumber(item->number,buffer);
         break;
       case String:
-        stringify_data(item->string,buffer,i);
+        (*buffer->method)('\"',buffer);
+        Buffer_SetString(item->string,buffer);
+        (*buffer->method)('\"',buffer);
         break;
       case Object:
-        buffer[*i] = '{';
-        ++*i;
+        (*buffer->method)('{',buffer);
         break;
       case Array:
-        buffer[*i] = '[';
-        ++*i;
+        (*buffer->method)('[',buffer);
         break;
       default:
         fprintf(stderr,"ERROR: undefined datatype\n");
@@ -111,34 +88,40 @@ JsonItem_recprint(JsonItem *item, JsonDType dtype, char *buffer, int *i)
   }
 
   for (size_t j=0; j < item->n_property; ++j){
-    JsonItem_recprint(item->property[j], dtype, buffer,i);
-    buffer[*i] = ',';
-    ++*i;
+    JsonItem_RecPrint(item->property[j], dtype, buffer);
+    (*buffer->method)(',',buffer);
   } 
    
   if ((item->dtype & dtype) & (Object|Array)){
-    if (buffer[*i-1] == ',')
-      --*i;
+    if (item->n_property != 0) //remove extra comma from obj/array
+      --buffer->offset;
 
     if (item->dtype == Object)
-      buffer[*i] = '}';
+      (*buffer->method)('}',buffer);
     else //is array 
-      buffer[*i] = ']';
-    ++*i;
+      (*buffer->method)(']',buffer);
   }
 }
 
 char*
-Json_stringify(Json *cjson, JsonDType dtype)
+Json_Stringify(Json *json, JsonDType dtype)
 {
-  assert(cjson);
+  assert(json);
 
-  char *buffer=calloc(1,611098);
-  assert(buffer);
+  struct Buffer buffer={0};
+  /* COUNT HOW MUCH MEMORY SHOULD BE ALLOCATED FOR BUFFER 
+      WITH BUFFER_COUNT METHOD */
+  buffer.method = &BufferMethod_Count;
+  JsonItem_RecPrint(json->root, dtype, &buffer);
+  /* ALLOCATE BY CALCULATED AMOUNT */
+  buffer.ptr = malloc(buffer.offset+1);
+  assert(buffer.ptr);
+  /* RESET OFFSET */ 
+  buffer.offset = 0;
+  /* STRINGIFY JSON SAFELY WITH BUFFER_UPDATE METHOD */
+  buffer.method = &BufferMethod_Update;
+  JsonItem_RecPrint(json->root, dtype, &buffer);
+  buffer.ptr[buffer.offset] = 0;
 
-  int i=0;
-  JsonItem_recprint(cjson->root, dtype, buffer, &i);
-  buffer[i] = '\0';
-   
-  return buffer;
+  return buffer.ptr;
 }

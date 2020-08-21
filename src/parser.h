@@ -39,10 +39,11 @@ typedef struct JsonItem {
 } JsonItem;
 
 typedef struct {
-  JsonItem *root;
+  JsonItem *root; //always points to root json item
+  JsonItem *ptr; //used for json item movement
 
-  char **keylist;
-  size_t n_keylist;
+  char **keylist; //stores keys found amongst json items
+  size_t n_keylist; //amt of keys
 } Json;
 
 /* parse json arguments and returns a JsonItem
