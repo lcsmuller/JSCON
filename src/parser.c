@@ -66,7 +66,7 @@ JsonItem_PropertyCreate(JsonItem *item)
 }
 
 static JsonString*
-JsonString_CacheKey(Json *json, JsonString *cache_entry)
+JsonString_CacheKey(Json *json, const JsonString cache_entry[])
 {
   ++json->n_keylist;
   json->keylist = realloc(json->keylist,json->n_keylist*sizeof(char*));
@@ -77,19 +77,18 @@ JsonString_CacheKey(Json *json, JsonString *cache_entry)
     json->keylist[i] = json->keylist[i-1];
     --i;
   }
-  json->keylist[i] = cache_entry;
+  json->keylist[i] = strdup(cache_entry);
 
   return json->keylist[i];
 }
 
 static JsonString*
-JsonString_GetKey(Json *json, char *cache_entry)
+JsonString_GetKey(Json *json, const JsonString cache_entry[])
 {
-  JsonString *ptr_key = Json_SearchKey(json, cache_entry);
-  if (ptr_key){
-    free(cache_entry);
-    return ptr_key;
-  }
+  JsonString *found_key = Json_SearchKey(json, cache_entry);
+  if (found_key)
+    return found_key;
+  // if key not found, create it and save in cache
   return JsonString_CacheKey(json, cache_entry);
 }
 
@@ -98,12 +97,8 @@ JsonString_GetKey(Json *json, char *cache_entry)
 static JsonString* //fix: get asprintf to work
 JsonString_SetArrKey(Json *json, JsonItem *item)
 {
-  const int len = 25;
-  //will be free'd inside jsonString_GetKey if necessary
-  JsonString *cache_entry = malloc(len);
-  assert(cache_entry);
-
-  snprintf(cache_entry,len-1,"%ld",item->n_property);
+  JsonString cache_entry[MAX_DIGITS];
+  snprintf(cache_entry,MAX_DIGITS-1,"%ld",item->n_property);
 
   return JsonString_GetKey(json, cache_entry);
 }
@@ -127,6 +122,27 @@ JsonString_Set(char **ptr_buffer)
   assert(get_str);
 
   return get_str;
+}
+
+static void
+JsonString_SetStack(char **ptr_buffer, JsonString *ptr, const int n)
+{
+  char *start = *ptr_buffer;
+  assert(*start == '\"');
+
+  char *end = ++start;
+  while ((*end) && (*end != '\"')){
+    if (*end++ == '\\'){ //skips \" char
+      ++end;
+    }
+  }
+  assert(*end == '\"');
+  *ptr_buffer = end+1; //store position after double quotes
+  
+  if (n < end-start)
+    strncpy(ptr, start, n);
+  else
+    strncpy(ptr, start, end-start);
 }
 
 static JsonNumber
@@ -158,13 +174,12 @@ JsonNumber_Set(char **ptr_buffer)
       continue;
   }
 
-  JsonString *get_numstr=strndup(start, end-start);
-  assert(get_numstr);
+  assert(end-start <= MAX_DIGITS);
+  JsonString get_numstr[MAX_DIGITS] = {0};
+  strncpy(get_numstr, start, end-start);
 
   JsonNumber set_number;
   sscanf(get_numstr,"%lf",&set_number);
-
-  free(get_numstr);
 
   *ptr_buffer = end;
 
@@ -303,6 +318,7 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
   JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
+  JsonString set_key[KEY_LENGTH] = {0};
 
   JsonItem *item = json->ptr;
   switch (**ptr_buffer){
@@ -310,7 +326,8 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
       ++*ptr_buffer;
       return item->parent;
     case '\"':/*KEY STRING DETECTED*/
-      *ptr_key = JsonString_GetKey(json,JsonString_Set(ptr_buffer));
+      JsonString_SetStack(ptr_buffer,set_key,KEY_LENGTH);
+      *ptr_key = JsonString_GetKey(json,set_key);
       return item;
     case ':':/*VALUE DETECTED*/
         do { //skips space and control characters before next switch
@@ -375,7 +392,7 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 }
 
 static JsonItem*
-JsonItem_BuildEntity(Json *json, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildEntity(Json *json, char **ptr_buffer)
 {
   JsonDType set_dtype;
 
@@ -440,7 +457,7 @@ JsonItem_Build(Json *json, JsonString **ptr_key, char **ptr_buffer)
     case Array:
       return JsonItem_BuildArray(json,ptr_buffer);
     case Undefined:
-      return JsonItem_BuildEntity(json,ptr_key,ptr_buffer);
+      return JsonItem_BuildEntity(json,ptr_buffer);
     default: //nothing else to build, check buffer for potential error
       if (isspace(**ptr_buffer) || iscntrl(**ptr_buffer)){
         ++*ptr_buffer; //moves if cntrl character found ('\n','\b',..)

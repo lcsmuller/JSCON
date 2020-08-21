@@ -36,12 +36,10 @@ Buffer_SetString(JsonString *string, struct Buffer *buffer)
 static void
 Buffer_SetNumber(JsonNumber number, struct Buffer *buffer)
 {
-  JsonString *get_strnum = JsonNumber_StrFormat(number);
-  assert(get_strnum);
+  JsonString get_strnum[MAX_DIGITS];
+  JsonNumber_StrFormat(number, get_strnum, MAX_DIGITS);
 
   Buffer_SetString(get_strnum,buffer); //store value in buffer
-
-  free(get_strnum);
 }
 
 static void

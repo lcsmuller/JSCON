@@ -5,8 +5,6 @@
 #include <string.h>
 #include <assert.h>
 
-#define MAX_DOUBLE_DIGITS 24
-
 JsonItem*
 Json_GetItem(Json* json){
   return json->ptr;
@@ -18,7 +16,7 @@ Json_GetRoot(Json* json){
 }
 
 JsonString*
-Json_SearchKey(Json* json, JsonString search_key[])
+Json_SearchKey(Json* json, const JsonString search_key[])
 {
   int top = json->n_keylist-1;
   int low = 0;
@@ -83,7 +81,7 @@ JsonItem_GetProperty(JsonItem* item, size_t index){
 JsonItem*
 JsonItem_GetSibling(const JsonItem* origin, long int relative_index)
 {
-  const JsonItem* parent=origin->parent;
+  const JsonItem* parent = origin->parent;
   if ((parent == NULL) || (parent == origin))
     return NULL;
 
@@ -104,43 +102,40 @@ JsonItem_GetString(JsonItem* item){
   return (item->dtype == String) ? item->string : NULL;
 }
 
-JsonString* 
-JsonNumber_StrFormat(JsonNumber number)
+void 
+JsonNumber_StrFormat(JsonNumber number, JsonString* ptr, const int digits)
 {
-  JsonString set_strnum[MAX_DOUBLE_DIGITS]={0};
   //check if value is integer
   if (number <= LLONG_MIN || number >= LLONG_MAX || number == (long long)number){
-    sprintf(set_strnum,"%.lf",number); //convert integer to string
-    return strdup(set_strnum);
+    sprintf(ptr,"%.lf",number); //convert integer to string
+    return;
   }
 
-
   int decimal=0, sign=0;
-  JsonString *temp_str=fcvt(number,MAX_DOUBLE_DIGITS-1,&decimal,&sign);
+  JsonString *temp_str=fcvt(number,digits-1,&decimal,&sign);
 
   int i=0;
   if (sign < 0)
-    set_strnum[i++] = '-';
+    ptr[i++] = '-';
 
   if ((decimal < -7) || (decimal > 17)){ //print scientific notation 
-    sprintf(set_strnum+i,"%c.%.7se%d",*temp_str,temp_str+1,decimal-1);
-    return strdup(set_strnum);
+    sprintf(ptr+i,"%c.%.7se%d",*temp_str,temp_str+1,decimal-1);
+    return;
   }
 
   char format[100];
   if (decimal > 0){
     sprintf(format,"%%.%ds.%%.7s",decimal);
-    sprintf(set_strnum+i,format,temp_str,temp_str+decimal);
-    return strdup(set_strnum);
+    sprintf(ptr+i,format,temp_str,temp_str+decimal);
+    return;
   }
-
   if (decimal < 0){
     sprintf(format,"0.%0*d%%.7s",abs(decimal),0);
-    sprintf(set_strnum+i,format,temp_str);
-    return strdup(set_strnum);
+    sprintf(ptr+i,format,temp_str);
+    return;
   }
-
   sprintf(format,"0.%%.7s");
-  sprintf(set_strnum+i,format,temp_str);
-  return strdup(set_strnum);
+  sprintf(ptr+i,format,temp_str);
+
+  return;
 }
