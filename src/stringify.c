@@ -112,14 +112,14 @@ Json_Stringify(Json *json, JsonDType dtype)
   buffer.method = &BufferMethod_Count;
   JsonItem_RecPrint(json->root, dtype, &buffer);
   /* ALLOCATE BY CALCULATED AMOUNT */
-  buffer.ptr = malloc(buffer.offset+1);
+  buffer.ptr = malloc(buffer.offset+2);
   assert(buffer.ptr);
   /* RESET OFFSET */ 
   buffer.offset = 0;
   /* STRINGIFY JSON SAFELY WITH BUFFER_UPDATE METHOD */
   buffer.method = &BufferMethod_Update;
   JsonItem_RecPrint(json->root, dtype, &buffer);
-  buffer.ptr[buffer.offset] = 0;
+  buffer.ptr[buffer.offset] = '\0';
 
   return buffer.ptr;
 }
