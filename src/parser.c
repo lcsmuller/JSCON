@@ -47,10 +47,7 @@ Json_Create()
   new_json->root = calloc(1,sizeof(JsonItem));
   assert(new_json->root);
 
-  new_json->item_ptr = new_json->root;
-
-  new_json->stack.trace = malloc(sizeof(short));
-  new_json->stack.ptr = new_json->stack.trace;
+  new_json->item_ptr = new_json->root; //will be set to null later
 
   return new_json;
 }
@@ -239,18 +236,19 @@ JsonItem_SetIncomplete(Json *json, JsonString *get_key, JsonDType get_dtype, cha
 
   item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
 
-  ++json->stack.ptr; //increase distance to stack's base
+  ++json->stack.top; //increase distance to stack's base
 
   /*calculate maximum stack depth, used to allocate memory to
       stack trace (in Json_Parse function) when parsing is done*/
-  if ((json->stack.ptr - json->stack.trace) > json->stack.depth){
-    json->stack.depth = json->stack.ptr - json->stack.trace;
+  if ((json->stack.top - json->stack.trace) > json->stack.max_depth){
+    json->stack.max_depth = json->stack.top - json->stack.trace;
     /*get a stack sized the exact amount of max
-        nestings calculated (aka depth)*/
-    json->stack.trace = realloc(json->stack.trace, json->stack.depth*sizeof(short));
+        nestings calculated (aka max_depth)*/
+    json->stack.trace = realloc(json->stack.trace, json->stack.max_depth*sizeof(short));
     assert(json->stack.trace);
+    json->stack.trace[json->stack.max_depth-1] = -1;
     //avoid losing ptr if realloc copies memory to somewhere else
-    json->stack.ptr = json->stack.trace + json->stack.depth;
+    json->stack.top = json->stack.trace + json->stack.max_depth;
   }
 
   return item;
@@ -259,7 +257,7 @@ JsonItem_SetIncomplete(Json *json, JsonString *get_key, JsonDType get_dtype, cha
 static JsonItem*
 JsonItem_Wrap(Json *json, JsonItem* item)
 {
-  --json->stack.ptr; //decrease distance to stack's base
+  --json->stack.top; //decrease distance to stack's base
 
   return item->parent; //wraps property in item (completes it)
 }
@@ -506,6 +504,10 @@ Json_Parse(char *buffer)
   while (*buffer){ //while not null terminator char
     json->item_ptr = JsonItem_Build(json,&set_key,&buffer);
   }
+  //resets stack.top to first position
+  json->stack.top = json->stack.trace;
+  //sets root parent to NULL (it was pointing to itself to skip checks)
+  json->root->parent = NULL;
 
   return json;
 }

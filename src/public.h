@@ -2,6 +2,7 @@
 
 JsonItem* Json_GetItem(Json* json);
 JsonItem* Json_GetRoot(Json* json);
+JsonItem* Json_NextItem(Json* json);
 JsonString* Json_SearchKey(Json* json, const JsonString search_key[]);
 int Json_SubKey(Json* json, JsonString old_key[], JsonString new_key[]);
 

@@ -21,7 +21,8 @@ int main(int argc, char *argv[])
   char *buffer = get_buffer(argv[1]);
 
   Json *json = Json_ParseReviver(buffer, NULL);
-  //Json_SubKey(json,"name","n");
+
+  Json_NextItem(json);
 
   char *new_buffer = Json_Stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);

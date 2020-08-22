@@ -15,6 +15,80 @@ Json_GetRoot(Json* json){
   return json->root;
 }
 
+static int
+push(Json* json)
+{
+  if ((json->stack.top - json->stack.trace) >= json->stack.max_depth){
+    fprintf(stderr,"ERR: Stack overflow\n");
+    exit(EXIT_FAILURE);
+  }
+  
+  json->item_ptr = json->item_ptr->property[++*json->stack.top];
+  ++json->stack.top; //update top
+
+  return 1;
+}
+
+static int
+pop(Json* json)
+{
+  if (json->stack.top < json->stack.trace){
+    fprintf(stderr,"ERR: Stack underflow\n");
+    exit(EXIT_FAILURE);
+  }
+
+  json->item_ptr = json->item_ptr->parent;
+  --json->stack.top; //update top
+  --*json->stack.top;
+
+  return 1;
+}
+
+static int
+branch(Json* json)
+{
+  ++*json->stack.top;
+
+  return 1;
+}
+
+JsonItem*
+Json_NextItem(Json* json)
+{
+  if (!json->item_ptr)
+    return NULL;
+
+  int c, i=0;
+  printf("\nMAX_DEPTH: %d", json->stack.max_depth);
+  do {
+    printf("\nPUSH:1, POP:2, BRANCH:3, EXIT:4 ");
+    scanf("%d",&c);
+    switch(c){
+      case 1:
+        push(json);
+        fprintf(stderr, "key: %s depth: %d", json->item_ptr->key, ++i);
+        break;
+      case 2:
+        pop(json);
+        fprintf(stderr, "key: %s depth: %d", json->item_ptr->key, --i);
+        break;
+      case 3:
+        branch(json);
+        break;
+      case 4:
+      default:
+        break;
+    }
+    printf("TOP: ");
+    for (int j=0; j < json->stack.max_depth; ++j){
+      printf("%d ",json->stack.trace[j]);
+    }
+    fprintf(stderr,"\n\n");
+  } while(c != 4);
+
+  return NULL;
+}
+
 JsonString*
 Json_SearchKey(Json* json, const JsonString search_key[])
 {

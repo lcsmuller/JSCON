@@ -40,8 +40,8 @@ typedef struct JsonItem {
 /* used for simulating recursive movement, especially useful for
     a tree like structure with nests (aka JSON) */
 typedef struct {
-  short depth;
-  short *ptr;
+  short max_depth;
+  short *top;
   short *trace;
 } Stack;
 
