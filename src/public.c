@@ -7,7 +7,7 @@
 
 JsonItem*
 Json_GetItem(Json* json){
-  return json->ptr;
+  return json->item_ptr;
 }
 
 JsonItem*

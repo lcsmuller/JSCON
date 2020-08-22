@@ -6,18 +6,21 @@
 #include <ctype.h>
 #include <assert.h>
 
-Json*
-Json_Create()
+/* create new json item and return it's address */
+static JsonItem*
+JsonItem_PropertyCreate(JsonItem *item)
 {
-  Json *new_json = calloc(1,sizeof(Json));
-  assert(new_json);
-
-  new_json->root = calloc(1,sizeof(JsonItem));
-  assert(new_json->root);
-
-  new_json->ptr = new_json->root;
-
-  return new_json;
+  ++item->n_property; //update object's property count
+  //update memory space for property's list
+  item->property = realloc(item->property, item->n_property*sizeof(JsonItem*));
+  assert(item->property);
+  //allocate memory space for new property (nested item)
+  item->property[item->n_property-1] = calloc(1,sizeof(JsonItem));
+  assert(item->property[item->n_property-1]);
+  //get parent address of the new property
+  item->property[item->n_property-1]->parent = item;
+  //return new property address
+  return item->property[item->n_property-1];
 }
 
 /* Destroy current item and all of its nested object/arrays */
@@ -35,6 +38,23 @@ JsonItem_Destroy(JsonItem *item)
   free(item);
 }
 
+Json*
+Json_Create()
+{
+  Json *new_json = calloc(1,sizeof(Json));
+  assert(new_json);
+
+  new_json->root = calloc(1,sizeof(JsonItem));
+  assert(new_json->root);
+
+  new_json->item_ptr = new_json->root;
+
+  new_json->stack.trace = malloc(sizeof(short));
+  new_json->stack.ptr = new_json->stack.trace;
+
+  return new_json;
+}
+
 /* Destroy json struct */
 void
 Json_Destroy(Json *json)
@@ -45,24 +65,8 @@ Json_Destroy(Json *json)
     free(json->keylist[--json->n_keylist]);
   }
   free(json->keylist);
+  free(json->stack.trace);
   free(json);
-}
-
-/* create new json item and return it's address */
-static JsonItem*
-JsonItem_PropertyCreate(JsonItem *item)
-{
-  ++item->n_property; //update object's property count
-  //update memory space for property's list
-  item->property = realloc(item->property, item->n_property*sizeof(JsonItem*));
-  assert(item->property);
-  //allocate memory space for new property (nested item)
-  item->property[item->n_property-1] = calloc(1,sizeof(JsonItem));
-  assert(item->property[item->n_property-1]);
-  //get parent address of the new property
-  item->property[item->n_property-1]->parent = item;
-  //return new property address
-  return item->property[item->n_property-1];
 }
 
 static JsonString*
@@ -226,38 +230,60 @@ JsonItem_SetValue(JsonDType get_dtype, JsonItem *item, char **ptr_buffer)
 /* create nested object and return
     the nested object address. */
 static JsonItem*
-JsonItem_SetIncomplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetIncomplete(Json *json, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
+  JsonItem *item = json->item_ptr;
+
   item = JsonItem_PropertyCreate(item);
   item->key = get_key;
 
   item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
 
-  get_key = NULL;
+  ++json->stack.ptr; //increase distance to stack's base
+
+  /*calculate maximum stack depth, used to allocate memory to
+      stack trace (in Json_Parse function) when parsing is done*/
+  if ((json->stack.ptr - json->stack.trace) > json->stack.depth){
+    json->stack.depth = json->stack.ptr - json->stack.trace;
+    /*get a stack sized the exact amount of max
+        nestings calculated (aka depth)*/
+    json->stack.trace = realloc(json->stack.trace, json->stack.depth*sizeof(short));
+    assert(json->stack.trace);
+    //avoid losing ptr if realloc copies memory to somewhere else
+    json->stack.ptr = json->stack.trace + json->stack.depth;
+  }
 
   return item;
+}
+
+static JsonItem*
+JsonItem_Wrap(Json *json, JsonItem* item)
+{
+  --json->stack.ptr; //decrease distance to stack's base
+
+  return item->parent; //wraps property in item (completes it)
 }
 
 /* create property from appointed JSON datatype
     and return the item containing it */
 static JsonItem*
-JsonItem_SetComplete(JsonItem *item, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetComplete(Json *json, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  item = JsonItem_SetIncomplete(item, get_key, get_dtype, ptr_buffer);
-  return item->parent; //wraps property in item (completes it)
+  JsonItem *item = JsonItem_SetIncomplete(json, get_key, get_dtype, ptr_buffer);
+  return JsonItem_Wrap(json, item);
 }
 
 static JsonItem*
 JsonItem_BuildArray(Json *json, char **ptr_buffer)
 {
-  JsonItem *item = json->ptr;
-  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
+  JsonItem *item = json->item_ptr;
+  JsonItem* (*item_setter)(Json*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
 
   switch (**ptr_buffer){
     case ']':/*ARRAY WRAPPER DETECTED*/
       ++*ptr_buffer;
-      return item->parent;
+      return JsonItem_Wrap(json, item);
     case '{':/*OBJECT DETECTED*/
       set_dtype = Object;
       item_setter = &JsonItem_SetIncomplete;
@@ -306,7 +332,7 @@ JsonItem_BuildArray(Json *json, char **ptr_buffer)
       break;
   }
 
-  return (*item_setter)(item,JsonString_SetArrKey(json,item),set_dtype,ptr_buffer);
+  return (*item_setter)(json,JsonString_SetArrKey(json,item),set_dtype,ptr_buffer);
 
   error:
     fprintf(stderr,"ERROR: invalid json token %c\n", **ptr_buffer);
@@ -316,15 +342,15 @@ JsonItem_BuildArray(Json *json, char **ptr_buffer)
 static JsonItem*
 JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
-  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
+  JsonItem* (*item_setter)(Json*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
   JsonString set_key[KEY_LENGTH] = {0};
 
-  JsonItem *item = json->ptr;
+  JsonItem *item = json->item_ptr;
   switch (**ptr_buffer){
     case '}':/*OBJECT WRAPPER DETECTED*/
       ++*ptr_buffer;
-      return item->parent;
+      return JsonItem_Wrap(json, item);
     case '\"':/*KEY STRING DETECTED*/
       JsonString_SetStack(ptr_buffer,set_key,KEY_LENGTH);
       *ptr_key = JsonString_GetKey(json,set_key);
@@ -373,7 +399,7 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
             item_setter = &JsonItem_SetComplete;
             break;
         }
-      return (*item_setter)(item,*ptr_key,set_dtype,ptr_buffer);
+      return (*item_setter)(json,*ptr_key,set_dtype,ptr_buffer);
     case ',': //ignore comma
       ++*ptr_buffer;
       return item;
@@ -396,7 +422,7 @@ JsonItem_BuildEntity(Json *json, char **ptr_buffer)
 {
   JsonDType set_dtype;
 
-  JsonItem *item = json->ptr;
+  JsonItem *item = json->item_ptr;
   switch (**ptr_buffer){
     case '{':/*OBJECT DETECTED*/
       item->parent = item;
@@ -450,13 +476,13 @@ JsonItem_BuildEntity(Json *json, char **ptr_buffer)
 static JsonItem*
 JsonItem_Build(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
-  JsonItem *item = json->ptr;
+  JsonItem *item = json->item_ptr;
   switch(item->dtype){
     case Object:
       return JsonItem_BuildObject(json,ptr_key,ptr_buffer);
     case Array:
       return JsonItem_BuildArray(json,ptr_buffer);
-    case Undefined:
+    case Undefined://this should be true only at the first call
       return JsonItem_BuildEntity(json,ptr_buffer);
     default: //nothing else to build, check buffer for potential error
       if (isspace(**ptr_buffer) || iscntrl(**ptr_buffer)){
@@ -475,11 +501,10 @@ Json*
 Json_Parse(char *buffer)
 {
   Json *json = Json_Create();
-
-  JsonString *set_key=NULL;
+  JsonString *set_key;
 
   while (*buffer){ //while not null terminator char
-    json->ptr = JsonItem_Build(json,&set_key,&buffer);
+    json->item_ptr = JsonItem_Build(json,&set_key,&buffer);
   }
 
   return json;
