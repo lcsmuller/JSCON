@@ -15,78 +15,58 @@ Json_GetRoot(Json* json){
   return json->root;
 }
 
-static int
-push(Json* json)
+static inline void
+push(Stack* stack)
 {
-  if ((json->stack.top - json->stack.trace) >= json->stack.max_depth){
-    fprintf(stderr,"ERR: Stack overflow\n");
-    exit(EXIT_FAILURE);
-  }
-  
-  json->item_ptr = json->item_ptr->property[++*json->stack.top];
-  ++json->stack.top; //update top
-
-  return 1;
+  assert((stack->top - stack->trace) < stack->max_depth);//overflow assert
+  ++stack->top; //update top
 }
 
-static int
-pop(Json* json)
+static inline void
+pop(Stack* stack)
 {
-  if (json->stack.top < json->stack.trace){
-    fprintf(stderr,"ERR: Stack underflow\n");
-    exit(EXIT_FAILURE);
-  }
-
-  json->item_ptr = json->item_ptr->parent;
-  --json->stack.top; //update top
-  --*json->stack.top;
-
-  return 1;
+  assert(stack->top > stack->trace);//underflow assert
+  //avoid writing at offset memory
+  if(stack->top < stack->trace + stack->max_depth)
+    *stack->top = -1;
+  --stack->top; //update top
 }
 
-static int
-branch(Json* json)
-{
-  ++*json->stack.top;
-
-  return 1;
-}
-
+/*this will simulate recursive movement iteratively*/
 JsonItem*
 Json_NextItem(Json* json)
 {
   if (!json->item_ptr)
     return NULL;
 
-  int c, i=0;
-  printf("\nMAX_DEPTH: %d", json->stack.max_depth);
-  do {
-    printf("\nPUSH:1, POP:2, BRANCH:3, EXIT:4 ");
-    scanf("%d",&c);
-    switch(c){
-      case 1:
-        push(json);
-        fprintf(stderr, "key: %s depth: %d", json->item_ptr->key, ++i);
-        break;
-      case 2:
-        pop(json);
-        fprintf(stderr, "key: %s depth: %d", json->item_ptr->key, --i);
-        break;
-      case 3:
-        branch(json);
-        break;
-      case 4:
-      default:
-        break;
-    }
-    printf("TOP: ");
-    for (int j=0; j < json->stack.max_depth; ++j){
-      printf("%d ",json->stack.trace[j]);
-    }
-    fprintf(stderr,"\n\n");
-  } while(c != 4);
+  /*no branching possible, pop stack until an item with branch found
+    (available property = available branch)*/
+  if (json->item_ptr->n_property == 0){
+    do
+     {
+      if (json->stack.top <= json->stack.trace){
+        json->item_ptr = NULL;
+        return json->item_ptr;
+      }
 
-  return NULL;
+      pop(&json->stack);
+      json->item_ptr = json->item_ptr->parent;
+     }
+    while (*json->stack.top == json->item_ptr->n_property-1);
+  }
+  assert(json->item_ptr->n_property > 0); //overflow
+  push(&json->stack);
+  json->item_ptr = json->item_ptr->property[++json->stack.top[-1]];
+
+  /* //UNCOMMENT TO SEE MOVEMENT 
+  fprintf(stderr, "\nkey: %s", json->item_ptr->key);
+  fprintf(stderr,"\nTRACE: ");
+  for (int j=0; j < json->stack.max_depth; ++j){
+    fprintf(stderr,"%d ",json->stack.trace[j]);
+  }
+  */
+
+  return json->item_ptr;
 }
 
 JsonString*
