@@ -78,7 +78,10 @@ JsonString_CacheKey(Json *json, const JsonString cache_entry[])
     json->keylist[i] = json->keylist[i-1];
     --i;
   }
-  json->keylist[i] = strdup(cache_entry);
+  //this extra space will be necessary for
+  // doing replace operations
+  json->keylist[i] = malloc(KEY_LENGTH);
+  strncpy(json->keylist[i],cache_entry,KEY_LENGTH-1);
 
   return json->keylist[i];
 }
@@ -86,9 +89,9 @@ JsonString_CacheKey(Json *json, const JsonString cache_entry[])
 static JsonString*
 JsonString_GetKey(Json *json, const JsonString cache_entry[])
 {
-  JsonString *found_key = Json_SearchKey(json, cache_entry);
-  if (found_key)
-    return found_key;
+  int found_index = Json_SearchKey(json, cache_entry);
+  if (found_index != -1)
+    return json->keylist[found_index];
   // if key not found, create it and save in cache
   return JsonString_CacheKey(json, cache_entry);
 }

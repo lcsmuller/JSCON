@@ -5,31 +5,25 @@
 #include <string.h>
 #include <assert.h>
 
-JsonItem*
-Json_GetItem(Json* json){
-  return json->item_ptr;
-}
+static inline void
+JsonStack_Push(Json* json)
+{
+  assert((json->stack.top - json->stack.trace) < json->stack.max_depth);//overflow assert
+  ++json->stack.top; //update top
 
-JsonItem*
-Json_GetRoot(Json* json){
-  return json->root;
+  json->item_ptr = json->item_ptr->property[++json->stack.top[-1]];
 }
 
 static inline void
-push(Stack* stack)
+JsonStack_Pop(Json* json)
 {
-  assert((stack->top - stack->trace) < stack->max_depth);//overflow assert
-  ++stack->top; //update top
-}
-
-static inline void
-pop(Stack* stack)
-{
-  assert(stack->top > stack->trace);//underflow assert
+  assert(json->stack.top > json->stack.trace);//underflow assert
   //avoid writing at offset memory
-  if(stack->top < stack->trace + stack->max_depth)
-    *stack->top = -1;
-  --stack->top; //update top
+  if(json->stack.top < json->stack.trace + json->stack.max_depth)
+    *json->stack.top = -1;
+  --json->stack.top; //update top
+
+  json->item_ptr = json->item_ptr->parent;
 }
 
 /*this will simulate recursive movement iteratively*/
@@ -42,35 +36,32 @@ Json_NextItem(Json* json)
   /*no branching possible, pop stack until an item with branch found
     (available property = available branch)*/
   if (json->item_ptr->n_property == 0){
-    do
+    do /* "recursively" walk json items */
      {
+      //return NULL to avoid underflow
       if (json->stack.top <= json->stack.trace){
         json->item_ptr = NULL;
         return json->item_ptr;
       }
-
-      pop(&json->stack);
-      json->item_ptr = json->item_ptr->parent;
+      JsonStack_Pop(json);
      }
     while (*json->stack.top == json->item_ptr->n_property-1);
   }
   assert(json->item_ptr->n_property > 0); //overflow
-  push(&json->stack);
-  json->item_ptr = json->item_ptr->property[++json->stack.top[-1]];
-
-  /* //UNCOMMENT TO SEE MOVEMENT 
-  fprintf(stderr, "\nkey: %s", json->item_ptr->key);
-  fprintf(stderr,"\nTRACE: ");
-  for (int j=0; j < json->stack.max_depth; ++j){
-    fprintf(stderr,"%d ",json->stack.trace[j]);
-  }
-  */
+  JsonStack_Push(json);
 
   return json->item_ptr;
 }
 
-JsonString*
-Json_SearchKey(Json* json, const JsonString search_key[])
+void
+Json_Rewind(Json* json){
+  memset(json->stack.trace,-1,json->stack.max_depth); 
+  json->stack.top = json->stack.trace;
+  json->item_ptr = json->root;
+}
+
+int
+Json_SearchKey(const Json* json, const JsonString search_key[])
 {
   int top = json->n_keylist-1;
   int low = 0;
@@ -81,61 +72,87 @@ Json_SearchKey(Json* json, const JsonString search_key[])
     mid = ((ulong)low + (ulong)top) >> 1;
     cmp = strcmp(search_key, json->keylist[mid]);
     if (cmp == 0)
-      return json->keylist[mid];
+      return mid;
 
     if (cmp < 0)
       top = mid-1;
     else
       low = mid+1;
   }
-  return NULL;
+  return -1;
 }
 
 int
-Json_SubKey(Json* json, JsonString old_key[], JsonString new_key[])
+Json_ReplaceKeyAll(const Json* json, const JsonString old_key[], const JsonString new_key[])
 {
-  JsonString *ptr_key = Json_SearchKey(json, old_key);
-  if (ptr_key){
-    free(ptr_key);
-    ptr_key = strdup(new_key);
-    assert(ptr_key);
+  int found_index = Json_SearchKey(json, old_key);
+  if (found_index != -1){
+    strncpy(json->keylist[found_index],new_key,KEY_LENGTH-1);
     return 1;
   }
+
   return 0;
 }
 
-int
-JsonItem_DatatypeCmp(JsonItem* item, JsonDType dtype){
-  return item->dtype == dtype;
+JsonItem*
+Json_GetItem(const Json* json){
+  return json->item_ptr;
+}
+
+JsonItem*
+Json_GetRoot(const Json* json){
+  return json->root;
+}
+
+void
+JsonItem_TypeOf(const JsonItem *item, FILE* stream)
+{
+  switch (item->dtype){
+    case Number:
+      fprintf(stream,"Number");
+      break;
+    case String:
+      fprintf(stream,"String");
+      break;
+    case Null:
+      fprintf(stream,"Null");
+      break;
+    case Boolean:
+      fprintf(stream,"Boolean");
+      break;
+    case Object:
+      fprintf(stream,"Object");
+      break;
+    case Array:
+      fprintf(stream,"ArrayObject");
+      break;
+    case Undefined:
+      fprintf(stream,"Undefined");
+    default:
+      fprintf(stream,"ERROR");
+      exit(EXIT_FAILURE);
+  }
 }
 
 int
-JsonItem_KeyCmp(JsonItem* item, JsonString key[]){
-  if (!item->key)
-    return 0;
-
-  return !strcmp(item->key, key);
+JsonItem_DatatypeCmp(const JsonItem* item, const JsonDType dtype){
+  return item->dtype & dtype;
 }
 
 int
-JsonItem_NumberCmp(JsonItem* item, JsonNumber number){
+JsonItem_KeyCmp(const JsonItem* item, const JsonString key[]){
+  return (item->key != NULL) ? !strcmp(item->key, key) : 0;
+}
+
+int
+JsonItem_NumberCmp(const JsonItem* item, const JsonNumber number){
   return item->number == number;
 }
 
 JsonItem*
-JsonItem_GetParent(JsonItem* item){
-  return (item->parent != item) ? item->parent : NULL;
-}
-
-JsonItem*
-JsonItem_GetProperty(JsonItem* item, size_t index){
-  return (index < item->n_property) ? item->property[index] : NULL;
-}
-
-JsonItem*
-JsonItem_GetSibling(const JsonItem* origin, long int relative_index)
+JsonItem_GetSibling(const JsonItem* origin, const long int relative_index)
 {
-  const JsonItem* parent = origin->parent;
+  const JsonItem* parent = JsonItem_GetParent(origin);
   if ((parent == NULL) || (parent == origin))
     return NULL;
 
@@ -151,13 +168,43 @@ JsonItem_GetSibling(const JsonItem* origin, long int relative_index)
   return NULL;
 }
 
+JsonItem*
+JsonItem_GetParent(const JsonItem* item){
+  return (item->parent != item) ? item->parent : NULL;
+}
+
+JsonItem*
+JsonItem_GetProperty(const JsonItem* item, const size_t index){
+  return (index < item->n_property) ? item->property[index] : NULL;
+}
+
+size_t
+JsonItem_GetPropertyCount(const JsonItem* item){
+  return item->n_property;
+} 
+
+JsonDType
+JsonItem_GetDatatype(const JsonItem* item){
+  return item->dtype;
+}
+
 JsonString*
-JsonItem_GetString(JsonItem* item){
-  return (item->dtype == String) ? item->string : NULL;
+JsonItem_GetKey(const JsonItem* item){
+  return item->key;
+}
+
+JsonBool
+JsonItem_GetBoolean(const JsonItem* item){
+  return item->boolean;
+}
+
+JsonString*
+JsonItem_GetString(const JsonItem* item){
+  return item->string;
 }
 
 void 
-JsonNumber_StrFormat(JsonNumber number, JsonString* ptr, const int digits)
+JsonNumber_StrFormat(const JsonNumber number, JsonString* ptr, const int digits)
 {
   //check if value is integer
   if (number <= LLONG_MIN || number >= LLONG_MAX || number == (long long)number){

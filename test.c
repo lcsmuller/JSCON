@@ -22,32 +22,9 @@ int main(int argc, char *argv[])
 
   Json *json = Json_ParseReviver(buffer, NULL);
 
-  while (Json_NextItem(json)){
-    fprintf(stderr,"\n\"%s\":", json->item_ptr->key);
-    switch (json->item_ptr->dtype){
-      case Number:
-        fprintf(stderr,"Number\n");
-        break;
-      case String:
-        fprintf(stderr,"String\n");
-        break;
-      case Null:
-        fprintf(stderr,"Null\n");
-        break;
-      case Boolean:
-        fprintf(stderr,"Boolean\n");
-        break;
-      case Object:
-        fprintf(stderr,"Object\n");
-        break;
-      case Array:
-        fprintf(stderr,"ArrayObject\n");
-        break;
-      default:
-        fprintf(stderr,"ERR");
-        exit(1);
-    }
-  }
+  Json_ReplaceKeyAll(json,"m","message");
+  Json_ReplaceKeyAll(json,"t","tag");
+  Json_ReplaceKeyAll(json,"u","user");
 
   char *new_buffer = Json_Stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);

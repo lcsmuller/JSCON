@@ -45,8 +45,8 @@ Buffer_SetNumber(JsonNumber number, struct Buffer *buffer)
 static void
 JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
 {
-  if (item->dtype & dtype){
-    if ((item->key) && !(item->parent->dtype & Array)){
+  if (JsonItem_DatatypeCmp(item,dtype)){
+    if ((item->key) && !(JsonItem_DatatypeCmp(item->parent,Array))){
       (*buffer->method)('\"',buffer);
       Buffer_SetString(item->key,buffer);
       (*buffer->method)('\"',buffer);
@@ -90,11 +90,11 @@ JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
     (*buffer->method)(',',buffer);
   } 
    
-  if ((item->dtype & dtype) & (Object|Array)){
+  if (JsonItem_DatatypeCmp(item,dtype&(Object|Array))){
     if (item->n_property != 0) //remove extra comma from obj/array
       --buffer->offset;
 
-    if (item->dtype == Object)
+    if (JsonItem_DatatypeCmp(item, Object))
       (*buffer->method)('}',buffer);
     else //is array 
       (*buffer->method)(']',buffer);
@@ -108,7 +108,7 @@ Json_Stringify(Json *json, JsonDType dtype)
 
   struct Buffer buffer={0};
   /* COUNT HOW MUCH MEMORY SHOULD BE ALLOCATED FOR BUFFER 
-      WITH BUFFER_COUNT METHOD */
+      BY BUFFER_COUNT METHOD */
   buffer.method = &BufferMethod_Count;
   JsonItem_RecPrint(json->root, dtype, &buffer);
   /* ALLOCATE BY CALCULATED AMOUNT */
