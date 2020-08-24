@@ -58,40 +58,45 @@ Json_Destroy(Json *json)
 {
   JsonItem_Destroy(json->root);
   
-  while (json->n_keylist){
-    free(json->keylist[--json->n_keylist]);
+  while (json->n_list){
+    free(*json->list_ptr_key[--json->n_list]);
+    free(json->list_ptr_key[json->n_list]);
   }
-  free(json->keylist);
+  free(json->list_ptr_key);
   free(json->stack.trace);
   free(json);
 }
 
 static JsonString*
-JsonString_CacheKey(Json *json, const JsonString cache_entry[])
+JsonString_CacheKey(Json *json, const JsonString cache_entry)
 {
-  ++json->n_keylist;
-  json->keylist = realloc(json->keylist,json->n_keylist*sizeof(char*));
-  assert(json->keylist);
+  ++json->n_list;
 
-  int i = json->n_keylist-1;
-  while ((i > 0) && (strcmp(cache_entry, json->keylist[i-1]) < 0)){
-    json->keylist[i] = json->keylist[i-1];
+  json->list_ptr_key = realloc(json->list_ptr_key, json->n_list*sizeof(char**));
+  assert(json->list_ptr_key);
+
+  int i = json->n_list-1;
+  while ((i > 0) && (strcmp(cache_entry, *json->list_ptr_key[i-1]) < 0)){
+    json->list_ptr_key[i] = json->list_ptr_key[i-1];
     --i;
   }
   //this extra space will be necessary for
   // doing replace operations
-  json->keylist[i] = malloc(KEY_LENGTH);
-  strncpy(json->keylist[i],cache_entry,KEY_LENGTH-1);
+  JsonString *ptr_new_key = malloc(sizeof(JsonString));
+  assert(ptr_new_key);
+  *ptr_new_key = strndup(cache_entry,strlen(cache_entry));
+  assert(*ptr_new_key);
 
-  return json->keylist[i];
+  json->list_ptr_key[i] = ptr_new_key;
+  return json->list_ptr_key[i];
 }
 
 static JsonString*
-JsonString_GetKey(Json *json, const JsonString cache_entry[])
+JsonString_GetKey(Json *json, const JsonString cache_entry)
 {
   int found_index = Json_SearchKey(json, cache_entry);
   if (found_index != -1)
-    return json->keylist[found_index];
+    return json->list_ptr_key[found_index];
   // if key not found, create it and save in cache
   return JsonString_CacheKey(json, cache_entry);
 }
@@ -101,13 +106,13 @@ JsonString_GetKey(Json *json, const JsonString cache_entry[])
 static JsonString* //fix: get asprintf to work
 JsonString_SetArrKey(Json *json, JsonItem *item)
 {
-  JsonString cache_entry[MAX_DIGITS];
+  char cache_entry[MAX_DIGITS];
   snprintf(cache_entry,MAX_DIGITS-1,"%ld",item->n_property);
 
   return JsonString_GetKey(json, cache_entry);
 }
 
-static JsonString*
+static JsonString
 JsonString_Set(char **ptr_buffer)
 {
   char *start = *ptr_buffer;
@@ -122,14 +127,14 @@ JsonString_Set(char **ptr_buffer)
   assert(*end == '\"');
   *ptr_buffer = end+1; //store position after double quotes
 
-  JsonString *get_str = strndup(start, end-start);
-  assert(get_str);
+  JsonString set_str = strndup(start, end-start);
+  assert(set_str);
 
-  return get_str;
+  return set_str;
 }
 
 static void
-JsonString_SetStack(char **ptr_buffer, JsonString *ptr, const int n)
+JsonString_SetStack(char **ptr_buffer, JsonString set_str, const int n)
 {
   char *start = *ptr_buffer;
   assert(*start == '\"');
@@ -144,9 +149,9 @@ JsonString_SetStack(char **ptr_buffer, JsonString *ptr, const int n)
   *ptr_buffer = end+1; //store position after double quotes
   
   if (n < end-start)
-    strncpy(ptr, start, n);
+    strncpy(set_str, start, n);
   else
-    strncpy(ptr, start, end-start);
+    strncpy(set_str, start, end-start);
 }
 
 static JsonNumber
@@ -179,7 +184,7 @@ JsonNumber_Set(char **ptr_buffer)
   }
 
   assert(end-start <= MAX_DIGITS);
-  JsonString get_numstr[MAX_DIGITS] = {0};
+  char get_numstr[MAX_DIGITS] = {0};
   strncpy(get_numstr, start, end-start);
 
   JsonNumber set_number;
@@ -230,12 +235,12 @@ JsonItem_SetValue(JsonDType get_dtype, JsonItem *item, char **ptr_buffer)
 /* create nested object and return
     the nested object address. */
 static JsonItem*
-JsonItem_SetIncomplete(Json *json, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetIncomplete(Json *json, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
 {
   JsonItem *item = json->item_ptr;
 
   item = JsonItem_PropertyCreate(item);
-  item->key = get_key;
+  item->ptr_key = get_ptr_key;
 
   item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
 
@@ -268,9 +273,9 @@ JsonItem_Wrap(Json *json, JsonItem* item)
 /* create property from appointed JSON datatype
     and return the item containing it */
 static JsonItem*
-JsonItem_SetComplete(Json *json, JsonString *get_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetComplete(Json *json, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  JsonItem *item = JsonItem_SetIncomplete(json, get_key, get_dtype, ptr_buffer);
+  JsonItem *item = JsonItem_SetIncomplete(json, get_ptr_key, get_dtype, ptr_buffer);
   return JsonItem_Wrap(json, item);
 }
 
@@ -345,7 +350,7 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 {
   JsonItem* (*item_setter)(Json*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
-  JsonString set_key[KEY_LENGTH] = {0};
+  char set_key[KEY_LENGTH] = {0};
 
   JsonItem *item = json->item_ptr;
   switch (**ptr_buffer){
@@ -502,10 +507,10 @@ Json*
 Json_Parse(char *buffer)
 {
   Json *json = Json_Create();
-  JsonString *set_key;
+  JsonString *ptr_set_key;
 
   while (*buffer){ //while not null terminator char
-    json->item_ptr = JsonItem_Build(json,&set_key,&buffer);
+    json->item_ptr = JsonItem_Build(json,&ptr_set_key,&buffer);
   }
   //resets stack.top to first position
   json->stack.top = json->stack.trace;

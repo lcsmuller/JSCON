@@ -16,7 +16,7 @@ typedef enum {
   All       = ULONG_MAX,
 } JsonDType;
 
-typedef char JsonString;
+typedef char* JsonString;
 typedef double JsonNumber;
 typedef short JsonBool;
 
@@ -27,11 +27,11 @@ typedef struct JsonItem {
   struct JsonItem **property; //pointer to properties
   size_t n_property; //amount of enumerable properties
 
-  JsonString *key; //key in string format
+  JsonString *ptr_key; //key string pointer
 
   JsonDType dtype; //item's json datatype
   union { //literal value
-    JsonString* string;
+    JsonString string;
     JsonNumber number;
     JsonBool boolean;
   };
@@ -46,12 +46,12 @@ typedef struct {
 } Stack;
 
 typedef struct {
-  JsonItem *root; //always points to root json item
-  JsonItem *item_ptr; //used for json item movement
+  JsonItem *root; //points to root json item
 
-  char **keylist; //stores keys found amongst json items
-  size_t n_keylist; //amt of keys
+  JsonString **list_ptr_key; //stores keys found amongst json items
+  size_t n_list; //amt of keys
 
+  JsonItem *item_ptr; //used for movement with stack
   Stack stack; //simulate recursive movement
 } Json;
 

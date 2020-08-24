@@ -10,7 +10,6 @@ JsonStack_Push(Json* json)
 {
   assert((json->stack.top - json->stack.trace) < json->stack.max_depth);//overflow assert
   ++json->stack.top; //update top
-
   json->item_ptr = json->item_ptr->property[++json->stack.top[-1]];
 }
 
@@ -19,10 +18,10 @@ JsonStack_Pop(Json* json)
 {
   assert(json->stack.top > json->stack.trace);//underflow assert
   //avoid writing at offset memory
-  if(json->stack.top < json->stack.trace + json->stack.max_depth)
+  if(json->stack.top < json->stack.trace + json->stack.max_depth){
     *json->stack.top = -1;
+  }
   --json->stack.top; //update top
-
   json->item_ptr = json->item_ptr->parent;
 }
 
@@ -61,33 +60,47 @@ Json_Rewind(Json* json){
 }
 
 int
-Json_SearchKey(const Json* json, const JsonString search_key[])
+Json_SearchKey(const Json* json, const JsonString search_key)
 {
-  int top = json->n_keylist-1;
+  int top = json->n_list-1;
   int low = 0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(search_key, json->keylist[mid]);
+    cmp = strcmp(search_key,*json->list_ptr_key[mid]);
     if (cmp == 0)
       return mid;
-
     if (cmp < 0)
       top = mid-1;
     else
       low = mid+1;
   }
+  
   return -1;
 }
 
+static int
+cstrcmp(const void *a, const void *b)
+{
+  const JsonString**ia = (const JsonString**)a;
+  const JsonString**ib = (const JsonString**)b;
+
+  return strcmp(**ia, **ib);
+}
+
 int
-Json_ReplaceKeyAll(const Json* json, const JsonString old_key[], const JsonString new_key[])
+Json_ReplaceKeyAll(const Json* json, const JsonString old_key, const JsonString new_key)
 {
   int found_index = Json_SearchKey(json, old_key);
+
   if (found_index != -1){
-    strncpy(json->keylist[found_index],new_key,KEY_LENGTH-1);
+    free(*json->list_ptr_key[found_index]);
+    *json->list_ptr_key[found_index] = strdup(new_key);
+  
+    qsort(json->list_ptr_key,json->n_list,sizeof(JsonString*),cstrcmp);
+
     return 1;
   }
 
@@ -140,8 +153,8 @@ JsonItem_DatatypeCmp(const JsonItem* item, const JsonDType dtype){
 }
 
 int
-JsonItem_KeyCmp(const JsonItem* item, const JsonString key[]){
-  return (item->key != NULL) ? !strcmp(item->key, key) : 0;
+JsonItem_KeyCmp(const JsonItem* item, const JsonString key){
+  return (item->ptr_key != NULL) ? !strcmp(*item->ptr_key, key) : 0;
 }
 
 int
@@ -188,9 +201,9 @@ JsonItem_GetDatatype(const JsonItem* item){
   return item->dtype;
 }
 
-JsonString*
+JsonString
 JsonItem_GetKey(const JsonItem* item){
-  return item->key;
+  return *item->ptr_key;
 }
 
 JsonBool
@@ -198,13 +211,13 @@ JsonItem_GetBoolean(const JsonItem* item){
   return item->boolean;
 }
 
-JsonString*
+JsonString
 JsonItem_GetString(const JsonItem* item){
   return item->string;
 }
 
 void 
-JsonNumber_StrFormat(const JsonNumber number, JsonString* ptr, const int digits)
+JsonNumber_StrFormat(const JsonNumber number, JsonString ptr, const int digits)
 {
   //check if value is integer
   if (number <= LLONG_MIN || number >= LLONG_MAX || number == (long long)number){
@@ -213,7 +226,7 @@ JsonNumber_StrFormat(const JsonNumber number, JsonString* ptr, const int digits)
   }
 
   int decimal=0, sign=0;
-  JsonString *temp_str=fcvt(number,digits-1,&decimal,&sign);
+  JsonString temp_str=fcvt(number,digits-1,&decimal,&sign);
 
   int i=0;
   if (sign < 0)

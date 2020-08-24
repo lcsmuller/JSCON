@@ -22,9 +22,9 @@ int main(int argc, char *argv[])
 
   Json *json = Json_ParseReviver(buffer, NULL);
 
-  Json_ReplaceKeyAll(json,"m","message");
+  Json_ReplaceKeyAll(json,"m","densagem");
   Json_ReplaceKeyAll(json,"t","tag");
-  Json_ReplaceKeyAll(json,"u","user");
+  Json_ReplaceKeyAll(json,"u","usuario");
 
   char *new_buffer = Json_Stringify(json, All);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);

@@ -1,10 +1,10 @@
-#include "../JSON.h"
+  #include "../JSON.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <ctype.h>
+  #include <assert.h>
 
 struct Buffer {
   char *ptr;
@@ -25,7 +25,7 @@ BufferMethod_Update(char get_char, struct Buffer *buffer)
 }
 
 static void
-Buffer_SetString(JsonString *string, struct Buffer *buffer)
+Buffer_SetString(JsonString string, struct Buffer *buffer)
 {
   while (*string){
     (*buffer->method)(*string,buffer);
@@ -36,7 +36,7 @@ Buffer_SetString(JsonString *string, struct Buffer *buffer)
 static void
 Buffer_SetNumber(JsonNumber number, struct Buffer *buffer)
 {
-  JsonString get_strnum[MAX_DIGITS];
+  char get_strnum[MAX_DIGITS];
   JsonNumber_StrFormat(number, get_strnum, MAX_DIGITS);
 
   Buffer_SetString(get_strnum,buffer); //store value in buffer
@@ -46,9 +46,9 @@ static void
 JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
 {
   if (JsonItem_DatatypeCmp(item,dtype)){
-    if ((item->key) && !(JsonItem_DatatypeCmp(item->parent,Array))){
+    if ((item->ptr_key) && !(JsonItem_DatatypeCmp(item->parent,Array))){
       (*buffer->method)('\"',buffer);
-      Buffer_SetString(item->key,buffer);
+      Buffer_SetString(*item->ptr_key,buffer);
       (*buffer->method)('\"',buffer);
       (*buffer->method)(':',buffer);
     }
@@ -101,7 +101,7 @@ JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
   }
 }
 
-char*
+JsonString
 Json_Stringify(Json *json, JsonDType dtype)
 {
   assert(json);
