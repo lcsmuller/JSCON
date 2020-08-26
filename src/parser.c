@@ -47,8 +47,6 @@ Json_Create()
   new_json->root = calloc(1,sizeof(JsonItem));
   assert(new_json->root);
 
-  new_json->item_ptr = new_json->root; //will be set to null later
-
   return new_json;
 }
 
@@ -63,7 +61,6 @@ Json_Destroy(Json *json)
     free(json->list_ptr_key[json->n_list]);
   }
   free(json->list_ptr_key);
-  free(json->stack.trace);
   free(json);
 }
 
@@ -134,7 +131,7 @@ JsonString_Set(char **ptr_buffer)
 }
 
 static void
-JsonString_SetStack(char **ptr_buffer, JsonString set_str, const int n)
+JsonString_SetStatic(char **ptr_buffer, JsonString set_str, const int n)
 {
   char *start = *ptr_buffer;
   assert(*start == '\"');
@@ -235,61 +232,39 @@ JsonItem_SetValue(JsonDType get_dtype, JsonItem *item, char **ptr_buffer)
 /* create nested object and return
     the nested object address. */
 static JsonItem*
-JsonItem_SetIncomplete(Json *json, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetIncomplete(JsonItem *item, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  JsonItem *item = json->item_ptr;
-
   item = JsonItem_PropertyCreate(item);
   item->ptr_key = get_ptr_key;
-
   item = JsonItem_SetValue(get_dtype, item, ptr_buffer);
-
-  ++json->stack.top; //increase distance to stack's base
-
-  /*calculate maximum stack depth, used to allocate memory to
-      stack trace (in Json_Parse function) when parsing is done*/
-  if ((json->stack.top - json->stack.trace) > json->stack.max_depth){
-    json->stack.max_depth = json->stack.top - json->stack.trace;
-    /*get a stack sized the exact amount of max
-        nestings calculated (aka max_depth)*/
-    json->stack.trace = realloc(json->stack.trace, json->stack.max_depth*sizeof(short));
-    assert(json->stack.trace);
-    json->stack.trace[json->stack.max_depth-1] = -1;
-    //avoid losing ptr if realloc copies memory to somewhere else
-    json->stack.top = json->stack.trace + json->stack.max_depth;
-  }
 
   return item;
 }
 
 static JsonItem*
-JsonItem_Wrap(Json *json, JsonItem* item)
-{
-  --json->stack.top; //decrease distance to stack's base
-
+JsonItem_Wrap(JsonItem *item){
   return item->parent; //wraps property in item (completes it)
 }
 
 /* create property from appointed JSON datatype
     and return the item containing it */
 static JsonItem*
-JsonItem_SetComplete(Json *json, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
+JsonItem_SetComplete(JsonItem *item, JsonString *get_ptr_key, JsonDType get_dtype, char **ptr_buffer)
 {
-  JsonItem *item = JsonItem_SetIncomplete(json, get_ptr_key, get_dtype, ptr_buffer);
-  return JsonItem_Wrap(json, item);
+  item = JsonItem_SetIncomplete(item, get_ptr_key, get_dtype, ptr_buffer);
+  return JsonItem_Wrap(item);
 }
 
 static JsonItem*
-JsonItem_BuildArray(Json *json, char **ptr_buffer)
+JsonItem_BuildArray(Json *json, JsonItem *item, char **ptr_buffer)
 {
-  JsonItem *item = json->item_ptr;
-  JsonItem* (*item_setter)(Json*,JsonString*,JsonDType,char**);
+  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
 
   switch (**ptr_buffer){
     case ']':/*ARRAY WRAPPER DETECTED*/
       ++*ptr_buffer;
-      return JsonItem_Wrap(json, item);
+      return JsonItem_Wrap(item);
     case '{':/*OBJECT DETECTED*/
       set_dtype = Object;
       item_setter = &JsonItem_SetIncomplete;
@@ -338,7 +313,7 @@ JsonItem_BuildArray(Json *json, char **ptr_buffer)
       break;
   }
 
-  return (*item_setter)(json,JsonString_SetArrKey(json,item),set_dtype,ptr_buffer);
+  return (*item_setter)(item,JsonString_SetArrKey(json,item),set_dtype,ptr_buffer);
 
   error:
     fprintf(stderr,"ERROR: invalid json token %c\n", **ptr_buffer);
@@ -346,19 +321,18 @@ JsonItem_BuildArray(Json *json, char **ptr_buffer)
 }
 
 static JsonItem*
-JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_BuildObject(Json *json, JsonItem *item, JsonString **ptr_key, char **ptr_buffer)
 {
-  JsonItem* (*item_setter)(Json*,JsonString*,JsonDType,char**);
+  JsonItem* (*item_setter)(JsonItem*,JsonString*,JsonDType,char**);
   JsonDType set_dtype;
   char set_key[KEY_LENGTH] = {0};
 
-  JsonItem *item = json->item_ptr;
   switch (**ptr_buffer){
     case '}':/*OBJECT WRAPPER DETECTED*/
       ++*ptr_buffer;
-      return JsonItem_Wrap(json, item);
+      return JsonItem_Wrap(item);
     case '\"':/*KEY STRING DETECTED*/
-      JsonString_SetStack(ptr_buffer,set_key,KEY_LENGTH);
+      JsonString_SetStatic(ptr_buffer,set_key,KEY_LENGTH);
       *ptr_key = JsonString_GetKey(json,set_key);
       return item;
     case ':':/*VALUE DETECTED*/
@@ -405,7 +379,7 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
             item_setter = &JsonItem_SetComplete;
             break;
         }
-      return (*item_setter)(json,*ptr_key,set_dtype,ptr_buffer);
+      return (*item_setter)(item,*ptr_key,set_dtype,ptr_buffer);
     case ',': //ignore comma
       ++*ptr_buffer;
       return item;
@@ -424,18 +398,15 @@ JsonItem_BuildObject(Json *json, JsonString **ptr_key, char **ptr_buffer)
 }
 
 static JsonItem*
-JsonItem_BuildEntity(Json *json, char **ptr_buffer)
+JsonItem_BuildEntity(JsonItem *item, char **ptr_buffer)
 {
   JsonDType set_dtype;
 
-  JsonItem *item = json->item_ptr;
   switch (**ptr_buffer){
     case '{':/*OBJECT DETECTED*/
-      item->parent = item;
       set_dtype = Object;
       break;
     case '[':/*ARRAY DETECTED*/
-      item->parent = item;
       set_dtype = Array;
       break;
     case '\"':/*STRING DETECTED*/
@@ -480,16 +451,15 @@ JsonItem_BuildEntity(Json *json, char **ptr_buffer)
 
 /* get json  by evaluating buffer's current position */
 static JsonItem*
-JsonItem_Build(Json *json, JsonString **ptr_key, char **ptr_buffer)
+JsonItem_Build(Json *json, JsonItem*item, JsonString **ptr_key, char **ptr_buffer)
 {
-  JsonItem *item = json->item_ptr;
   switch(item->dtype){
     case Object:
-      return JsonItem_BuildObject(json,ptr_key,ptr_buffer);
+      return JsonItem_BuildObject(json,item,ptr_key,ptr_buffer);
     case Array:
-      return JsonItem_BuildArray(json,ptr_buffer);
+      return JsonItem_BuildArray(json,item,ptr_buffer);
     case Undefined://this should be true only at the first call
-      return JsonItem_BuildEntity(json,ptr_buffer);
+      return JsonItem_BuildEntity(item,ptr_buffer);
     default: //nothing else to build, check buffer for potential error
       if (isspace(**ptr_buffer) || iscntrl(**ptr_buffer)){
         ++*ptr_buffer; //moves if cntrl character found ('\n','\b',..)
@@ -507,15 +477,13 @@ Json*
 Json_Parse(char *buffer)
 {
   Json *json = Json_Create();
-  JsonString *ptr_set_key;
 
-  while (*buffer){ //while not null terminator char
-    json->item_ptr = JsonItem_Build(json,&ptr_set_key,&buffer);
+  JsonString *ptr_set_key;
+  JsonItem *item = json->root;
+  //build while item and buffer aren't nulled
+  while (item && *buffer){
+    item = JsonItem_Build(json,item,&ptr_set_key,&buffer);
   }
-  //resets stack.top to first position
-  json->stack.top = json->stack.trace;
-  //sets root parent to NULL (it was pointing to itself to skip checks)
-  json->root->parent = NULL;
 
   return json;
 }

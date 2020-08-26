@@ -2,12 +2,10 @@
 #include "../JSON.h"
 
 
-JsonItem* Json_NextItem(Json* json);
-void Json_Rewind(Json* json);
+JsonItem* JsonItem_Next(JsonItem* item);
 int Json_SearchKey(const Json* json, const JsonString search_key);
 int Json_ReplaceKeyAll(const Json* json, const JsonString old_key, const JsonString new_key);
-JsonItem* Json_GetItem(const Json* json);
-JsonItem* Json_GetRoot(const Json* json);
+JsonItem* JsonItem_GetRoot(JsonItem* item);
 
 
 void JsonItem_TypeOf(const JsonItem* item, FILE* stream);

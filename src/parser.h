@@ -26,8 +26,9 @@ typedef struct JsonItem {
   struct JsonItem *parent; //pointer to parent (null if root)
   struct JsonItem **property; //pointer to properties
   size_t n_property; //amount of enumerable properties
+  int top; //last accessed property from this item
 
-  JsonString *ptr_key; //key string pointer
+  JsonString *ptr_key; //pointer to string of key
 
   JsonDType dtype; //item's json datatype
   union { //literal value
@@ -37,26 +38,15 @@ typedef struct JsonItem {
   };
 } JsonItem;
 
-/* used for simulating recursive movement, especially useful for
-    a tree like structure with nests (aka JSON) */
-typedef struct {
-  short max_depth;
-  short *top;
-  short *trace;
-} Stack;
-
 typedef struct {
   JsonItem *root; //points to root json item
 
-  JsonString **list_ptr_key; //stores keys found amongst json items
-  size_t n_list; //amt of keys
-
-  JsonItem *item_ptr; //used for movement with stack
-  Stack stack; //simulate recursive movement
+  JsonString **list_ptr_key; //stores pointer to keys created
+  size_t n_list; //amt of pointer keys stored
 } Json;
 
-/* parse json arguments and returns a JsonItem
-    variable with the extracted configurations */
+/* parse json arguments and returns a Json object
+    with the extracted information */
 Json* Json_Parse(char *buffer);
 Json* Json_ParseReviver(char *buffer, void (*fn)(JsonItem*));
 

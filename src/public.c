@@ -5,58 +5,46 @@
 #include <string.h>
 #include <assert.h>
 
-static inline void
-JsonStack_Push(Json* json)
+static inline JsonItem*
+JsonItem_Push(JsonItem* item)
 {
-  assert((json->stack.top - json->stack.trace) < json->stack.max_depth);//overflow assert
-  ++json->stack.top; //update top
-  json->item_ptr = json->item_ptr->property[++json->stack.top[-1]];
+  assert(item->top < item->n_property);//overflow assert
+
+  ++item->top;
+  return item->property[item->top-1];
 }
 
-static inline void
-JsonStack_Pop(Json* json)
+static inline JsonItem*
+JsonItem_Pop(JsonItem* item)
 {
-  assert(json->stack.top > json->stack.trace);//underflow assert
-  //avoid writing at offset memory
-  if(json->stack.top < json->stack.trace + json->stack.max_depth){
-    *json->stack.top = -1;
-  }
-  --json->stack.top; //update top
-  json->item_ptr = json->item_ptr->parent;
+  assert(item->top >= 0);//underflow assert
+
+  item->top = 0;
+  return item->parent;
 }
 
 /*this will simulate recursive movement iteratively*/
 JsonItem*
-Json_NextItem(Json* json)
+JsonItem_Next(JsonItem* item)
 {
-  if (!json->item_ptr)
+  if (!item){
     return NULL;
-
-  /*no branching possible, pop stack until an item with branch found
-    (available property = available branch)*/
-  if (json->item_ptr->n_property == 0){
-    do /* "recursively" walk json items */
-     {
-      //return NULL to avoid underflow
-      if (json->stack.top <= json->stack.trace){
-        json->item_ptr = NULL;
-        return json->item_ptr;
-      }
-      JsonStack_Pop(json);
-     }
-    while (*json->stack.top == json->item_ptr->n_property-1);
   }
-  assert(json->item_ptr->n_property > 0); //overflow
-  JsonStack_Push(json);
+  /* no property available to branch, retrieve parent
+    until item with available property found */
+  if (item->n_property == 0){
+    do //recursive walk
+     {
+      item = JsonItem_Pop(item);
+      if (!item){
+        return NULL;
+      }
+     }
+    while (item->top == item->n_property);
+  }
+  item = JsonItem_Push(item);
 
-  return json->item_ptr;
-}
-
-void
-Json_Rewind(Json* json){
-  memset(json->stack.trace,-1,json->stack.max_depth); 
-  json->stack.top = json->stack.trace;
-  json->item_ptr = json->root;
+  return item;
 }
 
 int
@@ -108,13 +96,11 @@ Json_ReplaceKeyAll(const Json* json, const JsonString old_key, const JsonString 
 }
 
 JsonItem*
-Json_GetItem(const Json* json){
-  return json->item_ptr;
-}
-
-JsonItem*
-Json_GetRoot(const Json* json){
-  return json->root;
+JsonItem_GetRoot(JsonItem* item){
+  while (item->parent != NULL){
+    item = item->parent;
+  }
+  return item;
 }
 
 void
@@ -137,13 +123,12 @@ JsonItem_TypeOf(const JsonItem *item, FILE* stream)
       fprintf(stream,"Object");
       break;
     case Array:
-      fprintf(stream,"ArrayObject");
+      fprintf(stream,"Array");
       break;
     case Undefined:
       fprintf(stream,"Undefined");
     default:
-      fprintf(stream,"ERROR");
-      exit(EXIT_FAILURE);
+      assert(item->dtype == !item->dtype);
   }
 }
 
@@ -203,7 +188,7 @@ JsonItem_GetDatatype(const JsonItem* item){
 
 JsonString
 JsonItem_GetKey(const JsonItem* item){
-  return *item->ptr_key;
+  return (item->ptr_key) ? *item->ptr_key : NULL;
 }
 
 JsonBool
