@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
   json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
-  json_item_st *item = root;
+  json_item_st *item = json_item_get_root(root);
   while (item){
     item = json_item_next(item);
   }
@@ -41,10 +41,10 @@ int main(int argc, char *argv[])
 
 FILE *select_output(int argc, char *argv[])
 {
-  char *arg_ptr=NULL;
+  char *arg_p=NULL;
   while (argc--){
-    arg_ptr = *argv++;
-    if ((*arg_ptr++ == '-') && (*arg_ptr++ == 'o') && (*arg_ptr == '\0')){
+    arg_p = *argv++;
+    if ((*arg_p++ == '-') && (*arg_p++ == 'o') && (*arg_p == '\0')){
       assert (argc == 1); //check if theres exactly one arg left
 
       char *file = *argv;
@@ -59,24 +59,24 @@ FILE *select_output(int argc, char *argv[])
 
 /* returns file size in long format */
 static long
-fetch_filesize(FILE *ptr_file)
+fetch_filesize(FILE *p_file)
 {
-  fseek(ptr_file, 0, SEEK_END);
-  long filesize = ftell(ptr_file);
+  fseek(p_file, 0, SEEK_END);
+  long filesize = ftell(p_file);
   assert(filesize > 0);
-  fseek(ptr_file, 0, SEEK_SET);
+  fseek(p_file, 0, SEEK_SET);
 
   return filesize;
 }
 
 /* returns file content */
 static char*
-read_file(FILE* ptr_file, long filesize)
+read_file(FILE* p_file, long filesize)
 {
   char *buffer = malloc(filesize+1);
   assert(buffer);
   //read file into buffer
-  fread(buffer,sizeof(char),filesize,ptr_file);
+  fread(buffer,sizeof(char),filesize,p_file);
   buffer[filesize] = '\0';
 
   return buffer;

@@ -18,7 +18,7 @@ json_item_push(json_item_st* item)
 static inline json_item_st*
 json_item_pop(json_item_st* item)
 {
-  assert(item->last_accessed_branch >= 0);//underflow assert
+  assert(0 <= item->last_accessed_branch);//underflow assert
 
   item->last_accessed_branch = 0;
   return item->parent;
@@ -28,38 +28,37 @@ json_item_pop(json_item_st* item)
 json_item_st*
 json_item_next(json_item_st* item)
 {
-  if (!item){
+  if (NULL == item){
     return NULL;
   }
+
   /* no branch available to branch, retrieve parent
     until item with available branch found */
-  if (item->num_branch == 0){
-    do //recursive walk
-     {
+  if (0 == item->num_branch){
+    do { //recursive walk
       item = json_item_pop(item);
-      if (!item){
+      if (NULL == item){
         return NULL;
       }
-     }
-    while (item->last_accessed_branch == item->num_branch);
+     } while (item->last_accessed_branch == item->num_branch);
   }
+
   item = json_item_push(item);
 
   return item;
 }
 
-// fix: no need for json_item_st call
 int
-json_item_search_key(const json_item_st* item, const json_string_kt search_key)
+json_search_key(const json_string_kt kSearch_key)
 {
-  int top = g_keylist.num_ptr_key-1;
+  int top = g_keylist.num_p_key - 1;
   int low = 0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(search_key,*g_keylist.list_ptr_key[mid]);
+    cmp = strcmp(kSearch_key,*g_keylist.list_p_key[mid]);
     if (cmp == 0)
       return mid;
     if (cmp < 0)
@@ -80,17 +79,16 @@ cstrcmp(const void *a, const void *b)
   return strcmp(**ia, **ib);
 }
 
-// fix: no need for json_item_st call
 int
-json_item_replace_key_all(const json_item_st* item, const json_string_kt old_key, const json_string_kt new_key)
+json_replace_key_all(const json_string_kt kOld_Key, const json_string_kt kNew_Key)
 {
-  int found_index = json_item_search_key(item, old_key);
+  long found_index = json_search_key(kOld_Key);
 
-  if (found_index != -1){
-    free(*g_keylist.list_ptr_key[found_index]);
-    *g_keylist.list_ptr_key[found_index] = strdup(new_key);
+  if (-1 != found_index){
+    free(*g_keylist.list_p_key[found_index]);
+    *g_keylist.list_p_key[found_index] = strdup(kNew_Key);
   
-    qsort(g_keylist.list_ptr_key,g_keylist.num_ptr_key,sizeof(json_string_kt*),cstrcmp);
+    qsort(g_keylist.list_p_key, g_keylist.num_p_key, sizeof *g_keylist.list_p_key, cstrcmp);
 
     return 1;
   }
@@ -99,145 +97,153 @@ json_item_replace_key_all(const json_item_st* item, const json_string_kt old_key
 }
 
 json_item_st*
-json_item_get_root(json_item_st* item){
-  while (item->parent != NULL){
-    item = item->parent;
-  }
+json_item_get_root(json_item_st* item)
+{
+  json_item_st *tmp = item;
+  do {
+    item = tmp;
+    tmp = json_item_get_parent(item);
+  } while (NULL != tmp);
+
   return item;
 }
 
 void
-json_item_typeof(const json_item_st *item, FILE* stream)
+json_item_typeof(const json_item_st *kItem, FILE* stream)
 {
-  switch (item->type){
-    case JSON_NUMBER:
+  switch (kItem->type){
+  case JSON_NUMBER:
       fprintf(stream,"Number");
       break;
-    case JSON_STRING:
+  case JSON_STRING:
       fprintf(stream,"String");
       break;
-    case JSON_NULL:
+  case JSON_NULL:
       fprintf(stream,"Null");
       break;
-    case JSON_BOOLEAN:
+  case JSON_BOOLEAN:
       fprintf(stream,"Boolean");
       break;
-    case JSON_OBJECT:
+  case JSON_OBJECT:
       fprintf(stream,"Object");
       break;
-    case JSON_ARRAY:
+  case JSON_ARRAY:
       fprintf(stream,"Array");
       break;
-    case JSON_UNDEFINED:
+  case JSON_UNDEFINED:
       fprintf(stream,"Undefined");
-    default:
-      assert(item->type == !item->type);
+  default:
+      assert(kItem->type == !kItem->type);
   }
 }
 
 int
-json_item_typecmp(const json_item_st* item, const json_type_et type){
-  return item->type & type;
+json_item_typecmp(const json_item_st* kItem, const json_type_et kType){
+  return kItem->type & kType;
 }
 
 int
-json_item_keycmp(const json_item_st* item, const json_string_kt key){
-  return (item->ptr_key != NULL) ? !strcmp(*item->ptr_key, key) : 0;
+json_item_keycmp(const json_item_st* kItem, const json_string_kt kKey){
+  return (NULL != json_item_get_key(kItem)) ? STREQ(*kItem->p_key, kKey) : 0;
 }
 
 int
-json_item_numbercmp(const json_item_st* item, const json_number_kt number){
-  return item->number == number;
+json_item_numbercmp(const json_item_st* kItem, const json_number_kt kNumber){
+  assert(kItem->type == JSON_NUMBER);
+  return kItem->number == kNumber;
 }
 
 json_item_st*
-json_item_get_sibling(const json_item_st* origin, const long int relative_index)
+json_item_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
 {
-  const json_item_st* parent = json_item_get_parent(origin);
-  if ((parent == NULL) || (parent == origin))
+  const json_item_st* kParent = json_item_get_parent(kOrigin);
+  if ((NULL == kParent) || (kOrigin == kParent))
     return NULL;
 
-  long int origin_index=0;
-  while (parent->branch[origin_index] != origin)
+  long origin_index=0;
+  while (kOrigin != kParent->branch[origin_index])
     ++origin_index;
 
-  if (((origin_index+relative_index) >= 0)
-      && ((origin_index+relative_index) < parent->num_branch)){
-    return parent->branch[origin_index+relative_index];
+  if ((0 <= (origin_index + kRelative_index)) && (kParent->num_branch > (origin_index + kRelative_index))){
+    return kParent->branch[origin_index + kRelative_index];
   }
 
   return NULL;
 }
 
 json_item_st*
-json_item_get_parent(const json_item_st* item){
-  return (item->parent != item) ? item->parent : NULL;
+json_item_get_parent(const json_item_st* kItem){
+  return json_item_pop((json_item_st*)kItem);
 }
 
 json_item_st*
-json_item_get_property(const json_item_st* item, const size_t index){
-  return (index < item->num_branch) ? item->branch[index] : NULL;
+json_item_get_property(const json_item_st* kItem, const size_t index){
+  return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
 }
 
 size_t
-json_item_get_property_count(const json_item_st* item){
-  return item->num_branch;
+json_item_get_property_count(const json_item_st* kItem){
+  return kItem->num_branch;
 } 
 
 json_type_et
-json_item_get_type(const json_item_st* item){
-  return item->type;
+json_item_get_type(const json_item_st* kItem){
+  return kItem->type;
 }
 
 json_string_kt
-json_item_get_key(const json_item_st* item){
-  return (item->ptr_key) ? *item->ptr_key : NULL;
+json_item_get_key(const json_item_st* kItem){
+  return (kItem->p_key) ? *kItem->p_key : NULL;
 }
 
 json_boolean_kt
-json_item_get_boolean(const json_item_st* item){
-  return item->boolean;
+json_item_get_boolean(const json_item_st* kItem){
+  assert(kItem->type == JSON_BOOLEAN);
+  return kItem->boolean;
 }
 
 json_string_kt
-json_item_get_string(const json_item_st* item){
-  return item->string;
+json_item_get_string(const json_item_st* kItem){
+  assert(kItem->type == JSON_STRING);
+  return kItem->string;
 }
 
+/* converts number to string and store it in p_str */
 void 
-json_number_tostr(const json_number_kt number, json_string_kt ptr, const int digits)
+json_number_tostr(const json_number_kt kNumber, json_string_kt p_str, const int kDigits)
 {
   //check if value is integer
-  if (number <= LLONG_MIN || number >= LLONG_MAX || number == (long long)number){
-    sprintf(ptr,"%.lf",number); //convert integer to string
+  if (kNumber <= LLONG_MIN || kNumber >= LLONG_MAX || kNumber == (long long)kNumber){
+    sprintf(p_str,"%.lf",kNumber); //convert integer to string
     return;
   }
 
   int decimal=0, sign=0;
-  json_string_kt temp_str=fcvt(number,digits-1,&decimal,&sign);
+  json_string_kt tmp_str = fcvt(kNumber,kDigits-1,&decimal,&sign);
 
   int i=0;
-  if (sign < 0)
-    ptr[i++] = '-';
+  if (0 > sign){ //negative sign detected
+    p_str[i++] = '-';
+  }
 
-  if ((decimal < -7) || (decimal > 17)){ //print scientific notation 
-    sprintf(ptr+i,"%c.%.7se%d",*temp_str,temp_str+1,decimal-1);
+  if (IN_RANGE(decimal,-7,17)){
+    //print scientific notation
+    sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
     return;
   }
 
   char format[100];
-  if (decimal > 0){
+  if (0 < decimal){
     sprintf(format,"%%.%ds.%%.7s",decimal);
-    sprintf(ptr+i,format,temp_str,temp_str+decimal);
+    sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
+    return;
+  } else if (0 > decimal) {
+    sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
+    sprintf(i + p_str, format, tmp_str);
+    return;
+  } else {
+    sprintf(format,"0.%%.7s");
+    sprintf(i + p_str, format, tmp_str);
     return;
   }
-  if (decimal < 0){
-    sprintf(format,"0.%0*d%%.7s",abs(decimal),0);
-    sprintf(ptr+i,format,temp_str);
-    return;
-  }
-  sprintf(format,"0.%%.7s");
-  sprintf(ptr+i,format,temp_str);
-
-  return;
 }

@@ -6,26 +6,32 @@
   #include <ctype.h>
   #include <assert.h>
 
+
 struct buffer_s {
-  char *ptr;
-  ulong offset;
+  char *base; //buffer's base (first position)
+  ulong offset; //distance in chars to buffer's base
+  /*a setter method, will be either buffer_method_count or
+     buffer_method_update*/
   void (*method)(char get_char, struct buffer_s* buffer);
 };
 
+/* increases distance to buffer's base */ 
 static void
 buffer_method_count(char get_char, struct buffer_s *buffer){
   ++buffer->offset;
 }
 
+/* inserts char to current offset then increase it */ 
 static void
 buffer_method_update(char get_char, struct buffer_s *buffer)
 {
-  buffer->ptr[buffer->offset] = get_char;
+  buffer->base[buffer->offset] = get_char;
   ++buffer->offset;
 }
 
+/* evoke buffer method */
 static void
-buffer_set_string(json_string_kt string, struct buffer_s *buffer)
+buffer_execute_method(json_string_kt string, struct buffer_s *buffer)
 {
   while (*string){
     (*buffer->method)(*string,buffer);
@@ -33,52 +39,56 @@ buffer_set_string(json_string_kt string, struct buffer_s *buffer)
   }
 }
 
+/* returns number (double) converted to string */
 static void
 buffer_set_number(json_number_kt number, struct buffer_s *buffer)
 {
   char get_strnum[MAX_DIGITS];
   json_number_tostr(number, get_strnum, MAX_DIGITS);
 
-  buffer_set_string(get_strnum,buffer); //store value in buffer
+  buffer_execute_method(get_strnum,buffer); //store value in buffer
 }
 
+//@todo: make this iterative
+/* stringify json items by going through its properties recursively */
 static void
 json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s *buffer)
 {
+  /* stringify json item only if its of the same given type */
   if (json_item_typecmp(item,type)){
-    if ((item->ptr_key) && !(json_item_typecmp(item->parent,JSON_ARRAY))){
+    if ((NULL != json_item_get_key(item)) && !json_item_typecmp(item->parent,JSON_ARRAY)){
       (*buffer->method)('\"',buffer);
-      buffer_set_string(*item->ptr_key,buffer);
+      buffer_execute_method(*item->p_key,buffer);
       (*buffer->method)('\"',buffer);
       (*buffer->method)(':',buffer);
     }
 
     switch (item->type){
-      case JSON_NULL:
-        buffer_set_string("null",buffer);
+    case JSON_NULL:
+        buffer_execute_method("null",buffer);
         break;
-      case JSON_BOOLEAN:
-        if (item->boolean){
-          buffer_set_string("true",buffer);
+    case JSON_BOOLEAN:
+        if (1 == item->boolean){
+          buffer_execute_method("true",buffer);
           break;
         }
-        buffer_set_string("false",buffer);
+        buffer_execute_method("false",buffer);
         break;
-      case JSON_NUMBER:
+    case JSON_NUMBER:
         buffer_set_number(item->number,buffer);
         break;
-      case JSON_STRING:
+    case JSON_STRING:
         (*buffer->method)('\"',buffer);
-        buffer_set_string(item->string,buffer);
+        buffer_execute_method(item->string,buffer);
         (*buffer->method)('\"',buffer);
         break;
-      case JSON_OBJECT:
+    case JSON_OBJECT:
         (*buffer->method)('{',buffer);
         break;
-      case JSON_ARRAY:
+    case JSON_ARRAY:
         (*buffer->method)('[',buffer);
         break;
-      default:
+    default:
         fprintf(stderr,"ERROR: undefined datatype\n");
         exit(EXIT_FAILURE);
         break;
@@ -90,8 +100,8 @@ json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s
     (*buffer->method)(',',buffer);
   } 
    
-  if (json_item_typecmp(item,type&(JSON_OBJECT|JSON_ARRAY))){
-    if (item->num_branch != 0) //remove extra comma from obj/array
+  if (json_item_typecmp(item, type & (JSON_OBJECT|JSON_ARRAY))){
+    if (0 != item->num_branch) //remove extra comma from obj/array
       --buffer->offset;
 
     if (json_item_typecmp(item, JSON_OBJECT))
@@ -101,25 +111,26 @@ json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s
   }
 }
 
+/* converts json item into a string and returns its address */
 json_string_kt
 json_item_stringify(json_item_st *root, json_type_et type)
 {
-  assert(root);
+  assert(NULL != root);
 
   struct buffer_s buffer={0};
-  /* COUNT HOW MUCH MEMORY SHOULD BE ALLOCATED FOR BUFFER 
-      BY BUFFER_COUNT METHOD */
+  /* count how much memory should be allocated for buffer
+      with buffer_method_count, then allocate it*/
   buffer.method = &buffer_method_count;
   json_item_recursive_print(root, type, &buffer);
-  /* ALLOCATE BY CALCULATED AMOUNT */
-  buffer.ptr = malloc(buffer.offset+2);
-  assert(buffer.ptr);
-  /* RESET OFFSET */ 
+  buffer.base = malloc(buffer.offset+2);
+  assert(NULL != buffer.base);
+
+  /* reset buffer then stringify json item with
+      buffer_method_update into buffer, then return it */
   buffer.offset = 0;
-  /* STRINGIFY JSON SAFELY WITH BUFFER_UPDATE METHOD */
   buffer.method = &buffer_method_update;
   json_item_recursive_print(root, type, &buffer);
-  buffer.ptr[buffer.offset] = '\0';
+  buffer.base[buffer.offset] = 0;
 
-  return buffer.ptr;
+  return buffer.base;
 }

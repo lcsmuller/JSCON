@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-/* All of the possible JSON datatypes */
+/* All of the possible json datatypes */
 typedef enum {
   JSON_UNDEFINED = 0,
   JSON_NULL      = 1 << 0,
@@ -28,7 +28,7 @@ typedef struct json_item_s {
   size_t num_branch; //amount of enumerable properties
   int last_accessed_branch; //last accessed property from this item
 
-  json_string_kt *ptr_key; //pointer to string of key
+  json_string_kt *p_key; //pointer to string of key
 
   json_type_et type; //item's json datatype
   union { //literal value
@@ -38,10 +38,10 @@ typedef struct json_item_s {
   };
 } json_item_st;
 
-/* parse json arguments and returns a Json object
-    with the extracted information */
+/* parse buffer and returns a json item */
 json_item_st* json_item_parse(char *buffer);
+/* same, but with a user created function that can manipulate
+  the parsing contents */
 json_item_st* json_item_parse_reviver(char *buffer, void (*fn)(json_item_st*));
-
-json_item_st* json_item_create();
+/* clean up json item and global allocated keys */
 void json_item_cleanup(json_item_st *item);
