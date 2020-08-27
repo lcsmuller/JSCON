@@ -2,24 +2,24 @@
 #include "../JSON.h"
 
 
-JsonItem* JsonItem_Next(JsonItem* item);
-int Json_SearchKey(const Json* json, const JsonString search_key);
-int Json_ReplaceKeyAll(const Json* json, const JsonString old_key, const JsonString new_key);
-JsonItem* JsonItem_GetRoot(JsonItem* item);
+json_item_st* json_item_next(json_item_st* item);
+int json_search_key(const json_st* json, const json_string_kt search_key);
+int json_replace_key_all(const json_st* json, const json_string_kt old_key, const json_string_kt new_key);
+json_item_st* json_item_get_root(json_item_st* item);
 
 
-void JsonItem_TypeOf(const JsonItem* item, FILE* stream);
-int JsonItem_DatatypeCmp(const JsonItem* item, const JsonDType dtype);
-int JsonItem_KeyCmp(const JsonItem* item, const JsonString key);
-int JsonItem_NumberCmp(const JsonItem* item, const JsonNumber number);
-JsonItem* JsonItem_GetSibling(const JsonItem* origin, const long int rel_index);
-JsonItem* JsonItem_GetParent(const JsonItem* item);
-JsonItem* JsonItem_GetProperty(const JsonItem* item, const size_t index);
-size_t JsonItem_GetPropertyCount(const JsonItem* item);
-JsonDType JsonItem_GetDatatype(const JsonItem* item);
-JsonString JsonItem_GetKey(const JsonItem* item);
-JsonBool JsonItem_GetBoolean(const JsonItem* item);
-JsonString JsonItem_GetString(const JsonItem* item);
+void json_item_typeof(const json_item_st* item, FILE* stream);
+int json_item_typecmp(const json_item_st* item, const json_type_et type);
+int json_item_keycmp(const json_item_st* item, const json_string_kt key);
+int json_item_numbercmp(const json_item_st* item, const json_number_kt number);
+json_item_st* json_item_get_sibling(const json_item_st* origin, const long int rel_index);
+json_item_st* json_item_get_parent(const json_item_st* item);
+json_item_st* json_item_get_property(const json_item_st* item, const size_t index);
+size_t json_item_get_property_count(const json_item_st* item);
+json_type_et json_item_get_type(const json_item_st* item);
+json_string_kt json_item_get_key(const json_item_st* item);
+json_boolean_kt json_item_get_boolean(const json_item_st* item);
+json_string_kt json_item_get_string(const json_item_st* item);
 
 
-void JsonNumber_StrFormat(const JsonNumber number, JsonString ptr, const int digits);
+void json_number_tostr(const json_number_kt number, json_string_kt ptr, const int digits);

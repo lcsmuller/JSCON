@@ -6,49 +6,48 @@
 
 /* All of the possible JSON datatypes */
 typedef enum {
-  Undefined = 0,
-  Null      = 1 << 0,
-  Boolean   = 1 << 1,
-  Number    = 1 << 2,
-  String    = 1 << 3,
-  Object    = 1 << 4,
-  Array     = 1 << 5,
-  All       = ULONG_MAX,
-} JsonDType;
+  JSON_UNDEFINED = 0,
+  JSON_NULL      = 1 << 0,
+  JSON_BOOLEAN   = 1 << 1,
+  JSON_NUMBER    = 1 << 2,
+  JSON_STRING    = 1 << 3,
+  JSON_OBJECT    = 1 << 4,
+  JSON_ARRAY     = 1 << 5,
+  JSON_ALL       = ULONG_MAX,
+} json_type_et;
 
-typedef char* JsonString;
-typedef double JsonNumber;
-typedef short JsonBool;
+typedef char* json_string_kt;
+typedef double json_number_kt;
+typedef short json_boolean_kt;
 
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
-typedef struct JsonItem {
-  struct JsonItem *parent; //pointer to parent (null if root)
-  struct JsonItem **property; //pointer to properties
-  size_t n_property; //amount of enumerable properties
-  int top; //last accessed property from this item
+typedef struct json_item_s {
+  struct json_item_s *parent; //pointer to parent (null if root)
+  struct json_item_s **branch; //pointer to properties
+  size_t num_branch; //amount of enumerable properties
+  int last_accessed_branch; //last accessed property from this item
 
-  JsonString *ptr_key; //pointer to string of key
+  json_string_kt *ptr_key; //pointer to string of key
 
-  JsonDType dtype; //item's json datatype
+  json_type_et type; //item's json datatype
   union { //literal value
-    JsonString string;
-    JsonNumber number;
-    JsonBool boolean;
+    json_string_kt string;
+    json_number_kt number;
+    json_boolean_kt boolean;
   };
-} JsonItem;
+} json_item_st;
 
 typedef struct {
-  JsonItem *root; //points to root json item
-
-  JsonString **list_ptr_key; //stores pointer to keys created
-  size_t n_list; //amt of pointer keys stored
-} Json;
+  json_item_st *root; //points to root json item
+  json_string_kt **list_ptr_key; //stores pointer to keys created
+  size_t num_ptr_key; //amt of pointer keys stored
+} json_st;
 
 /* parse json arguments and returns a Json object
     with the extracted information */
-Json* Json_Parse(char *buffer);
-Json* Json_ParseReviver(char *buffer, void (*fn)(JsonItem*));
+json_st* json_parse(char *buffer);
+json_st* json_parse_reviver(char *buffer, void (*fn)(json_item_st*));
 
-Json* Json_Create();
-void Json_Destroy(Json *json);
+json_st* json_create();
+void json_destroy(json_st *json);

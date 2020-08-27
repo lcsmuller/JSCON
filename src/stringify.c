@@ -6,26 +6,26 @@
   #include <ctype.h>
   #include <assert.h>
 
-struct Buffer {
+struct buffer_s {
   char *ptr;
   ulong offset;
-  void (*method)(char get_char, struct Buffer* buffer);
+  void (*method)(char get_char, struct buffer_s* buffer);
 };
 
 static void
-BufferMethod_Count(char get_char, struct Buffer *buffer){
+buffer_method_count(char get_char, struct buffer_s *buffer){
   ++buffer->offset;
 }
 
 static void
-BufferMethod_Update(char get_char, struct Buffer *buffer)
+buffer_method_update(char get_char, struct buffer_s *buffer)
 {
   buffer->ptr[buffer->offset] = get_char;
   ++buffer->offset;
 }
 
 static void
-Buffer_SetString(JsonString string, struct Buffer *buffer)
+buffer_set_string(json_string_kt string, struct buffer_s *buffer)
 {
   while (*string){
     (*buffer->method)(*string,buffer);
@@ -34,48 +34,48 @@ Buffer_SetString(JsonString string, struct Buffer *buffer)
 }
 
 static void
-Buffer_SetNumber(JsonNumber number, struct Buffer *buffer)
+buffer_set_number(json_number_kt number, struct buffer_s *buffer)
 {
   char get_strnum[MAX_DIGITS];
-  JsonNumber_StrFormat(number, get_strnum, MAX_DIGITS);
+  json_number_tostr(number, get_strnum, MAX_DIGITS);
 
-  Buffer_SetString(get_strnum,buffer); //store value in buffer
+  buffer_set_string(get_strnum,buffer); //store value in buffer
 }
 
 static void
-JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
+json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s *buffer)
 {
-  if (JsonItem_DatatypeCmp(item,dtype)){
-    if ((item->ptr_key) && !(JsonItem_DatatypeCmp(item->parent,Array))){
+  if (json_item_typecmp(item,type)){
+    if ((item->ptr_key) && !(json_item_typecmp(item->parent,JSON_ARRAY))){
       (*buffer->method)('\"',buffer);
-      Buffer_SetString(*item->ptr_key,buffer);
+      buffer_set_string(*item->ptr_key,buffer);
       (*buffer->method)('\"',buffer);
       (*buffer->method)(':',buffer);
     }
 
-    switch (item->dtype){
-      case Null:
-        Buffer_SetString("null",buffer);
+    switch (item->type){
+      case JSON_NULL:
+        buffer_set_string("null",buffer);
         break;
-      case Boolean:
+      case JSON_BOOLEAN:
         if (item->boolean){
-          Buffer_SetString("true",buffer);
+          buffer_set_string("true",buffer);
           break;
         }
-        Buffer_SetString("false",buffer);
+        buffer_set_string("false",buffer);
         break;
-      case Number:
-        Buffer_SetNumber(item->number,buffer);
+      case JSON_NUMBER:
+        buffer_set_number(item->number,buffer);
         break;
-      case String:
+      case JSON_STRING:
         (*buffer->method)('\"',buffer);
-        Buffer_SetString(item->string,buffer);
+        buffer_set_string(item->string,buffer);
         (*buffer->method)('\"',buffer);
         break;
-      case Object:
+      case JSON_OBJECT:
         (*buffer->method)('{',buffer);
         break;
-      case Array:
+      case JSON_ARRAY:
         (*buffer->method)('[',buffer);
         break;
       default:
@@ -85,40 +85,40 @@ JsonItem_RecPrint(JsonItem *item, JsonDType dtype, struct Buffer *buffer)
     }
   }
 
-  for (size_t j=0; j < item->n_property; ++j){
-    JsonItem_RecPrint(item->property[j], dtype, buffer);
+  for (size_t j=0; j < item->num_branch; ++j){
+    json_item_recursive_print(item->branch[j], type, buffer);
     (*buffer->method)(',',buffer);
   } 
    
-  if (JsonItem_DatatypeCmp(item,dtype&(Object|Array))){
-    if (item->n_property != 0) //remove extra comma from obj/array
+  if (json_item_typecmp(item,type&(JSON_OBJECT|JSON_ARRAY))){
+    if (item->num_branch != 0) //remove extra comma from obj/array
       --buffer->offset;
 
-    if (JsonItem_DatatypeCmp(item, Object))
+    if (json_item_typecmp(item, JSON_OBJECT))
       (*buffer->method)('}',buffer);
     else //is array 
       (*buffer->method)(']',buffer);
   }
 }
 
-JsonString
-Json_Stringify(Json *json, JsonDType dtype)
+json_string_kt
+json_stringify(json_st *json, json_type_et type)
 {
   assert(json);
 
-  struct Buffer buffer={0};
+  struct buffer_s buffer={0};
   /* COUNT HOW MUCH MEMORY SHOULD BE ALLOCATED FOR BUFFER 
       BY BUFFER_COUNT METHOD */
-  buffer.method = &BufferMethod_Count;
-  JsonItem_RecPrint(json->root, dtype, &buffer);
+  buffer.method = &buffer_method_count;
+  json_item_recursive_print(json->root, type, &buffer);
   /* ALLOCATE BY CALCULATED AMOUNT */
   buffer.ptr = malloc(buffer.offset+2);
   assert(buffer.ptr);
   /* RESET OFFSET */ 
   buffer.offset = 0;
   /* STRINGIFY JSON SAFELY WITH BUFFER_UPDATE METHOD */
-  buffer.method = &BufferMethod_Update;
-  JsonItem_RecPrint(json->root, dtype, &buffer);
+  buffer.method = &buffer_method_update;
+  json_item_recursive_print(json->root, type, &buffer);
   buffer.ptr[buffer.offset] = '\0';
 
   return buffer.ptr;
