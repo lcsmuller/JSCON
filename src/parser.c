@@ -13,10 +13,10 @@ json_item_property_create(json_item_st *item)
 {
   ++item->num_branch; //update object's property count
   //update memory space for property's list
-  item->branch = realloc(item->branch, item->num_branch*sizeof(json_item_st*));
+  item->branch = realloc(item->branch, (item->num_branch)*(sizeof *item));
   assert(item->branch);
   //allocate memory space for new property (nested item)
-  item->branch[item->num_branch-1] = calloc(1,sizeof(json_item_st));
+  item->branch[item->num_branch-1] = calloc(1, sizeof *item);
   assert(item->branch[item->num_branch-1]);
   //get parent address of the new property
   item->branch[item->num_branch-1]->parent = item;
@@ -62,7 +62,7 @@ json_string_cache_key(const json_string_kt cache_entry)
 {
   ++g_keylist.num_ptr_key;
 
-  g_keylist.list_ptr_key = realloc(g_keylist.list_ptr_key, g_keylist.num_ptr_key*sizeof(char**));
+  g_keylist.list_ptr_key = realloc(g_keylist.list_ptr_key, (g_keylist.num_ptr_key)*(sizeof *g_keylist.list_ptr_key));
   assert(g_keylist.list_ptr_key);
 
   int i = g_keylist.num_ptr_key-1;
@@ -72,7 +72,7 @@ json_string_cache_key(const json_string_kt cache_entry)
   }
   //this extra space will be necessary for
   // doing replace operations
-  json_string_kt *ptr_new_key = malloc(sizeof(json_string_kt));
+  json_string_kt *ptr_new_key = malloc(sizeof *ptr_new_key);
   assert(ptr_new_key);
   *ptr_new_key = strndup(cache_entry,strlen(cache_entry));
   assert(*ptr_new_key);
