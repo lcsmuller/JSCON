@@ -38,16 +38,10 @@ typedef struct json_item_s {
   };
 } json_item_st;
 
-typedef struct {
-  json_item_st *root; //points to root json item
-  json_string_kt **list_ptr_key; //stores pointer to keys created
-  size_t num_ptr_key; //amt of pointer keys stored
-} json_st;
-
 /* parse json arguments and returns a Json object
     with the extracted information */
-json_st* json_parse(char *buffer);
-json_st* json_parse_reviver(char *buffer, void (*fn)(json_item_st*));
+json_item_st* json_item_parse(char *buffer);
+json_item_st* json_item_parse_reviver(char *buffer, void (*fn)(json_item_st*));
 
-json_st* json_create();
-void json_destroy(json_st *json);
+json_item_st* json_item_create();
+void json_item_cleanup(json_item_st *item);

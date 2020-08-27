@@ -1,4 +1,5 @@
 #include "../JSON.h"
+#include "global_share.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@ json_item_property_create(json_item_st *item)
 }
 
 /* Destroy current item and all of its nested object/arrays */
-static void
+void
 json_item_destroy(json_item_st *item)
 {
   for (size_t i=0; i < item->num_branch; ++i){
@@ -32,49 +33,41 @@ json_item_destroy(json_item_st *item)
   }
   free(item->branch);
 
-  if (item->type == JSON_STRING){
+  if (json_item_get_type(item) == JSON_STRING){
     free(item->string);
   }
+
   free(item);
 }
 
-json_st*
-json_create()
+void json_item_cleanup(json_item_st *root)
 {
-  json_st *new_json = calloc(1,sizeof(json_st));
-  assert(new_json);
+  json_item_destroy(root);
 
-  new_json->root = calloc(1,sizeof(json_item_st));
-  assert(new_json->root);
+  if (g_keylist.num_ptr_key){
+    do
+     {
+      --g_keylist.num_ptr_key;
+      free(*g_keylist.list_ptr_key[g_keylist.num_ptr_key]);
+      free(g_keylist.list_ptr_key[g_keylist.num_ptr_key]);
+     }
+    while (g_keylist.num_ptr_key);
 
-  return new_json;
-}
-
-/* Destroy json struct */
-void
-json_destroy(json_st *json)
-{
-  json_item_destroy(json->root);
-  
-  while (json->num_ptr_key){
-    free(*json->list_ptr_key[--json->num_ptr_key]);
-    free(json->list_ptr_key[json->num_ptr_key]);
+    free(g_keylist.list_ptr_key);
   }
-  free(json->list_ptr_key);
-  free(json);
 }
 
 static json_string_kt*
-json_string_cache_key(json_st *json, const json_string_kt cache_entry)
+json_string_cache_key(const json_string_kt cache_entry)
 {
-  ++json->num_ptr_key;
+  ++g_keylist.num_ptr_key;
 
-  json->list_ptr_key = realloc(json->list_ptr_key, json->num_ptr_key*sizeof(char**));
-  assert(json->list_ptr_key);
+  g_keylist.list_ptr_key = realloc(g_keylist.list_ptr_key, g_keylist.num_ptr_key*sizeof(char**));
+  assert(g_keylist.list_ptr_key);
 
-  int i = json->num_ptr_key-1;
-  while ((i > 0) && (strcmp(cache_entry, *json->list_ptr_key[i-1]) < 0)){
-    json->list_ptr_key[i] = json->list_ptr_key[i-1];
+  int i = g_keylist.num_ptr_key-1;
+  while ((i > 0) && (strcmp(cache_entry, *g_keylist.list_ptr_key[i-1]) < 0)){
+    g_keylist.list_ptr_key[i] = g_keylist.list_ptr_key[i-1];
     --i;
   }
   //this extra space will be necessary for
@@ -84,29 +77,29 @@ json_string_cache_key(json_st *json, const json_string_kt cache_entry)
   *ptr_new_key = strndup(cache_entry,strlen(cache_entry));
   assert(*ptr_new_key);
 
-  json->list_ptr_key[i] = ptr_new_key;
-  return json->list_ptr_key[i];
+  g_keylist.list_ptr_key[i] = ptr_new_key;
+  return g_keylist.list_ptr_key[i];
 }
 
 static json_string_kt*
-json_string_get_key(json_st *json, const json_string_kt cache_entry)
+json_string_get_key(const json_item_st *item, const json_string_kt cache_entry)
 {
-  int found_index = json_search_key(json, cache_entry);
+  int found_index = json_item_search_key(item, cache_entry);
   if (found_index != -1)
-    return json->list_ptr_key[found_index];
+    return g_keylist.list_ptr_key[found_index];
   // if key not found, create it and save in cache
-  return json_string_cache_key(json, cache_entry);
+  return json_string_cache_key(cache_entry);
 }
 
 /* get numerical key for array type
     json data, in string format */
 static json_string_kt* //fix: get asprintf to work
-json_string_set_array_key(json_st *json, json_item_st *item)
+json_string_set_array_key(json_item_st *item)
 {
   char cache_entry[MAX_DIGITS];
   snprintf(cache_entry,MAX_DIGITS-1,"%ld",item->num_branch);
 
-  return json_string_get_key(json, cache_entry);
+  return json_string_get_key(item, cache_entry);
 }
 
 static json_string_kt
@@ -256,7 +249,7 @@ json_item_set_complete(json_item_st *item, json_string_kt *get_ptr_key, json_typ
 }
 
 static json_item_st*
-json_item_build_array(json_st *json, json_item_st *item, char **ptr_buffer)
+json_item_build_array(json_item_st *item, char **ptr_buffer)
 {
   json_item_st* (*item_setter)(json_item_st*,json_string_kt*,json_type_et,char**);
   json_type_et set_type;
@@ -313,7 +306,7 @@ json_item_build_array(json_st *json, json_item_st *item, char **ptr_buffer)
       break;
   }
 
-  return (*item_setter)(item,json_string_set_array_key(json,item),set_type,ptr_buffer);
+  return (*item_setter)(item,json_string_set_array_key(item),set_type,ptr_buffer);
 
   error:
     fprintf(stderr,"ERROR: invalid json token %c\n", **ptr_buffer);
@@ -321,7 +314,7 @@ json_item_build_array(json_st *json, json_item_st *item, char **ptr_buffer)
 }
 
 static json_item_st*
-json_item_build_object(json_st *json, json_item_st *item, json_string_kt **ptr_key, char **ptr_buffer)
+json_item_build_object(json_item_st *item, json_string_kt **ptr_key, char **ptr_buffer)
 {
   json_item_st* (*item_setter)(json_item_st*,json_string_kt*,json_type_et,char**);
   json_type_et set_type;
@@ -333,7 +326,7 @@ json_item_build_object(json_st *json, json_item_st *item, json_string_kt **ptr_k
       return json_item_wrap(item);
     case '\"':/*KEY STRING DETECTED*/
       json_string_set_static(ptr_buffer,set_key,KEY_LENGTH);
-      *ptr_key = json_string_get_key(json,set_key);
+      *ptr_key = json_string_get_key(item, set_key);
       return item;
     case ':':/*VALUE DETECTED*/
         do { //skips space and control characters before next switch
@@ -451,13 +444,13 @@ json_item_build_entity(json_item_st *item, char **ptr_buffer)
 
 /* get json  by evaluating buffer's current position */
 static json_item_st*
-json_item_build(json_st *json, json_item_st *item, json_string_kt **ptr_key, char **ptr_buffer)
+json_item_build(json_item_st *item, json_string_kt **ptr_key, char **ptr_buffer)
 {
   switch(item->type){
     case JSON_OBJECT:
-      return json_item_build_object(json,item,ptr_key,ptr_buffer);
+      return json_item_build_object(item,ptr_key,ptr_buffer);
     case JSON_ARRAY:
-      return json_item_build_array(json,item,ptr_buffer);
+      return json_item_build_array(item,ptr_buffer);
     case JSON_UNDEFINED://this should be true only at the first call
       return json_item_build_entity(item,ptr_buffer);
     default: //nothing else to build, check buffer for potential error
@@ -473,19 +466,19 @@ json_item_build(json_st *json, json_item_st *item, json_string_kt **ptr_key, cha
     exit(EXIT_FAILURE);
 }
 
-json_st*
-json_parse(char *buffer)
+json_item_st*
+json_item_parse(char *buffer)
 {
-  json_st *json = json_create();
+  json_item_st *root = calloc(1, sizeof *root);
 
   json_string_kt *ptr_set_key;
-  json_item_st *item = json->root;
+  json_item_st *item = root;
   //build while item and buffer aren't nulled
   while (item && *buffer){
-    item = json_item_build(json,item,&ptr_set_key,&buffer);
+    item = json_item_build(item,&ptr_set_key,&buffer);
   }
 
-  return json;
+  return root;
 }
 
 static void
@@ -497,15 +490,15 @@ apply_reviver(json_item_st *item, void (*reviver)(json_item_st*))
   }
 }
 
-json_st*
-json_parse_reviver(char *buffer, void (*reviver)(json_item_st*))
+json_item_st*
+json_item_parse_reviver(char *buffer, void (*reviver)(json_item_st*))
 {
-  json_st *json = json_parse(buffer);
+  json_item_st *root = json_item_parse(buffer);
 
   if (reviver){
-    apply_reviver(json->root, reviver);
+    apply_reviver(root, reviver);
   }
 
-  return json;
+  return root;
 }
 

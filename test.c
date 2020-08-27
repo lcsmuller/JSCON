@@ -20,18 +20,18 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  json_st *json = json_parse_reviver(buffer, NULL);
+  json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
-  json_item_st *item = json_item_get_root(json->root);
+  json_item_st *item = root;
   while (item){
     item = json_item_next(item);
   }
 
-  char *new_buffer = json_stringify(json, JSON_ALL);
+  char *new_buffer = json_item_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
 
-  json_destroy(json);
+  json_item_cleanup(root);
 
   free(buffer);
   fclose(f_out);

@@ -102,15 +102,15 @@ json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s
 }
 
 json_string_kt
-json_stringify(json_st *json, json_type_et type)
+json_item_stringify(json_item_st *root, json_type_et type)
 {
-  assert(json);
+  assert(root);
 
   struct buffer_s buffer={0};
   /* COUNT HOW MUCH MEMORY SHOULD BE ALLOCATED FOR BUFFER 
       BY BUFFER_COUNT METHOD */
   buffer.method = &buffer_method_count;
-  json_item_recursive_print(json->root, type, &buffer);
+  json_item_recursive_print(root, type, &buffer);
   /* ALLOCATE BY CALCULATED AMOUNT */
   buffer.ptr = malloc(buffer.offset+2);
   assert(buffer.ptr);
@@ -118,7 +118,7 @@ json_stringify(json_st *json, json_type_et type)
   buffer.offset = 0;
   /* STRINGIFY JSON SAFELY WITH BUFFER_UPDATE METHOD */
   buffer.method = &buffer_method_update;
-  json_item_recursive_print(json->root, type, &buffer);
+  json_item_recursive_print(root, type, &buffer);
   buffer.ptr[buffer.offset] = '\0';
 
   return buffer.ptr;

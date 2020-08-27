@@ -3,8 +3,8 @@
 
 
 json_item_st* json_item_next(json_item_st* item);
-int json_search_key(const json_st* json, const json_string_kt search_key);
-int json_replace_key_all(const json_st* json, const json_string_kt old_key, const json_string_kt new_key);
+int json_item_search_key(const json_item_st* item, const json_string_kt search_key);
+int json_item_replace_key_all(const json_item_st* item, const json_string_kt old_key, const json_string_kt new_key);
 json_item_st* json_item_get_root(json_item_st* item);
 
 

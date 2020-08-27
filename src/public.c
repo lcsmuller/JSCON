@@ -1,4 +1,5 @@
 #include "../JSON.h"
+#include "global_share.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,17 +48,18 @@ json_item_next(json_item_st* item)
   return item;
 }
 
+// fix: no need for json_item_st call
 int
-json_search_key(const json_st* json, const json_string_kt search_key)
+json_item_search_key(const json_item_st* item, const json_string_kt search_key)
 {
-  int top = json->num_ptr_key-1;
+  int top = g_keylist.num_ptr_key-1;
   int low = 0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(search_key,*json->list_ptr_key[mid]);
+    cmp = strcmp(search_key,*g_keylist.list_ptr_key[mid]);
     if (cmp == 0)
       return mid;
     if (cmp < 0)
@@ -78,16 +80,17 @@ cstrcmp(const void *a, const void *b)
   return strcmp(**ia, **ib);
 }
 
+// fix: no need for json_item_st call
 int
-json_replace_key_all(const json_st* json, const json_string_kt old_key, const json_string_kt new_key)
+json_item_replace_key_all(const json_item_st* item, const json_string_kt old_key, const json_string_kt new_key)
 {
-  int found_index = json_search_key(json, old_key);
+  int found_index = json_item_search_key(item, old_key);
 
   if (found_index != -1){
-    free(*json->list_ptr_key[found_index]);
-    *json->list_ptr_key[found_index] = strdup(new_key);
+    free(*g_keylist.list_ptr_key[found_index]);
+    *g_keylist.list_ptr_key[found_index] = strdup(new_key);
   
-    qsort(json->list_ptr_key,json->num_ptr_key,sizeof(json_string_kt*),cstrcmp);
+    qsort(g_keylist.list_ptr_key,g_keylist.num_ptr_key,sizeof(json_string_kt*),cstrcmp);
 
     return 1;
   }
