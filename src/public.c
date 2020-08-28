@@ -51,14 +51,14 @@ json_item_next(json_item_st* item)
 int
 json_search_key(const json_string_kt kSearch_key)
 {
-  int top = g_keylist.num_p_key - 1;
+  int top = g_keycache.cache_size - 1;
   int low = 0;
   int mid;
 
   int cmp;
   while (low <= top){
     mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(kSearch_key,*g_keylist.list_p_key[mid]);
+    cmp = strcmp(kSearch_key,*g_keycache.list_keyaddr[mid]);
     if (cmp == 0)
       return mid;
     if (cmp < 0)
@@ -85,10 +85,10 @@ json_replace_key_all(const json_string_kt kOld_Key, const json_string_kt kNew_Ke
   long found_index = json_search_key(kOld_Key);
 
   if (-1 != found_index){
-    free(*g_keylist.list_p_key[found_index]);
-    *g_keylist.list_p_key[found_index] = strdup(kNew_Key);
+    free(*g_keycache.list_keyaddr[found_index]);
+    *g_keycache.list_keyaddr[found_index] = strdup(kNew_Key);
   
-    qsort(g_keylist.list_p_key, g_keylist.num_p_key, sizeof *g_keylist.list_p_key, cstrcmp);
+    qsort(g_keycache.list_keyaddr, g_keycache.cache_size, sizeof *g_keycache.list_keyaddr, cstrcmp);
 
     return 1;
   }

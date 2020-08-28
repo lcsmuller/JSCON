@@ -3,16 +3,18 @@
 #ifndef SHAREFILE_INCLUDED
 #define SHAREFILE_INCLUDED
 //@todo: update for thread safety (how?)
+// take a look at pthread_getspecific()
+
 /* used for easy key tag replacement, and to spare
   allocating new memory for repeated key tags */
-typedef struct json_keylist_s {
-  json_string_kt **list_p_key; //stores addresses of keys
-  size_t num_p_key; //amount of key addresses stored
-} json_keylist_st;
+typedef struct json_keycache_s {
+  json_string_kt **list_keyaddr; //list of key addresses
+  size_t cache_size; //amount of key addresses stored
+} json_keycache_st;
 
 #ifdef MAIN_FILE
-json_keylist_st g_keylist;
+json_keycache_st g_keycache;
 #else
-extern json_keylist_st g_keylist;
+extern json_keycache_st g_keycache;
 #endif
 #endif

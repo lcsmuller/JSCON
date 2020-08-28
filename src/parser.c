@@ -44,14 +44,14 @@ void json_item_cleanup(json_item_st *item)
   json_item_st *root = json_item_get_root(item);
   json_item_destroy(root);
 
-  if (g_keylist.num_p_key){
+  if (0 < g_keycache.cache_size){
     do {
-      --g_keylist.num_p_key;
-      free(*g_keylist.list_p_key[g_keylist.num_p_key]);
-      free(g_keylist.list_p_key[g_keylist.num_p_key]);
-    } while (g_keylist.num_p_key);
+      --g_keycache.cache_size;
+      free(*g_keycache.list_keyaddr[g_keycache.cache_size]);
+      free(g_keycache.list_keyaddr[g_keycache.cache_size]);
+    } while (0 != g_keycache.cache_size);
 
-    free(g_keylist.list_p_key);
+    free(g_keycache.list_keyaddr);
   }
 }
 
@@ -60,14 +60,14 @@ void json_item_cleanup(json_item_st *item)
 static json_string_kt*
 json_cache_key(const json_string_kt kCache_entry)
 {
-  ++g_keylist.num_p_key;
+  ++g_keycache.cache_size;
 
-  g_keylist.list_p_key = realloc(g_keylist.list_p_key, (g_keylist.num_p_key)*(sizeof *g_keylist.list_p_key));
-  assert(g_keylist.list_p_key);
+  g_keycache.list_keyaddr = realloc(g_keycache.list_keyaddr, (g_keycache.cache_size)*(sizeof *g_keycache.list_keyaddr));
+  assert(g_keycache.list_keyaddr);
 
-  int i = g_keylist.num_p_key-1;
-  while ((i > 0) && STRLT(kCache_entry,*g_keylist.list_p_key[i-1])){
-    g_keylist.list_p_key[i] = g_keylist.list_p_key[i-1];
+  int i = g_keycache.cache_size-1;
+  while ((i > 0) && STRLT(kCache_entry,*g_keycache.list_keyaddr[i-1])){
+    g_keycache.list_keyaddr[i] = g_keycache.list_keyaddr[i-1];
     --i;
   }
   json_string_kt *p_new_key = malloc(sizeof *p_new_key);
@@ -76,9 +76,9 @@ json_cache_key(const json_string_kt kCache_entry)
   *p_new_key = strndup(kCache_entry,strlen(kCache_entry));
   assert(*p_new_key);
 
-  g_keylist.list_p_key[i] = p_new_key;
+  g_keycache.list_keyaddr[i] = p_new_key;
 
-  return g_keylist.list_p_key[i];
+  return g_keycache.list_keyaddr[i];
 }
 
 /* try to find key entry at the global keylist,
@@ -88,7 +88,7 @@ static json_string_kt*
 json_get_key(const json_string_kt kCache_entry)
 {
   int found_index = json_search_key(kCache_entry);
-  if (-1 != found_index) return g_keylist.list_p_key[found_index];
+  if (-1 != found_index) return g_keycache.list_keyaddr[found_index];
 
   // key not found, create it and save in cache
   return json_cache_key(kCache_entry);
