@@ -1,5 +1,5 @@
 CFLAGS = -Wall -Werror -pedantic
-LDLIBS = -lm
+LDLIBS =
 CC = gcc
 
 SRCDIR = src
@@ -17,7 +17,7 @@ HEADER = JSON.h
 MAIN = test.c
 MAIN_O = $(OBJDIR)/test.o
 
-.PHONY : clean all debug
+.PHONY : clean all debug purge
 
 all: $(EXEC)
 
