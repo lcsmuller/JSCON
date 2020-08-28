@@ -39,4 +39,7 @@ debug : $(MAIN) $(SRCDIR)/*.c
 	$(CC) -g $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)
 
 clean :
-	-rm -rf $(EXEC) data.txt $(OBJDIR) debug.out
+	-rm -rf $(OBJDIR)
+
+purge : clean
+	-rm -rf $(EXEC) *.txt debug.out
