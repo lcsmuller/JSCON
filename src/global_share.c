@@ -26,14 +26,12 @@ json_ht_pair(const json_string_kt kKey, json_item_st* item)
   entry->key = strdup(kKey);
   assert(NULL != entry->key);
 
-  entry->shared_items = malloc(sizeof *entry->shared_items);
-  assert(NULL != entry->shared_items);
+  entry->start = calloc(1, sizeof *entry->start);
+  assert(NULL != entry->start);
 
-  entry->shared_items[0] = item;
-
-  ++entry->num_shared_items;
-
-  entry->next = NULL;
+  entry->start->item = item;
+  entry->last_access_shared = entry->start;
+  entry->end = entry->start;
 
   return entry;
 }
@@ -58,12 +56,14 @@ json_ht_get(const json_string_kt kKey)
 static void
 json_ht_new_shared_item(json_ht_entry_st* entry, json_item_st* item)
 {
-  ++entry->num_shared_items;
+  json_ht_shared_st *new_shared = malloc(sizeof *new_shared);
+  assert(NULL != new_shared);
 
-  entry->shared_items = realloc(entry->shared_items, (entry->num_shared_items) * (sizeof *entry->shared_items));
-  assert(NULL != entry->shared_items);
+  new_shared->item = item;
+  new_shared->next = NULL;
 
-  entry->shared_items[entry->num_shared_items-1] = item;
+  entry->end->next = new_shared;
+  entry->end = new_shared;
 }
 
 json_ht_entry_st*
@@ -78,18 +78,18 @@ json_ht_set(const json_string_kt kKey, json_item_st *item)
     return g_hashtable.entries[slot];
   }
 
-  json_ht_entry_st *prev;
+  json_ht_entry_st *entry_prev;
   while (NULL != entry){
     if (STREQ(entry->key, kKey)){
       json_ht_new_shared_item(entry, item);
       return entry;
     }
-    prev = entry;
+    entry_prev = entry;
     entry = entry->next;
   }
 
-  prev->next = json_ht_pair(kKey, item);
-  return prev->next;
+  entry_prev->next = json_ht_pair(kKey, item);
+  return entry_prev->next;
 }
 
 void
@@ -100,14 +100,21 @@ json_ht_destroy()
       continue;
 
     json_ht_entry_st *entry = g_hashtable.entries[i];
-    json_ht_entry_st *prev;
+    json_ht_entry_st *entry_prev;
     while (NULL != entry){
-      prev = entry;
+      entry_prev = entry;
       entry = entry->next;
+      
+      json_ht_shared_st *shared = entry_prev->start;
+      json_ht_shared_st *shared_prev;
+      while (NULL != shared){
+        shared_prev = shared;
+        shared = shared->next;
+        free(shared_prev);
+      }
 
-      free(prev->shared_items);
-      free(prev->key);
-      free(prev);
+      free(entry_prev->key);
+      free(entry_prev);
     }
   }
 }

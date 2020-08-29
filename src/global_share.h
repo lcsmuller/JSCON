@@ -5,11 +5,17 @@
 
 #define HASHTABLE_SIZE 10000
 
+/* linked list of items sharing the same key */
+typedef struct json_ht_shared_s {
+  json_item_st *item;
+  struct json_ht_shared_s *next;
+} json_ht_shared_st;
+
 typedef struct json_ht_entry_s {
   json_string_kt key; //json item's literal key
-  json_item_st **shared_items; //item addresses that share the same key
-  size_t num_shared_items; //amount of items sharing the same key
-  size_t last_accessed_item;
+  json_ht_shared_st *start; //linked list of items sharing the same key
+  json_ht_shared_st *end; //point to end of linked list
+  json_ht_shared_st *last_access_shared; //items sharing the same key
   struct json_ht_entry_s *next; //point to next key
 } json_ht_entry_st;
 

@@ -6,49 +6,23 @@
 #include <string.h>
 #include <assert.h>
 
+/* get item with given key, successive calls will get
+  the next item in line containing the same key */
 json_item_st*
 json_item_get_specific(const json_string_kt kKey)
 {
   json_ht_entry_st *entry = json_ht_get(kKey);
-  if (NULL == entry)
-    return NULL;
+  if (NULL == entry) return NULL;
 
-  if (entry->last_accessed_item == entry->num_shared_items){
-    entry->last_accessed_item = 0;
+  if (NULL == entry->last_access_shared){
+    entry->last_access_shared = entry->start;
     return NULL;
   }
 
-  ++entry->last_accessed_item;
-
-  json_item_st *item = entry->shared_items[entry->last_accessed_item-1];
-  json_item_st *item_property;
-  int num_property = json_item_get_property_count(item);
-  for (int i=0; i < num_property; ++i){
-    item_property = json_item_get_property(item, i);
-    if (STREQ(json_item_get_key(item_property),kKey)){
-      item = item_property;
-      break;
-    }
-  }
+  json_item_st *item = entry->last_access_shared->item;
+  entry->last_access_shared = entry->last_access_shared->next;
 
   return item;
-}
-
-json_item_st*
-json_item_get_containing(const json_string_kt kKey)
-{
-  json_ht_entry_st *entry = json_ht_get(kKey);
-  if (NULL == entry)
-    return NULL;
-
-  if (entry->last_accessed_item == entry->num_shared_items){
-    entry->last_accessed_item = 0;
-    return NULL;
-  }
-
-  ++entry->last_accessed_item;
-
-  return entry->shared_items[entry->last_accessed_item-1];
 }
 
 static inline json_item_st*
@@ -73,18 +47,14 @@ json_item_pop(json_item_st* item)
 json_item_st*
 json_item_next(json_item_st* item)
 {
-  if (NULL == item){
-    return NULL;
-  }
+  if (NULL == item) return NULL;
 
   /* no branch available to branch, retrieve parent
     until item with available branch found */
   if (0 == item->num_branch){
     do { //recursive walk
       item = json_item_pop(item);
-      if (NULL == item){
-        return NULL;
-      }
+      if (NULL == item) return NULL;
      } while (item->last_accessed_branch == item->num_branch);
   }
 
@@ -146,7 +116,7 @@ json_item_keycmp(const json_item_st* kItem, const json_string_kt kKey){
 
 int
 json_item_numbercmp(const json_item_st* kItem, const json_number_kt kNumber){
-  assert(kItem->type == JSON_NUMBER);
+  assert(JSON_NUMBER == kItem->type);
   return kItem->number == kNumber;
 }
 
@@ -190,24 +160,24 @@ json_item_get_type(const json_item_st* kItem){
 
 json_string_kt
 json_item_get_key(const json_item_st* kItem){
-  return (kItem->p_key) ? *kItem->p_key : NULL;
+  return (NULL != kItem->p_key) ? *kItem->p_key : NULL;
 }
 
 json_boolean_kt
 json_item_get_boolean(const json_item_st* kItem){
-  assert(kItem->type == JSON_BOOLEAN);
+  assert(JSON_BOOLEAN == kItem->type);
   return kItem->boolean;
 }
 
 json_string_kt
 json_item_get_string(const json_item_st* kItem){
-  assert(kItem->type == JSON_STRING);
+  assert(JSON_STRING == kItem->type);
   return kItem->string;
 }
 
 json_number_kt
 json_item_get_number(const json_item_st* kItem){
-  assert(kItem->type == JSON_NUMBER);
+  assert(JSON_NUMBER == kItem->type);
   return kItem->number;
 }
 

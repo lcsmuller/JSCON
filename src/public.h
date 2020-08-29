@@ -3,7 +3,6 @@
 
 
 json_item_st* json_item_get_specific(const json_string_kt kKey);
-json_item_st* json_item_get_containing(const json_string_kt kKey);
 json_item_st* json_item_next(json_item_st* item);
 json_item_st* json_item_get_root(json_item_st* item);
 void json_item_typeof(const json_item_st* kItem, FILE* stream);
