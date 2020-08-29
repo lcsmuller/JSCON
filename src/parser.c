@@ -43,66 +43,27 @@ void json_item_cleanup(json_item_st *item)
 {
   json_item_st *root = json_item_get_root(item);
   json_item_destroy(root);
-
-  if (0 < g_keycache.cache_size){
-    do {
-      --g_keycache.cache_size;
-      free(*g_keycache.list_keyaddr[g_keycache.cache_size]);
-      free(g_keycache.list_keyaddr[g_keycache.cache_size]);
-    } while (0 != g_keycache.cache_size);
-
-    free(g_keycache.list_keyaddr);
-  }
+  //@todo: make a better hashtable destroy method
+  json_ht_destroy();
 }
 
-/* stores new exclusive key to global keylist variable
-  and return its storage address */
 static json_string_kt*
-json_cache_key(const json_string_kt kCache_entry)
+json_get_key(const json_string_kt kKey, json_item_st* item)
 {
-  ++g_keycache.cache_size;
-
-  g_keycache.list_keyaddr = realloc(g_keycache.list_keyaddr, (g_keycache.cache_size)*(sizeof *g_keycache.list_keyaddr));
-  assert(g_keycache.list_keyaddr);
-
-  int i = g_keycache.cache_size-1;
-  while ((i > 0) && STRLT(kCache_entry,*g_keycache.list_keyaddr[i-1])){
-    g_keycache.list_keyaddr[i] = g_keycache.list_keyaddr[i-1];
-    --i;
-  }
-  json_string_kt *p_new_key = malloc(sizeof *p_new_key);
-  assert(p_new_key);
-
-  *p_new_key = strndup(kCache_entry,strlen(kCache_entry));
-  assert(*p_new_key);
-
-  g_keycache.list_keyaddr[i] = p_new_key;
-
-  return g_keycache.list_keyaddr[i];
-}
-
-/* try to find key entry at the global keylist,
-  return if found, else create, store it and return
-  its address */
-static json_string_kt*
-json_get_key(const json_string_kt kCache_entry)
-{
-  int found_index = json_search_key(kCache_entry);
-  if (-1 != found_index) return g_keycache.list_keyaddr[found_index];
-
-  // key not found, create it and save in cache
-  return json_cache_key(kCache_entry);
+  json_ht_entry_st *entry = json_ht_set(kKey, item);
+  assert(NULL != entry);
+  return &entry->key;
 }
 
 /* get numerical key for array type
     json, formatted to string */
-static json_string_kt* //fix: get asprintf to work
+static json_string_kt*
 json_set_array_key(json_item_st *item)
 {
   char cache_entry[MAX_DIGITS];
   snprintf(cache_entry,MAX_DIGITS-1,"%ld",item->num_branch);
 
-  return json_get_key(cache_entry);
+  return json_get_key(cache_entry, item);
 }
 
 /* fetch string type json and return
@@ -347,7 +308,7 @@ json_item_build_object(json_item_st *item, json_string_kt **p_key, char **p_buff
       return json_item_wrap(item);
   case '\"':/*KEY STRING DETECTED*/
       json_string_set_static(p_buffer,set_key,KEY_LENGTH);
-      *p_key = json_get_key(set_key);
+      *p_key = json_get_key(set_key, item);
       return item;
   case ':':/*VALUE DETECTED*/
       do { //skips space and control characters before next switch

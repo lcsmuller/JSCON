@@ -22,10 +22,17 @@ int main(int argc, char *argv[])
 
   json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
-  json_item_st *item = json_item_get_root(root);
-  while (item){
-    item = json_item_next(item);
-  }
+  char *try_buffer;
+  json_item_st *item;
+  do {
+    item = json_item_get_containing("m");
+    if (NULL != item){
+      try_buffer = json_item_stringify(item, JSON_ALL);
+      fwrite(try_buffer,1,strlen(try_buffer),stderr);
+      fputc('\n',stderr);
+      free(try_buffer);
+    }
+  } while (NULL != item);
 
   char *new_buffer = json_item_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);

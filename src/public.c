@@ -6,6 +6,51 @@
 #include <string.h>
 #include <assert.h>
 
+json_item_st*
+json_item_get_specific(const json_string_kt kKey)
+{
+  json_ht_entry_st *entry = json_ht_get(kKey);
+  if (NULL == entry)
+    return NULL;
+
+  if (entry->last_accessed_item == entry->num_shared_items){
+    entry->last_accessed_item = 0;
+    return NULL;
+  }
+
+  ++entry->last_accessed_item;
+
+  json_item_st *item = entry->shared_items[entry->last_accessed_item-1];
+  json_item_st *item_property;
+  int num_property = json_item_get_property_count(item);
+  for (int i=0; i < num_property; ++i){
+    item_property = json_item_get_property(item, i);
+    if (STREQ(json_item_get_key(item_property),kKey)){
+      item = item_property;
+      break;
+    }
+  }
+
+  return item;
+}
+
+json_item_st*
+json_item_get_containing(const json_string_kt kKey)
+{
+  json_ht_entry_st *entry = json_ht_get(kKey);
+  if (NULL == entry)
+    return NULL;
+
+  if (entry->last_accessed_item == entry->num_shared_items){
+    entry->last_accessed_item = 0;
+    return NULL;
+  }
+
+  ++entry->last_accessed_item;
+
+  return entry->shared_items[entry->last_accessed_item-1];
+}
+
 static inline json_item_st*
 json_item_push(json_item_st* item)
 {
@@ -46,54 +91,6 @@ json_item_next(json_item_st* item)
   item = json_item_push(item);
 
   return item;
-}
-
-int
-json_search_key(const json_string_kt kSearch_key)
-{
-  int top = g_keycache.cache_size - 1;
-  int low = 0;
-  int mid;
-
-  int cmp;
-  while (low <= top){
-    mid = ((ulong)low + (ulong)top) >> 1;
-    cmp = strcmp(kSearch_key,*g_keycache.list_keyaddr[mid]);
-    if (cmp == 0)
-      return mid;
-    if (cmp < 0)
-      top = mid-1;
-    else
-      low = mid+1;
-  }
-  
-  return -1;
-}
-
-static int
-cstrcmp(const void *a, const void *b)
-{
-  const json_string_kt**ia = (const json_string_kt**)a;
-  const json_string_kt**ib = (const json_string_kt**)b;
-
-  return strcmp(**ia, **ib);
-}
-
-int
-json_replace_key_all(const json_string_kt kOld_Key, const json_string_kt kNew_Key)
-{
-  long found_index = json_search_key(kOld_Key);
-
-  if (-1 != found_index){
-    free(*g_keycache.list_keyaddr[found_index]);
-    *g_keycache.list_keyaddr[found_index] = strdup(kNew_Key);
-  
-    qsort(g_keycache.list_keyaddr, g_keycache.cache_size, sizeof *g_keycache.list_keyaddr, cstrcmp);
-
-    return 1;
-  }
-
-  return 0;
 }
 
 json_item_st*
@@ -206,6 +203,12 @@ json_string_kt
 json_item_get_string(const json_item_st* kItem){
   assert(kItem->type == JSON_STRING);
   return kItem->string;
+}
+
+json_number_kt
+json_item_get_number(const json_item_st* kItem){
+  assert(kItem->type == JSON_NUMBER);
+  return kItem->number;
 }
 
 /* converts number to string and store it in p_str */

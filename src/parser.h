@@ -23,19 +23,18 @@ typedef short json_boolean_kt;
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct json_item_s {
-  struct json_item_s *parent; //pointer to parent (null if root)
-  struct json_item_s **branch; //pointer to properties
-  size_t num_branch; //amount of enumerable properties
-  int last_accessed_branch; //last accessed property from this item
-
-  json_string_kt *p_key; //pointer to string of key
-
+  json_string_kt *p_key; //item's json key
   json_type_et type; //item's json datatype
   union { //literal value
     json_string_kt string;
     json_number_kt number;
     json_boolean_kt boolean;
   };
+
+  struct json_item_s *parent; //pointer to parent (null if root)
+  struct json_item_s **branch; //pointer to properties
+  size_t num_branch; //amount of enumerable properties
+  int last_accessed_branch; //last accessed property from this item
 } json_item_st;
 
 /* parse buffer and returns a json item */
