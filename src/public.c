@@ -9,9 +9,18 @@
 /* get item with given key, successive calls will get
   the next item in line containing the same key */
 json_item_st*
-json_item_get_specific(const json_string_kt kKey)
+json_item_get_specific(json_item_st *item, const json_string_kt kKey)
 {
-  json_ht_entry_st *entry = json_ht_get(kKey);
+  json_item_st *root = json_item_get_root(item);
+
+  json_hasht_st *ht = g_utils.first_hasht;
+  if (NULL == ht) return NULL;
+
+  while (root != ht->root_tag){
+    ht = ht->next;
+  }
+
+  json_hasht_entry_st *entry = json_hashtable_get(ht, kKey);
   if (NULL == entry) return NULL;
 
   if (NULL == entry->last_access_shared){
@@ -19,7 +28,7 @@ json_item_get_specific(const json_string_kt kKey)
     return NULL;
   }
 
-  json_item_st *item = entry->last_access_shared->item;
+  item = entry->last_access_shared->item;
   entry->last_access_shared = entry->last_access_shared->next;
 
   return item;
@@ -54,8 +63,10 @@ json_item_next(json_item_st* item)
   if (0 == item->num_branch){
     do { //recursive walk
       item = json_item_pop(item);
-      if (NULL == item) return NULL;
-     } while (item->last_accessed_branch == item->num_branch);
+      if ((NULL == item) || (0 == item->last_accessed_branch)){
+        return NULL;
+      }
+     } while (item->num_branch == item->last_accessed_branch);
   }
 
   item = json_item_push(item);
@@ -165,18 +176,27 @@ json_item_get_key(const json_item_st* kItem){
 
 json_boolean_kt
 json_item_get_boolean(const json_item_st* kItem){
+  if (NULL == kItem)
+    return 0;
+
   assert(JSON_BOOLEAN == kItem->type);
   return kItem->boolean;
 }
 
 json_string_kt
 json_item_get_string(const json_item_st* kItem){
+  if (NULL == kItem)
+    return NULL;
+
   assert(JSON_STRING == kItem->type);
   return kItem->string;
 }
 
 json_number_kt
 json_item_get_number(const json_item_st* kItem){
+  if (NULL == kItem)
+    return 0.0;
+
   assert(JSON_NUMBER == kItem->type);
   return kItem->number;
 }

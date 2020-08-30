@@ -17,10 +17,10 @@ json_hash(const json_string_kt kKey)
   return slot;
 }
 
-static json_ht_entry_st*
-json_ht_pair(const json_string_kt kKey, json_item_st* item)
+static json_hasht_entry_st*
+json_hashtable_pair(const json_string_kt kKey, json_item_st* item)
 {
-  json_ht_entry_st *entry = calloc(1, sizeof *entry);
+  json_hasht_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
 
   entry->key = strdup(kKey);
@@ -36,12 +36,12 @@ json_ht_pair(const json_string_kt kKey, json_item_st* item)
   return entry;
 }
 
-json_ht_entry_st*
-json_ht_get(const json_string_kt kKey)
+json_hasht_entry_st*
+json_hashtable_get(json_hasht_st *hashtable, const json_string_kt kKey)
 {
   unsigned int slot = json_hash(kKey);
 
-  json_ht_entry_st *entry = g_hashtable.entries[slot];
+  json_hasht_entry_st *entry = hashtable->entries[slot];
 
   while (NULL != entry){ //try to find key and return it
     if (STREQ(entry->key, kKey)){
@@ -54,9 +54,9 @@ json_ht_get(const json_string_kt kKey)
 }
 
 static void
-json_ht_new_shared_item(json_ht_entry_st* entry, json_item_st* item)
+json_hashtable_new_shared_item(json_hasht_entry_st* entry, json_item_st* item)
 {
-  json_ht_shared_st *new_shared = malloc(sizeof *new_shared);
+  json_hasht_shared_st *new_shared = malloc(sizeof *new_shared);
   assert(NULL != new_shared);
 
   new_shared->item = item;
@@ -66,55 +66,64 @@ json_ht_new_shared_item(json_ht_entry_st* entry, json_item_st* item)
   entry->end = new_shared;
 }
 
-json_ht_entry_st*
-json_ht_set(const json_string_kt kKey, json_item_st *item)
+json_hasht_entry_st*
+json_hashtable_set(json_hasht_st* hashtable, const json_string_kt kKey, json_item_st *item)
 {
   unsigned int slot = json_hash(kKey);
 
-  json_ht_entry_st *entry = g_hashtable.entries[slot];
+  json_hasht_entry_st *entry = hashtable->entries[slot];
 
   if (NULL == entry){
-    g_hashtable.entries[slot] = json_ht_pair(kKey, item);
-    return g_hashtable.entries[slot];
+    hashtable->entries[slot] = json_hashtable_pair(kKey, item);
+    return hashtable->entries[slot];
   }
 
-  json_ht_entry_st *entry_prev;
+  json_hasht_entry_st *entry_prev;
   while (NULL != entry){
     if (STREQ(entry->key, kKey)){
-      json_ht_new_shared_item(entry, item);
+      json_hashtable_new_shared_item(entry, item);
       return entry;
     }
     entry_prev = entry;
     entry = entry->next;
   }
 
-  entry_prev->next = json_ht_pair(kKey, item);
+  entry_prev->next = json_hashtable_pair(kKey, item);
+
   return entry_prev->next;
 }
 
-void
-json_ht_destroy()
+json_hasht_st*
+json_hashtable_destroy(json_hasht_st *hashtable)
 {
   for (unsigned int i=0; i < HASHTABLE_SIZE; ++i){
-    if (NULL == g_hashtable.entries[i])
+    if (NULL == hashtable->entries[i])
       continue;
 
-    json_ht_entry_st *entry = g_hashtable.entries[i];
-    json_ht_entry_st *entry_prev;
+    json_hasht_entry_st *entry = hashtable->entries[i];
+    json_hasht_entry_st *entry_prev;
     while (NULL != entry){
       entry_prev = entry;
       entry = entry->next;
       
-      json_ht_shared_st *shared = entry_prev->start;
-      json_ht_shared_st *shared_prev;
+      json_hasht_shared_st *shared = entry_prev->start;
+      json_hasht_shared_st *shared_prev;
       while (NULL != shared){
         shared_prev = shared;
         shared = shared->next;
         free(shared_prev);
       }
-
+      
       free(entry_prev->key);
+      entry_prev->key = NULL;
+
       free(entry_prev);
+      entry_prev = NULL;
     }
   }
+  json_hasht_st *ht_prev = hashtable;
+  hashtable = hashtable->next;
+
+  free(ht_prev);
+  return hashtable;
 }

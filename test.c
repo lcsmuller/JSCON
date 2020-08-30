@@ -22,17 +22,23 @@ int main(int argc, char *argv[])
 
   json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
-  json_item_st *item;
+  json_item_st *item, *tmp;
   char *try_buffer;
   do {
-    item = json_item_get_specific("a");
-    if (NULL != item){
-      try_buffer = json_item_stringify(item, JSON_ALL);
+    item = json_item_get_specific(root, "name");
+    if (NULL == item)
+      break;
+
+    tmp = json_item_get_parent(item);
+    while (NULL != tmp){
+      try_buffer = json_item_stringify(tmp, JSON_ALL);
       fwrite(try_buffer, 1, strlen(try_buffer), stderr);
       fputc('\n', stderr);
       free(try_buffer);
+      tmp = json_item_next(tmp);
     }
   } while (NULL != item);
+
 
   char *new_buffer = json_item_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
