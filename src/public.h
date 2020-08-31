@@ -3,6 +3,7 @@
 
 
 json_item_st* json_item_get_specific(json_item_st *item, const json_string_kt kKey);
+json_item_st* json_item_get_clone(json_item_st *item);
 json_item_st* json_item_next(json_item_st* item);
 json_item_st* json_item_get_root(json_item_st* item);
 void json_item_typeof(const json_item_st* kItem, FILE* stream);
@@ -17,6 +18,7 @@ json_type_et json_item_get_type(const json_item_st* kItem);
 json_string_kt json_item_get_key(const json_item_st* kItem);
 json_boolean_kt json_item_get_boolean(const json_item_st* kItem);
 json_string_kt json_item_get_string(const json_item_st* kItem);
+json_string_kt json_item_get_strdup(const json_item_st* kItem);
 json_number_kt json_item_get_number(const json_item_st* kItem);
 
 

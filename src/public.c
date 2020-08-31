@@ -12,10 +12,7 @@ json_item_st*
 json_item_get_specific(json_item_st *item, const json_string_kt kKey)
 {
   json_item_st *root = json_item_get_root(item);
-
   json_hasht_st *ht = g_utils.first_hasht;
-  if (NULL == ht) return NULL;
-
   while (root != ht->root_tag){
     ht = ht->next;
   }
@@ -28,10 +25,29 @@ json_item_get_specific(json_item_st *item, const json_string_kt kKey)
     return NULL;
   }
 
-  item = entry->last_access_shared->item;
+  json_item_st *tmp = entry->last_access_shared->item;
   entry->last_access_shared = entry->last_access_shared->next;
 
-  return item;
+  return tmp;
+}
+
+//@todo: remake this lol
+json_item_st*
+json_item_get_clone(json_item_st *item)
+{
+  if (NULL == item) return NULL;
+
+  /* remove item->p_key temporarily, so that it can be treated
+    as a root */
+  char **tmp = item->p_key;
+  item->p_key = NULL;
+  char *buffer = json_item_stringify(item, JSON_ALL);
+  item->p_key = tmp; //reattach its key
+
+  json_item_st *clone = json_item_parse(buffer);
+  free(buffer);
+
+  return clone;
 }
 
 static inline json_item_st*
@@ -190,6 +206,19 @@ json_item_get_string(const json_item_st* kItem){
 
   assert(JSON_STRING == kItem->type);
   return kItem->string;
+}
+
+json_string_kt
+json_item_get_strdup(const json_item_st* kItem){
+  json_string_kt tmp = json_item_get_string(kItem);
+  if (NULL == tmp){
+    return NULL;
+  }
+
+  json_string_kt new_string = strdup(tmp);
+  assert(NULL != new_string);
+
+  return new_string;
 }
 
 json_number_kt

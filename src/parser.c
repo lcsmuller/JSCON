@@ -37,32 +37,41 @@ json_item_destroy(json_item_st *item)
     free(item->string);
     item->string = NULL;
   }
+
   free(item);
   item = NULL;
 }
 
-/* clean up all json items and globally allocated keys */
+/* clean up given json item and its linked hashtable */
 void json_item_cleanup(json_item_st* root)
 {
-  json_hasht_st *ht = g_utils.first_hasht;
-  assert(NULL != ht);
+  json_hasht_st *hasht = g_utils.first_hasht;
+  assert(NULL != hasht);
 
-  while (NULL != ht){
-    if (root == ht->root_tag){
-      ht = json_hashtable_destroy(ht);
-      json_item_destroy(root);
-      return;
+  json_hasht_st *hasht_prev = NULL;
+  while (NULL != hasht){
+    if (root != hasht->root_tag){
+      hasht_prev = hasht;
+      hasht = hasht->next;
     }
-    ht = ht->next;
+
+    json_item_destroy(root);
+    hasht = json_hashtable_destroy(hasht); //deletes hasht and return next hasht
+    if (NULL == hasht_prev) //hasht_prev not set because first_hasht was picked
+      g_utils.first_hasht = hasht; //updates first_hasht pointer
+    else
+      hasht_prev->next = hasht;
+
+    return;
   }
 
-  assert(!root == !!root); //didn't pass root
+  assert(!root == !!root); //item received is not a valid root
 }
 
 static json_string_kt*
-json_set_key(char key[], json_item_st* item, json_hasht_st *ht)
+json_set_key(char key[], json_item_st* item, json_hasht_st *hasht)
 {
-  json_hasht_entry_st *entry = json_hashtable_set(ht, key, item);
+  json_hasht_entry_st *entry = json_hashtable_set(hasht, key, item);
   assert(NULL != entry);
 
   return &entry->key;
@@ -207,10 +216,10 @@ json_item_set_value(json_type_et get_type, json_item_st *item, char **p_buffer)
 /* Create nested object and return the nested object address. 
   This is used for arrays and objects type json */
 static json_item_st*
-json_item_set_incomplete(json_item_st *item, char tmp_key[], json_type_et get_type, json_hasht_st *ht, char **p_buffer)
+json_item_set_incomplete(json_item_st *item, char tmp_key[], json_type_et get_type, json_hasht_st *hasht, char **p_buffer)
 {
   item = json_item_branch_create(item);
-  item->p_key = json_set_key(tmp_key, item, ht);
+  item->p_key = json_set_key(tmp_key, item, hasht);
   item = json_item_set_value(get_type, item, p_buffer);
 
   return item;
@@ -227,9 +236,9 @@ json_item_wrap(json_item_st *item){
   of its value is created at once, as opposite
   of array or object type json */
 static json_item_st*
-json_item_set_complete(json_item_st *item, char tmp_key[], json_type_et get_type, json_hasht_st *ht, char **p_buffer)
+json_item_set_complete(json_item_st *item, char tmp_key[], json_type_et get_type, json_hasht_st *hasht, char **p_buffer)
 {
-  item = json_item_set_incomplete(item, tmp_key, get_type, ht, p_buffer);
+  item = json_item_set_incomplete(item, tmp_key, get_type, hasht, p_buffer);
   return json_item_wrap(item);
 }
 
@@ -237,7 +246,7 @@ json_item_set_complete(json_item_st *item, char tmp_key[], json_type_et get_type
   whatever item is created here will be this array's property.
   if a ']' token is found then the array is wrapped up */
 static json_item_st*
-json_item_build_array(json_item_st *item, json_hasht_st *ht, char **p_buffer)
+json_item_build_array(json_item_st *item, json_hasht_st *hasht, char **p_buffer)
 {
   json_item_st* (*item_setter)(json_item_st*, char[], json_type_et, json_hasht_st*, char**);
   json_type_et tmp_type;
@@ -295,7 +304,7 @@ json_item_build_array(json_item_st *item, json_hasht_st *ht, char **p_buffer)
   char tmp_num_key[MAX_DIGITS];
   snprintf(tmp_num_key, MAX_DIGITS-1, "%ld", item->num_branch);
 
-  return (*item_setter)(item, tmp_num_key, tmp_type, ht, p_buffer);
+  return (*item_setter)(item, tmp_num_key, tmp_type, hasht, p_buffer);
 
 
   error:
@@ -307,7 +316,7 @@ json_item_build_array(json_item_st *item, json_hasht_st *ht, char **p_buffer)
   whatever item is created here will be this object's property.
   if a '}' token is found then the object is wrapped up */
 static json_item_st*
-json_item_build_object(json_item_st *item, char tmp_key[], json_hasht_st *ht, char **p_buffer)
+json_item_build_object(json_item_st *item, char tmp_key[], json_hasht_st *hasht, char **p_buffer)
 {
   json_item_st* (*item_setter)(json_item_st*, char[], json_type_et, json_hasht_st*, char**);
   json_type_et tmp_type;
@@ -361,7 +370,7 @@ json_item_build_object(json_item_st *item, char tmp_key[], json_hasht_st *ht, ch
           item_setter = &json_item_set_complete;
           break;
       }
-      return (*item_setter)(item, tmp_key, tmp_type, ht, p_buffer);
+      return (*item_setter)(item, tmp_key, tmp_type, hasht, p_buffer);
   case ',': //ignore comma
       ++*p_buffer;
       return item;
@@ -435,13 +444,13 @@ json_item_build_entity(json_item_st *item, char **p_buffer)
 
 /* build json item by evaluating buffer's current position token */
 static json_item_st*
-json_item_build(json_item_st *item, char tmp_key[], json_hasht_st *ht, char **p_buffer)
+json_item_build(json_item_st *item, char tmp_key[], json_hasht_st *hasht, char **p_buffer)
 {
   switch(item->type){
   case JSON_OBJECT:
-      return json_item_build_object(item, tmp_key, ht, p_buffer);
+      return json_item_build_object(item, tmp_key, hasht, p_buffer);
   case JSON_ARRAY:
-      return json_item_build_array(item, ht, p_buffer);
+      return json_item_build_array(item, hasht, p_buffer);
   case JSON_UNDEFINED://this should be true only at the first call
       return json_item_build_entity(item, p_buffer);
   default: //nothing else to build, check buffer for potential error
@@ -457,6 +466,32 @@ json_item_build(json_item_st *item, char tmp_key[], json_hasht_st *ht, char **p_
     exit(EXIT_FAILURE);
 }
 
+static json_hasht_st*
+json_hasht_select(json_item_st *root)
+{
+  /* get empty slot for creating a new hashtable */
+  json_hasht_st *hasht = g_utils.first_hasht;
+  if (NULL == hasht){
+    hasht = calloc(1, sizeof *hasht);
+    assert(NULL != hasht);
+    g_utils.first_hasht = hasht;
+  } else {
+    json_hasht_st *hasht_prev;
+    while (NULL != hasht){
+      hasht_prev = hasht;
+      hasht = hasht->next;
+    }
+    hasht_prev->next = calloc(1, sizeof *hasht_prev);
+    assert(NULL != hasht_prev->next);
+
+    hasht = hasht_prev->next;
+  }
+
+  hasht->root_tag = root;
+  
+  return hasht;
+}
+
 /* parse contents from buffer into a json item object
   and return its root */
 json_item_st*
@@ -464,32 +499,14 @@ json_item_parse(char *buffer)
 {
   json_item_st *root = calloc(1, sizeof *root);
   assert(NULL != root);
-
   /* get empty slot for creating a new hashtable */
-  json_hasht_st *ht = g_utils.first_hasht;
-  if (NULL == ht){
-    ht = calloc(1, sizeof *ht);
-    assert(NULL != ht);
-    g_utils.first_hasht = ht;
-  } else {
-    json_hasht_st *ht_prev;
-    while (NULL != ht){
-      ht_prev = ht;
-      ht = ht->next;
-    }
-    ht_prev->next = calloc(1, sizeof *ht_prev);
-    assert(NULL != ht_prev->next);
-
-    ht = ht_prev->next;
-  }
-
-  ht->root_tag = root;
+  json_hasht_st *hasht = json_hasht_select(root);
 
   char tmp_key[KEY_LENGTH]; //holds keys found between calls
   json_item_st *item = root;
   //build while item and buffer aren't nulled
   while ((NULL != item) && ('\0' != *buffer)){
-    item = json_item_build(item, tmp_key, ht, &buffer);
+    item = json_item_build(item, tmp_key, hasht, &buffer);
   }
 
   return root;
