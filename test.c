@@ -84,7 +84,7 @@ static char*
 read_file(FILE* p_file, long filesize)
 {
   char *buffer = malloc(filesize+1);
-  assert(buffer);
+  assert(NULL != buffer);
   //read file into buffer
   fread(buffer,sizeof(char),filesize,p_file);
   buffer[filesize] = '\0';

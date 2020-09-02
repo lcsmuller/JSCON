@@ -12,7 +12,7 @@
 struct utils_s {
   char *buffer;
   char tmp_key[KEY_LENGTH]; //holds keys found between calls
-  json_hasht_st *p_last_accessed_hashtable; //holds last hashtable accessed
+  json_hasht_st *last_accessed_hashtable; //holds last hashtable accessed
 };
 
 /* create and branch json item to current's and return it's address */
@@ -85,7 +85,7 @@ json_string_set(char **p_buffer)
 
   *p_buffer = end + 1; //skips double quotes buffer position
 
-  json_string_kt set_str = strndup(start, end-start);
+  json_string_kt set_str = strndup(start, end - start);
   assert(NULL != set_str);
 
   return set_str;
@@ -194,7 +194,7 @@ json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *u
   case JSON_OBJECT:
       item->hashtable = json_hashtable_init();
 
-      json_hashtable_build(item, &utils->p_last_accessed_hashtable);
+      json_hashtable_build(item, &utils->last_accessed_hashtable);
       ++utils->buffer;
       break;
   default:
@@ -467,9 +467,7 @@ json_item_parse(char *buffer)
 
   struct utils_s utils = {
     .buffer = buffer,
-    .p_last_accessed_hashtable = malloc(sizeof(json_hasht_st*))
   };
-  assert(NULL != utils.p_last_accessed_hashtable);
 
   json_item_st *item = root;
   //build while item and buffer aren't nulled
