@@ -9,6 +9,12 @@
 #include "public.h"
 #include "macros.h"
 
+struct utils_s {
+  char *buffer;
+  char tmp_key[KEY_LENGTH]; //holds keys found between calls
+  json_hasht_st *p_last_accessed_hashtable; //holds last hashtable accessed
+};
+
 /* create and branch json item to current's and return it's address */
 static json_item_st*
 json_item_branch_create(json_item_st *item)
@@ -77,7 +83,7 @@ json_string_set(char **p_buffer)
   }
   assert('\"' == *end); //makes sure end of string exists
 
-  *p_buffer = end+1; //skips double quotes buffer position
+  *p_buffer = end + 1; //skips double quotes buffer position
 
   json_string_kt set_str = strndup(start, end-start);
   assert(NULL != set_str);
@@ -161,35 +167,35 @@ json_number_set(char **p_buffer)
 
 /* get and return value from given json type */
 static json_item_st*
-json_item_set_value(json_type_et get_type, json_item_st *item, char **p_buffer)
+json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *utils)
 {
   item->type = get_type;
 
   switch (item->type){
   case JSON_STRING:
-      item->string = json_string_set(p_buffer);
+      item->string = json_string_set(&utils->buffer);
       break;
   case JSON_NUMBER:
-      item->number = json_number_set(p_buffer);
+      item->number = json_number_set(&utils->buffer);
       break;
   case JSON_BOOLEAN:
-      if ('t' == **p_buffer){
-        *p_buffer += 4; //skips length of "true"
+      if ('t' == *utils->buffer){
+        utils->buffer += 4; //skips length of "true"
         item->boolean = 1;
         break;
       }
-      *p_buffer += 5; //skips length of "false"
+      utils->buffer += 5; //skips length of "false"
       item->boolean = 0;
       break;
   case JSON_NULL:
-      *p_buffer += 4; //skips length of "null"
+      utils->buffer += 4; //skips length of "null"
       break;
   case JSON_ARRAY:
   case JSON_OBJECT:
       item->hashtable = json_hashtable_init();
 
-      json_hashtable_build(item);
-      ++*p_buffer;
+      json_hashtable_build(item, &utils->p_last_accessed_hashtable);
+      ++utils->buffer;
       break;
   default:
       fprintf(stderr,"ERROR: invalid datatype %ld\n", item->type);
@@ -202,11 +208,11 @@ json_item_set_value(json_type_et get_type, json_item_st *item, char **p_buffer)
 /* Create nested object and return the nested object address. 
   This is used for arrays and objects type json */
 static json_item_st*
-json_item_set_incomplete(json_item_st *item, char tmp_key[], json_type_et get_type, char **p_buffer)
+json_item_set_incomplete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
 {
   item = json_item_branch_create(item);
-  json_set_key(tmp_key, item);
-  item = json_item_set_value(get_type, item, p_buffer);
+  json_set_key(utils->tmp_key, item);
+  item = json_item_set_value(get_type, item, utils);
 
   return item;
 }
@@ -222,9 +228,9 @@ json_item_wrap(json_item_st *item){
   of its value is created at once, as opposite
   of array or object type json */
 static json_item_st*
-json_item_set_complete(json_item_st *item, char tmp_key[], json_type_et get_type, char **p_buffer)
+json_item_set_complete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
 {
-  item = json_item_set_incomplete(item, tmp_key, get_type, p_buffer);
+  item = json_item_set_incomplete(item, get_type, utils);
   return json_item_wrap(item);
 }
 
@@ -232,14 +238,14 @@ json_item_set_complete(json_item_st *item, char tmp_key[], json_type_et get_type
   whatever item is created here will be this array's property.
   if a ']' token is found then the array is wrapped up */
 static json_item_st*
-json_item_build_array(json_item_st *item, char **p_buffer)
+json_item_build_array(json_item_st *item, struct utils_s *utils)
 {
-  json_item_st* (*item_setter)(json_item_st*, char[], json_type_et, char**);
+  json_item_st* (*item_setter)(json_item_st*, json_type_et, struct utils_s *utils);
   json_type_et tmp_type;
 
-  switch (**p_buffer){
+  switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      ++*p_buffer;
+      ++utils->buffer;
       return json_item_wrap(item);
   case '{':/*OBJECT DETECTED*/
       tmp_type = JSON_OBJECT;
@@ -255,30 +261,30 @@ json_item_build_array(json_item_st *item, char **p_buffer)
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
-      if (!STRNEQ(*p_buffer,"true",4) && !STRNEQ(*p_buffer,"false",5)){
+      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
       tmp_type = JSON_BOOLEAN;
       item_setter = &json_item_set_complete;
       break;
   case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(*p_buffer,"null",4)){
+      if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
       tmp_type = JSON_NULL;
       item_setter = &json_item_set_complete;
       break;
   case ',': /*NEXT ELEMENT TOKEN*/
-      ++*p_buffer;
+      ++utils->buffer;
       return item;
   default:
       /*IGNORE CONTROL CHARACTER*/
-      if (isspace(**p_buffer) || iscntrl(**p_buffer)){
-        ++*p_buffer;
+      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+        ++utils->buffer;
         return item;
       }
       /*CHECK FOR NUMBER*/
-      if (!isdigit(**p_buffer) && ('-' != **p_buffer)){
+      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
       tmp_type = JSON_NUMBER;
@@ -287,14 +293,13 @@ json_item_build_array(json_item_st *item, char **p_buffer)
   }
 
   //creates numerical key for the array element
-  char tmp_num_key[MAX_DIGITS];
-  snprintf(tmp_num_key, MAX_DIGITS-1, "%ld", item->num_branch);
+  snprintf(utils->tmp_key, MAX_DIGITS-1, "%ld", item->num_branch);
 
-  return (*item_setter)(item, tmp_num_key, tmp_type, p_buffer);
+  return (*item_setter)(item, tmp_type, utils);
 
 
   error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", **p_buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -302,24 +307,24 @@ json_item_build_array(json_item_st *item, char **p_buffer)
   whatever item is created here will be this object's property.
   if a '}' token is found then the object is wrapped up */
 static json_item_st*
-json_item_build_object(json_item_st *item, char tmp_key[], char **p_buffer)
+json_item_build_object(json_item_st *item, struct utils_s *utils)
 {
-  json_item_st* (*item_setter)(json_item_st*, char[], json_type_et, char**);
+  json_item_st* (*item_setter)(json_item_st*, json_type_et, struct utils_s *utils);
   json_type_et tmp_type;
 
-  switch (**p_buffer){
+  switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      ++*p_buffer;
+      ++utils->buffer;
       return json_item_wrap(item);
   case '\"':/*KEY STRING DETECTED*/
-      json_string_set_static(p_buffer,tmp_key,KEY_LENGTH);
+      json_string_set_static(&utils->buffer, utils->tmp_key, KEY_LENGTH);
       return item;
   case ':':/*VALUE DETECTED*/
       do { //skips space and control characters before next switch
-        ++*p_buffer;
-      } while (isspace(**p_buffer) || iscntrl(**p_buffer));
+        ++utils->buffer;
+      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
 
-      switch (**p_buffer){ //fix: move to function
+      switch (*utils->buffer){ //fix: move to function
       case '{':/*OBJECT DETECTED*/
           tmp_type = JSON_OBJECT;
           item_setter = &json_item_set_incomplete;
@@ -334,14 +339,14 @@ json_item_build_object(json_item_st *item, char tmp_key[], char **p_buffer)
           break;
       case 't':/*CHECK FOR*/
       case 'f':/* BOOLEAN */
-          if (!STRNEQ(*p_buffer,"true",4) && !STRNEQ(*p_buffer,"false",5)){
+          if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
             goto error;
           }
           tmp_type = JSON_BOOLEAN;
           item_setter = &json_item_set_complete;
           break;
       case 'n':/*CHECK FOR NULL*/
-          if (!STRNEQ(*p_buffer,"null",4)){
+          if (!STRNEQ(utils->buffer,"null",4)){
             goto error; 
           }
           tmp_type = JSON_NULL;
@@ -349,21 +354,21 @@ json_item_build_object(json_item_st *item, char tmp_key[], char **p_buffer)
           break;
       default:
           /*CHECK FOR NUMBER*/
-          if (!isdigit(**p_buffer) && ('-' != **p_buffer)){
+          if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
             goto error;
           }
           tmp_type = JSON_NUMBER;
           item_setter = &json_item_set_complete;
           break;
       }
-      return (*item_setter)(item, tmp_key, tmp_type, p_buffer);
+      return (*item_setter)(item, tmp_type, utils);
   case ',': //ignore comma
-      ++*p_buffer;
+      ++utils->buffer;
       return item;
   default:
       /*IGNORE CONTROL CHARACTER*/
-      if (isspace(**p_buffer) || iscntrl(**p_buffer)){
-        ++*p_buffer;
+      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+        ++utils->buffer;
         return item;
       }
       goto error;
@@ -371,7 +376,7 @@ json_item_build_object(json_item_st *item, char tmp_key[], char **p_buffer)
 
 
   error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", **p_buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -379,11 +384,11 @@ json_item_build_object(json_item_st *item, char tmp_key[], char **p_buffer)
   it also allows the creation of a json that's not part of an
   array or object. ex: json_item_parse("10") */
 static json_item_st*
-json_item_build_entity(json_item_st *item, char **p_buffer)
+json_item_build_entity(json_item_st *item, struct utils_s *utils)
 {
   json_type_et tmp_type;
 
-  switch (**p_buffer){
+  switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
       tmp_type = JSON_OBJECT;
       break;
@@ -395,60 +400,60 @@ json_item_build_entity(json_item_st *item, char **p_buffer)
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
-      if (!STRNEQ(*p_buffer,"true",4) && !STRNEQ(*p_buffer,"false",5)){
+      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
       tmp_type = JSON_BOOLEAN;
       break;
   case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(*p_buffer,"null",4)){
+      if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
       tmp_type = JSON_NULL;
       break;
   default:
       /*IGNORE CONTROL CHARACTER*/
-      if (isspace(**p_buffer) || iscntrl(**p_buffer)){
-        ++*p_buffer;
+      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+        ++utils->buffer;
         return item;
       }
       /*CHECK FOR NUMBER*/
-      if (!isdigit(**p_buffer) && ('-' != **p_buffer)){
+      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
       tmp_type = JSON_NUMBER;
       break;
   }
 
-  return json_item_set_value(tmp_type, item, p_buffer);
+  return json_item_set_value(tmp_type, item, utils);
 
 
   error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", **p_buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
 /* build json item by evaluating buffer's current position token */
 static json_item_st*
-json_item_build(json_item_st *item, char tmp_key[], char **p_buffer)
+json_item_build(json_item_st *item, struct utils_s *utils)
 {
   switch(item->type){
   case JSON_OBJECT:
-      return json_item_build_object(item, tmp_key, p_buffer);
+      return json_item_build_object(item, utils);
   case JSON_ARRAY:
-      return json_item_build_array(item, p_buffer);
+      return json_item_build_array(item, utils);
   case JSON_UNDEFINED://this should be true only at the first call
-      return json_item_build_entity(item, p_buffer);
+      return json_item_build_entity(item, utils);
   default: //nothing else to build, check buffer for potential error
-      if (isspace(**p_buffer) || iscntrl(**p_buffer)){
-        ++*p_buffer; //moves if cntrl character found ('\n','\b',..)
+      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+        ++utils->buffer; //moves if cntrl character found ('\n','\b',..)
         return item;
       }
       goto error;
   }
 
   error:
-    fprintf(stderr,"ERROR: invalid json token %c\n",**p_buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -460,11 +465,16 @@ json_item_parse(char *buffer)
   json_item_st *root = calloc(1, sizeof *root);
   assert(NULL != root);
 
-  char tmp_key[KEY_LENGTH]; //holds keys found between calls
+  struct utils_s utils = {
+    .buffer = buffer,
+    .p_last_accessed_hashtable = malloc(sizeof(json_hasht_st*))
+  };
+  assert(NULL != utils.p_last_accessed_hashtable);
+
   json_item_st *item = root;
   //build while item and buffer aren't nulled
-  while ((NULL != item) && ('\0' != *buffer)){
-    item = json_item_build(item, tmp_key, &buffer);
+  while ((NULL != item) && ('\0' != *utils.buffer)){
+    item = json_item_build(item, &utils);
   }
 
   return root;

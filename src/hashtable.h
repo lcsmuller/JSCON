@@ -21,7 +21,7 @@ typedef struct json_hasht_s {
 
 json_hasht_st* json_hashtable_init();
 void json_hashtable_destroy(json_hasht_st *hashtable);
-void json_hashtable_build(json_item_st *item);
+void json_hashtable_build(json_item_st *item, json_hasht_st **last_accessed_hashtable);
 json_item_st* json_hashtable_get(const json_string_kt kKey, json_item_st *item);
 json_item_st* json_hashtable_set(const json_string_kt kKey, json_item_st *item);
 

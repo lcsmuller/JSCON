@@ -39,16 +39,17 @@ json_hashtable_destroy(json_hasht_st *hashtable)
 }
 
 void
-json_hashtable_build(json_item_st *item)
+json_hashtable_build(json_item_st *item, json_hasht_st **p_last_accessed_hashtable)
 {
-  static json_hasht_st *hashtable_end;
-
-  if (NULL != item->parent){
-    hashtable_end->next = item->hashtable; //item is not root
+  json_hasht_st *last_accessed_hashtable = *p_last_accessed_hashtable;
+  if (NULL != last_accessed_hashtable){
+    last_accessed_hashtable->next = item->hashtable; //item is not root
   }
 
-  hashtable_end = item->hashtable;
-  hashtable_end->root = item;
+  last_accessed_hashtable = item->hashtable;
+  last_accessed_hashtable->root = item;
+
+  *p_last_accessed_hashtable = last_accessed_hashtable;
 }
 
 static uint
