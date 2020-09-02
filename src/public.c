@@ -25,21 +25,24 @@ json_item_get_specific(json_item_st *item, const json_string_kt kKey)
 }
 
 json_item_st*
-json_item_next_object(json_item_st *item)
+json_item_next_object(json_item_st *item, json_item_st **p_current_item)
 {
-  static json_hasht_st *current_hashtable = NULL;
+  json_hasht_st *current_hashtable;
 
   if (NULL != item){
-   current_hashtable = item->hashtable; 
-   return current_hashtable->root;
+    current_hashtable = item->hashtable;
+    *p_current_item = current_hashtable->root;
+    return *p_current_item;
   }
 
-  current_hashtable = current_hashtable->next;
+  current_hashtable = (*p_current_item)->hashtable->next;
   if (NULL == current_hashtable){
+    *p_current_item = NULL;
     return NULL;
   }
 
-  return current_hashtable->root;
+  *p_current_item = current_hashtable->root;
+  return *p_current_item;
 }
 
 //@todo: remake this lol

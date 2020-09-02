@@ -24,9 +24,9 @@ int main(int argc, char *argv[])
   json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
   json_item_st *walk = root;
-  json_item_st *item;
+  json_item_st *item, *current_item = NULL;
   char *try_buffer;
-  walk = json_item_next_object(walk);
+  walk = json_item_next_object(walk, &current_item);
   do {
     item = json_item_get_specific(walk, "m");
     if (NULL != item){
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
       fputc('\n', stderr);
       free(try_buffer);
     }
-  walk = json_item_next_object(NULL);
+  walk = json_item_next_object(NULL, &current_item);
   } while (NULL != walk);
 
   char *new_buffer = json_item_stringify(root, JSON_ALL);

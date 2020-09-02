@@ -6,7 +6,7 @@
 #include "parser.h"
 
 json_item_st* json_item_get_specific(json_item_st *item, const json_string_kt kKey);
-json_item_st* json_item_next_object(json_item_st *item);
+json_item_st* json_item_next_object(json_item_st *item, json_item_st **p_current_item);
 json_item_st* json_item_get_clone(json_item_st *item);
 json_item_st* json_item_next(json_item_st* item);
 json_item_st* json_item_get_root(json_item_st* item);
