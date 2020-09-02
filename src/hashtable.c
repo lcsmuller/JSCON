@@ -43,9 +43,10 @@ json_hashtable_build(json_item_st *item)
 {
   static json_hasht_st *hashtable_end;
 
-  if (NULL != hashtable_end){
-    hashtable_end->next = item->hashtable;
+  if (NULL != item->parent){
+    hashtable_end->next = item->hashtable; //item is not root
   }
+
   hashtable_end = item->hashtable;
   hashtable_end->root = item;
 }

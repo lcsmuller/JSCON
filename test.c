@@ -41,7 +41,6 @@ int main(int argc, char *argv[])
   char *new_buffer = json_item_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
-
   json_item_destroy(root);
 
   free(buffer);
