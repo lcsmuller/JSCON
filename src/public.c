@@ -1,34 +1,45 @@
-#include "../JSON.h"
-#include "global_share.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#include "hashtable.h"
+#include "public.h"
+#include "parser.h"
+#include "stringify.h"
+#include "macros.h"
 
 /* get item with given key, successive calls will get
   the next item in line containing the same key */
 json_item_st*
 json_item_get_specific(json_item_st *item, const json_string_kt kKey)
 {
-  json_item_st *root = json_item_get_root(item);
-  json_hasht_st *ht = g_utils.first_hasht;
-  while (root != ht->root_tag){
-    ht = ht->next;
+  if (!(item->type & (JSON_OBJECT|JSON_ARRAY)))
+    return NULL;
+
+  item = json_hashtable_get(kKey, item);
+  if (NULL != item)
+    return item;
+
+  return NULL;
+}
+
+json_item_st*
+json_item_next_object(json_item_st *item)
+{
+  static json_hasht_st *current_hashtable = NULL;
+
+  if (NULL != item){
+   current_hashtable = item->hashtable; 
+   return current_hashtable->root;
   }
 
-  json_hasht_entry_st *entry = json_hashtable_get(ht, kKey);
-  if (NULL == entry) return NULL;
-
-  if (NULL == entry->last_access_shared){
-    entry->last_access_shared = entry->start;
+  current_hashtable = current_hashtable->next;
+  if (NULL == current_hashtable){
     return NULL;
   }
 
-  json_item_st *tmp = entry->last_access_shared->item;
-  entry->last_access_shared = entry->last_access_shared->next;
-
-  return tmp;
+  return current_hashtable->root;
 }
 
 //@todo: remake this lol
@@ -37,12 +48,12 @@ json_item_get_clone(json_item_st *item)
 {
   if (NULL == item) return NULL;
 
-  /* remove item->p_key temporarily, so that it can be treated
+  /* remove item->key temporarily, so that it can be treated
     as a root */
-  char **tmp = item->p_key;
-  item->p_key = NULL;
+  json_string_kt tmp = item->key;
+  item->key = NULL;
   char *buffer = json_item_stringify(item, JSON_ALL);
-  item->p_key = tmp; //reattach its key
+  item->key = tmp; //reattach its key
 
   json_item_st *clone = json_item_parse(buffer);
   free(buffer);
@@ -138,7 +149,7 @@ json_item_typecmp(const json_item_st* kItem, const json_type_et kType){
 
 int
 json_item_keycmp(const json_item_st* kItem, const json_string_kt kKey){
-  return (NULL != json_item_get_key(kItem)) ? STREQ(*kItem->p_key, kKey) : 0;
+  return (NULL != json_item_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
 }
 
 int
@@ -187,12 +198,12 @@ json_item_get_type(const json_item_st* kItem){
 
 json_string_kt
 json_item_get_key(const json_item_st* kItem){
-  return (NULL != kItem->p_key) ? *kItem->p_key : NULL;
+  return kItem->key;
 }
 
 json_boolean_kt
 json_item_get_boolean(const json_item_st* kItem){
-  if (NULL == kItem)
+  if (NULL == kItem || JSON_NULL == kItem->type)
     return 0;
 
   assert(JSON_BOOLEAN == kItem->type);
@@ -201,7 +212,7 @@ json_item_get_boolean(const json_item_st* kItem){
 
 json_string_kt
 json_item_get_string(const json_item_st* kItem){
-  if (NULL == kItem)
+  if (NULL == kItem || JSON_NULL == kItem->type)
     return NULL;
 
   assert(JSON_STRING == kItem->type);
@@ -223,7 +234,7 @@ json_item_get_strdup(const json_item_st* kItem){
 
 json_number_kt
 json_item_get_number(const json_item_st* kItem){
-  if (NULL == kItem)
+  if (NULL == kItem || JSON_NULL == kItem->type)
     return 0.0;
 
   assert(JSON_NUMBER == kItem->type);

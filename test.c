@@ -1,11 +1,12 @@
-#include "JSON.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h> //for access()
 #include <limits.h> //for MAX_INT
 #include <string.h>
 #include <locale.h>
+
+#include "src/public.h"
+#include "src/stringify.h"
 
 
 FILE *select_output(int argc, char *argv[]);
@@ -22,24 +23,26 @@ int main(int argc, char *argv[])
 
   json_item_st *root = json_item_parse_reviver(buffer, NULL);
 
+  json_item_st *walk = root;
   json_item_st *item;
   char *try_buffer;
+  walk = json_item_next_object(walk);
   do {
-    item = json_item_get_specific(root, "m");
-    if (NULL == item)
-      break;
-    try_buffer = json_item_stringify(item, JSON_ALL);
-    fwrite(try_buffer, 1, strlen(try_buffer), stderr);
-    fputc('\n', stderr);
-    free(try_buffer);
-  } while (NULL != item);
-
+    item = json_item_get_specific(walk, "m");
+    if (NULL != item){
+      try_buffer = json_item_stringify(item, JSON_ALL);
+      fwrite(try_buffer, 1, strlen(try_buffer), stderr);
+      fputc('\n', stderr);
+      free(try_buffer);
+    }
+  walk = json_item_next_object(NULL);
+  } while (NULL != walk);
 
   char *new_buffer = json_item_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
 
-  json_item_cleanup(root);
+  json_item_destroy(root);
 
   free(buffer);
   fclose(f_out);

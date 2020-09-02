@@ -1,8 +1,12 @@
-#include <stdio.h>
-#include "../JSON.h"
+#ifndef JSONC_PUBLIC_H
+#define JSONC_PUBLIC_H
 
+#include <stdio.h>
+
+#include "parser.h"
 
 json_item_st* json_item_get_specific(json_item_st *item, const json_string_kt kKey);
+json_item_st* json_item_next_object(json_item_st *item);
 json_item_st* json_item_get_clone(json_item_st *item);
 json_item_st* json_item_next(json_item_st* item);
 json_item_st* json_item_get_root(json_item_st* item);
@@ -23,3 +27,5 @@ json_number_kt json_item_get_number(const json_item_st* kItem);
 
 
 void json_number_tostr(const json_number_kt kNumber, json_string_kt p_str, const int kDigits);
+
+#endif

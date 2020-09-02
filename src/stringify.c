@@ -1,10 +1,12 @@
-  #include "../JSON.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <assert.h>
 
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <string.h>
-  #include <ctype.h>
-  #include <assert.h>
+#include "public.h"
+#include "parser.h"
+#include "macros.h"
 
 
 struct buffer_s {
@@ -56,9 +58,9 @@ json_item_recursive_print(json_item_st *item, json_type_et type, struct buffer_s
 {
   /* stringify json item only if its of the same given type */
   if (json_item_typecmp(item,type)){
-    if ((NULL != json_item_get_key(item)) && !json_item_typecmp(item->parent,JSON_ARRAY)){
+    if ((NULL != item->key) && !json_item_typecmp(item->parent,JSON_ARRAY)){
       (*buffer->method)('\"',buffer);
-      buffer_execute_method(*item->p_key,buffer);
+      buffer_execute_method(item->key,buffer);
       (*buffer->method)('\"',buffer);
       (*buffer->method)(':',buffer);
     }
@@ -117,7 +119,7 @@ json_item_stringify(json_item_st *root, json_type_et type)
 {
   assert(NULL != root);
 
-  struct buffer_s buffer={0};
+  struct buffer_s buffer = {0};
   /* count how much memory should be allocated for buffer
       with buffer_method_count, then allocate it*/
   buffer.method = &buffer_method_count;

@@ -6,13 +6,11 @@ SRCDIR = src
 OBJDIR = obj
 EXEC = JSON
 
-OBJS = $(OBJDIR)/test.o
-OBJS += $(OBJDIR)/global_share.o
-OBJS += $(OBJDIR)/parser.o
-OBJS += $(OBJDIR)/public.o
+OBJS = $(OBJDIR)/public.o
 OBJS += $(OBJDIR)/stringify.o
-
-HEADER = JSON.h
+OBJS += $(OBJDIR)/parser.o
+OBJS += $(OBJDIR)/hashtable.o
+OBJS += $(OBJDIR)/test.o
 
 MAIN = test.c
 MAIN_O = $(OBJDIR)/test.o
@@ -29,7 +27,7 @@ build: mkdir $(MAIN_O) $(OBJS)
 mkdir:
 	-mkdir -p $(OBJDIR)
 
-$(MAIN_O): $(MAIN) $(HEADER)
+$(MAIN_O): $(MAIN)
 	$(CC) -c $< -o $@ $(CFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c

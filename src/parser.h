@@ -1,4 +1,5 @@
-#include "../JSON.h"
+#ifndef JSONC_PARSER_H
+#define JSONC_PARSER_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,15 +21,18 @@ typedef char* json_string_kt;
 typedef double json_number_kt;
 typedef short json_boolean_kt;
 
+struct json_hasht_s; //forward declaration
+
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct json_item_s {
-  json_string_kt *p_key; //item's json key
+  json_string_kt key; //item's json key
   json_type_et type; //item's json datatype
   union { //literal value
     json_string_kt string;
     json_number_kt number;
     json_boolean_kt boolean;
+    struct json_hasht_s *hashtable;
   };
 
   struct json_item_s *parent; //pointer to parent (null if root)
@@ -43,4 +47,6 @@ json_item_st* json_item_parse(char *buffer);
   the parsing contents */
 json_item_st* json_item_parse_reviver(char *buffer, void (*fn)(json_item_st*));
 /* clean up json item and global allocated keys */
-void json_item_cleanup(json_item_st *item);
+void json_item_destroy(json_item_st *item);
+
+#endif
