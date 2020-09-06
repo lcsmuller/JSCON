@@ -108,7 +108,7 @@ get_buffer(char filename[])
 }
 
 void reviver_test(json_item_st *item){
-  if (json_keycmp(item,"u") && json_numbercmp(item,3)){
+  if (json_keycmp(item,"u") && json_doublecmp(item,3)){
         json_item_st *sibling = json_get_sibling(item,2);
         if (json_keycmp(sibling,"m")){
           fputs(json_get_string(sibling),stdout);

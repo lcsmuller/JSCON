@@ -120,8 +120,11 @@ void
 json_typeof(const json_item_st *kItem, FILE* stream)
 {
   switch (kItem->type){
-  case JSON_NUMBER:
-      fprintf(stream,"Number");
+  case JSON_NUMBER_DOUBLE:
+      fprintf(stream,"Double");
+      break;
+  case JSON_NUMBER_INTEGER:
+      fprintf(stream,"Integer");
       break;
   case JSON_STRING:
       fprintf(stream,"String");
@@ -156,9 +159,9 @@ json_keycmp(const json_item_st* kItem, const json_string_kt kKey){
 }
 
 int
-json_numbercmp(const json_item_st* kItem, const json_number_kt kNumber){
-  assert(JSON_NUMBER == kItem->type);
-  return kItem->number == kNumber;
+json_doublecmp(const json_item_st* kItem, const json_double_kt kDouble){
+  assert(JSON_NUMBER_DOUBLE == kItem->type);
+  return kItem->d_number == kDouble;
 }
 
 json_item_st*
@@ -235,27 +238,26 @@ json_get_strdup(const json_item_st* kItem){
   return new_string;
 }
 
-json_number_kt
-json_get_number(const json_item_st* kItem){
+json_double_kt
+json_get_double(const json_item_st* kItem){
   if (NULL == kItem || JSON_NULL == kItem->type)
     return 0.0;
 
-  assert(JSON_NUMBER == kItem->type);
-  return kItem->number;
+  assert(JSON_NUMBER_DOUBLE == kItem->type);
+  return kItem->d_number;
 }
 
-/* converts number to string and store it in p_str */
+/* converts double to string and store it in p_str */
 void 
-json_number_tostr(const json_number_kt kNumber, json_string_kt p_str, const int kDigits)
+json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int kDigits)
 {
-  //check if value is integer
-  if (kNumber <= LLONG_MIN || kNumber >= LLONG_MAX || kNumber == (long long)kNumber){
-    sprintf(p_str,"%.lf",kNumber); //convert integer to string
+  if (DOUBLE_IS_INTEGER(kDouble)){
+    sprintf(p_str,"%.lf",kDouble); //convert integer to string
     return;
   }
 
   int decimal=0, sign=0;
-  json_string_kt tmp_str = fcvt(kNumber,kDigits-1,&decimal,&sign);
+  json_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
 
   int i=0;
   if (0 > sign){ //negative sign detected

@@ -48,10 +48,10 @@ json_destroy(json_item_st *item)
   case JSON_OBJECT:
   case JSON_ARRAY:
     json_hashtable_destroy(item->hashtable);
-    /* FALLTHROUGH */
-  default:
     free(item->branch);
     item->branch = NULL;
+    break;
+  default:
     break;
   }
 
@@ -114,9 +114,9 @@ json_string_set_static(char **p_buffer, char set_str[], const int kStr_length)
 }
 
 /* fetch number json type by parsing string,
-  return value converted to double type */
-static json_number_kt
-json_number_set(char **p_buffer)
+  find out whether its a integer or double and assign*/
+static void
+json_number_set(json_item_st *item, char **p_buffer)
 {
   char *start = *p_buffer;
   char *end = start;
@@ -149,12 +149,18 @@ json_number_set(char **p_buffer)
   char get_numstr[MAX_DIGITS] = {0};
   strncpy(get_numstr, start, end-start);
 
-  json_number_kt set_number;
-  sscanf(get_numstr,"%lf",&set_number); //@todo: replace sscanf?
+  json_double_kt set_double;
+  sscanf(get_numstr,"%lf",&set_double); //@todo: replace sscanf?
+
+  if (!DOUBLE_IS_INTEGER(set_double)){
+    item->type = JSON_NUMBER_DOUBLE;
+    item->d_number = set_double;
+  } else {
+    item->type = JSON_NUMBER_INTEGER;
+    item->i_number = (int64_t)set_double;
+  }
 
   *p_buffer = end;
-
-  return set_number;
 }
 
 /* get and return value from given json type */
@@ -167,8 +173,8 @@ json_set_value(json_type_et get_type, json_item_st *item, struct utils_s *utils)
   case JSON_STRING:
       item->string = json_string_set(&utils->buffer);
       break;
-  case JSON_NUMBER:
-      item->number = json_number_set(&utils->buffer);
+  case JSON_NUMBER: //check for double or integer
+      json_number_set(item, &utils->buffer);
       break;
   case JSON_BOOLEAN:
       if ('t' == *utils->buffer){

@@ -41,12 +41,22 @@ utils_method_execute(json_string_kt string, struct utils_s *utils)
   }
 }
 
-/* returns number (double) converted to string */
+/* converts double to string */
 static void
-utils_set_number(json_number_kt number, struct utils_s *utils)
+utils_set_double(json_double_kt d_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
-  json_number_tostr(number, get_strnum, MAX_DIGITS);
+  json_double_tostr(d_number, get_strnum, MAX_DIGITS);
+
+  utils_method_execute(get_strnum,utils); //store value in utils
+}
+
+/* converts int to string */
+static void
+utils_set_integer(json_integer_kt i_number, struct utils_s *utils)
+{
+  char get_strnum[MAX_DIGITS];
+  snprintf(get_strnum, MAX_DIGITS-1, "%ld", i_number);
 
   utils_method_execute(get_strnum,utils); //store value in utils
 }
@@ -76,8 +86,11 @@ json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *util
         }
         utils_method_execute("false",utils);
         break;
-    case JSON_NUMBER:
-        utils_set_number(item->number,utils);
+    case JSON_NUMBER_DOUBLE:
+        utils_set_double(item->d_number,utils);
+        break;
+    case JSON_NUMBER_INTEGER:
+        utils_set_integer(item->i_number,utils);
         break;
     case JSON_STRING:
         (*utils->method)('\"',utils);

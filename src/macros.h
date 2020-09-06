@@ -10,5 +10,7 @@
 
 #define IN_RANGE(n,lo,hi) (((n) > (lo)) && ((n) < (hi)))
 
+#define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
+
 #endif
 
