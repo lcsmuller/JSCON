@@ -12,20 +12,20 @@
 struct utils_s {
   char *buffer_base; //buffer's base (first position)
   ulong buffer_offset; //distance in chars to buffer's base
-  /*a setter method, will be either buffer_method_count or
-     buffer_method_update*/
+  /*a setter method, will be either utils_method_buffer_count or
+     utils_method_buffer_update*/
   void (*method)(char get_char, struct utils_s* utils);
 };
 
 /* increases distance to buffer's base */ 
 static void
-buffer_method_count(char get_char, struct utils_s *utils){
+utils_method_buffer_count(char get_char, struct utils_s *utils){
   ++utils->buffer_offset;
 }
 
 /* inserts char to current offset then increase it */ 
 static void
-buffer_method_update(char get_char, struct utils_s *utils)
+utils_method_buffer_update(char get_char, struct utils_s *utils)
 {
   utils->buffer_base[utils->buffer_offset] = get_char;
   ++utils->buffer_offset;
@@ -121,16 +121,16 @@ json_item_stringify(json_item_st *root, json_type_et type)
 
   struct utils_s utils = {0};
   /* count how much memory should be allocated for buffer
-      with buffer_method_count, then allocate it*/
-  utils.method = &buffer_method_count;
+      with utils_method_buffer_count, then allocate it*/
+  utils.method = &utils_method_buffer_count;
   json_item_recursive_print(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+2);
   assert(NULL != utils.buffer_base);
 
   /* reset buffer then stringify json item with
-      buffer_method_update into buffer, then return it */
+      utils_method_buffer_update into buffer, then return it */
   utils.buffer_offset = 0;
-  utils.method = &buffer_method_update;
+  utils.method = &utils_method_buffer_update;
   json_item_recursive_print(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0;
 

@@ -17,11 +17,11 @@ json_hashtable_init()
 void
 json_hashtable_destroy(json_hasht_st *hashtable)
 {
-  for (uint i=0; i < HASHTABLE_SIZE; ++i){
-    if (NULL == hashtable->entries[i])
+  for (size_t i=0; i < hashtable->num_bucket; ++i){
+    if (NULL == hashtable->bucket[i])
       continue;
 
-    json_hasht_entry_st *entry = hashtable->entries[i];
+    json_hasht_entry_st *entry = hashtable->bucket[i];
     json_hasht_entry_st *entry_prev;
     while (NULL != entry){
       entry_prev = entry;
@@ -33,13 +33,15 @@ json_hashtable_destroy(json_hasht_st *hashtable)
       entry_prev = NULL;
     }
   }
-
+  free(hashtable->bucket);
+  hashtable->bucket = NULL;
   free(hashtable);
   hashtable = NULL;
 }
 
+//* reentrant hashtable linking function */
 void
-json_hashtable_build(json_item_st *item, json_hasht_st **p_last_accessed_hashtable)
+json_hashtable_link_r(json_item_st *item, json_hasht_st **p_last_accessed_hashtable)
 {
   json_hasht_st *last_accessed_hashtable = *p_last_accessed_hashtable;
   if (NULL != last_accessed_hashtable){
@@ -52,16 +54,33 @@ json_hashtable_build(json_item_st *item, json_hasht_st **p_last_accessed_hashtab
   *p_last_accessed_hashtable = last_accessed_hashtable;
 }
 
-static uint
-json_hash(const json_string_kt kKey)
+void
+json_hashtable_build(json_item_st *item)
 {
-  ulong slot = 0;
-  uint key_len = strlen(kKey);
+  assert(item->type & (JSON_OBJECT|JSON_ARRAY));
 
-  for (uint i=0; i < key_len; ++i){
+  json_hasht_st *hashtable = item->hashtable;
+  hashtable->num_bucket = item->num_branch * 1.3;
+
+  hashtable->bucket = calloc(1, hashtable->num_bucket * sizeof *hashtable->bucket);
+  assert(NULL != hashtable->bucket);
+
+  for (int i=0; i < item->num_branch; ++i){
+    json_hashtable_set(item->branch[i]->key, item->branch[i]);
+  }
+}
+
+static size_t
+json_generate_hash(const json_string_kt kKey, const size_t kNum_bucket)
+{
+  size_t slot = 0;
+  size_t key_len = strlen(kKey);
+
+  for (size_t i=0; i < key_len; ++i){
     slot = slot * 37 + kKey[i];
   }
-  slot %= HASHTABLE_SIZE;
+
+  slot %= kNum_bucket;
 
   return slot;
 }
@@ -72,11 +91,7 @@ json_hashtable_pair(const json_string_kt kKey, json_item_st* item)
   json_hasht_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
 
-  entry->key = strdup(kKey);
-  assert(NULL != entry->key);
-
-  item->key = entry->key;
-
+  entry->key = item->key;
   entry->item = item;
 
   return entry;
@@ -89,9 +104,12 @@ json_hashtable_get(const json_string_kt kKey, json_item_st *root)
     return NULL;
 
   json_hasht_st *hashtable = root->hashtable;
-  uint slot = json_hash(kKey);
+  if (0 == hashtable->num_bucket)
+    return NULL;
 
-  json_hasht_entry_st *entry = hashtable->entries[slot];
+  size_t slot = json_generate_hash(kKey, hashtable->num_bucket);
+
+  json_hasht_entry_st *entry = hashtable->bucket[slot];
   while (NULL != entry){ //try to find key and return it
     if (STREQ(entry->key, kKey)){
       return entry->item;
@@ -107,14 +125,14 @@ json_hashtable_set(const json_string_kt kKey, json_item_st *item)
 {
   assert((item->parent->type) & (JSON_OBJECT|JSON_ARRAY));
 
-  uint slot = json_hash(kKey);
-  json_hasht_st *hashtable = item->parent->hashtable; //object type
+  json_hasht_st *hashtable = item->parent->hashtable;
+  size_t slot = json_generate_hash(kKey, hashtable->num_bucket);
 
-  json_hasht_entry_st *entry = hashtable->entries[slot];
+  json_hasht_entry_st *entry = hashtable->bucket[slot];
 
   if (NULL == entry){
-    hashtable->entries[slot] = json_hashtable_pair(kKey, item);
-    return hashtable->entries[slot]->item;
+    hashtable->bucket[slot] = json_hashtable_pair(kKey, item);
+    return hashtable->bucket[slot]->item;
   }
 
   json_hasht_entry_st *entry_prev;

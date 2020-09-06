@@ -20,11 +20,11 @@ static json_item_st*
 json_item_branch_create(json_item_st *item)
 {
   ++item->num_branch;
-  item->branch = realloc(item->branch, (item->num_branch)*(sizeof *item));
-  assert(item->branch);
+  item->branch = realloc(item->branch, item->num_branch * sizeof *item);
+  assert(NULL != item->branch);
 
   item->branch[item->num_branch-1] = calloc(1, sizeof *item);
-  assert(item->branch[item->num_branch-1]);
+  assert(NULL != item->branch[item->num_branch-1]);
 
   item->branch[item->num_branch-1]->parent = item;
 
@@ -56,15 +56,6 @@ json_item_destroy(json_item_st *item)
 
   free(item);
   item = NULL;
-}
-
-static void
-json_set_key(char key[], json_item_st* item)
-{
-  assert(item->parent->type & (JSON_OBJECT|JSON_ARRAY));
-
-  json_item_st* tmp = json_hashtable_set(key, item);
-  assert(NULL != tmp);
 }
 
 /* fetch string type json and return
@@ -194,7 +185,7 @@ json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *u
   case JSON_OBJECT:
       item->hashtable = json_hashtable_init();
 
-      json_hashtable_build(item, &utils->last_accessed_hashtable);
+      json_hashtable_link_r(item, &utils->last_accessed_hashtable);
       ++utils->buffer;
       break;
   default:
@@ -211,8 +202,9 @@ static json_item_st*
 json_item_set_incomplete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
 {
   item = json_item_branch_create(item);
-  json_set_key(utils->tmp_key, item);
   item = json_item_set_value(get_type, item, utils);
+  item->key = strdup(utils->tmp_key);
+  assert(NULL != item->key);
 
   return item;
 }
@@ -246,6 +238,7 @@ json_item_build_array(json_item_st *item, struct utils_s *utils)
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
       ++utils->buffer;
+      json_hashtable_build(item);
       return json_item_wrap(item);
   case '{':/*OBJECT DETECTED*/
       tmp_type = JSON_OBJECT;
@@ -315,6 +308,7 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
       ++utils->buffer;
+      json_hashtable_build(item);
       return json_item_wrap(item);
   case '\"':/*KEY STRING DETECTED*/
       json_string_set_static(&utils->buffer, utils->tmp_key, KEY_LENGTH);
