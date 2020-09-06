@@ -21,27 +21,27 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  json_item_st *root = json_item_parse_reviver(buffer, NULL);
+  json_item_st *root = json_parse_reviver(buffer, NULL);
 
   json_item_st *walk = root;
   json_item_st *item, *current_item = NULL;
   char *try_buffer;
-  walk = json_item_next_object(walk, &current_item);
+  walk = json_next_object(walk, &current_item);
   do {
-    item = json_item_get_specific(walk, "m");
+    item = json_get_specific(walk, "m");
     if (NULL != item){
-      try_buffer = json_item_stringify(item, JSON_ALL);
+      try_buffer = json_stringify(item, JSON_ALL);
       fwrite(try_buffer, 1, strlen(try_buffer), stderr);
       fputc('\n', stderr);
       free(try_buffer);
     }
-  walk = json_item_next_object(NULL, &current_item);
+  walk = json_next_object(NULL, &current_item);
   } while (NULL != walk);
 
-  char *new_buffer = json_item_stringify(root, JSON_ALL);
+  char *new_buffer = json_stringify(root, JSON_ALL);
   fwrite(new_buffer,1,strlen(new_buffer),f_out);
   free(new_buffer);
-  json_item_destroy(root);
+  json_destroy(root);
 
   free(buffer);
   fclose(f_out);
@@ -108,10 +108,10 @@ get_buffer(char filename[])
 }
 
 void reviver_test(json_item_st *item){
-  if (json_item_keycmp(item,"u") && json_item_numbercmp(item,3)){
-        json_item_st *sibling = json_item_get_sibling(item,2);
-        if (json_item_keycmp(sibling,"m")){
-          fputs(json_item_get_string(sibling),stdout);
+  if (json_keycmp(item,"u") && json_numbercmp(item,3)){
+        json_item_st *sibling = json_get_sibling(item,2);
+        if (json_keycmp(sibling,"m")){
+          fputs(json_get_string(sibling),stdout);
           fputc('\n',stdout);
         }
   }

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -17,7 +18,7 @@ struct utils_s {
 
 /* create and branch json item to current's and return it's address */
 static json_item_st*
-json_item_branch_create(json_item_st *item)
+json_branch_create(json_item_st *item)
 {
   ++item->num_branch;
   item->branch = realloc(item->branch, item->num_branch * sizeof *item);
@@ -33,13 +34,13 @@ json_item_branch_create(json_item_st *item)
 
 /* Destroy current item and all of its nested object/arrays */
 void
-json_item_destroy(json_item_st *item)
+json_destroy(json_item_st *item)
 {
   for (size_t i=0; i < item->num_branch; ++i){
-    json_item_destroy(item->branch[i]);
+    json_destroy(item->branch[i]);
   }
 
-  switch (json_item_get_type(item)){
+  switch (json_get_type(item)){
   case JSON_STRING:
     free(item->string);
     item->string = NULL;
@@ -158,7 +159,7 @@ json_number_set(char **p_buffer)
 
 /* get and return value from given json type */
 static json_item_st*
-json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *utils)
+json_set_value(json_type_et get_type, json_item_st *item, struct utils_s *utils)
 {
   item->type = get_type;
 
@@ -171,12 +172,12 @@ json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *u
       break;
   case JSON_BOOLEAN:
       if ('t' == *utils->buffer){
+        item->boolean = true;
         utils->buffer += 4; //skips length of "true"
-        item->boolean = 1;
         break;
       }
+      item->boolean = false;
       utils->buffer += 5; //skips length of "false"
-      item->boolean = 0;
       break;
   case JSON_NULL:
       utils->buffer += 4; //skips length of "null"
@@ -184,7 +185,6 @@ json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *u
   case JSON_ARRAY:
   case JSON_OBJECT:
       item->hashtable = json_hashtable_init();
-
       json_hashtable_link_r(item, &utils->last_accessed_hashtable);
       ++utils->buffer;
       break;
@@ -199,10 +199,10 @@ json_item_set_value(json_type_et get_type, json_item_st *item, struct utils_s *u
 /* Create nested object and return the nested object address. 
   This is used for arrays and objects type json */
 static json_item_st*
-json_item_set_incomplete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
+json_set_incomplete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
 {
-  item = json_item_branch_create(item);
-  item = json_item_set_value(get_type, item, utils);
+  item = json_branch_create(item);
+  item = json_set_value(get_type, item, utils);
   item->key = strdup(utils->tmp_key);
   assert(NULL != item->key);
 
@@ -212,25 +212,25 @@ json_item_set_incomplete(json_item_st *item, json_type_et get_type, struct utils
 /* Wrap array or object type json, which means
   all of its properties have been created */
 static json_item_st*
-json_item_wrap(json_item_st *item){
-  return json_item_get_parent(item);
+json_wrap(json_item_st *item){
+  return json_get_parent(item);
 }
 
 /* Create a property. The "complete" means all
   of its value is created at once, as opposite
   of array or object type json */
 static json_item_st*
-json_item_set_complete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
+json_set_complete(json_item_st *item, json_type_et get_type, struct utils_s *utils)
 {
-  item = json_item_set_incomplete(item, get_type, utils);
-  return json_item_wrap(item);
+  item = json_set_incomplete(item, get_type, utils);
+  return json_wrap(item);
 }
 
 /* this will be active if the current item is of array type json,
   whatever item is created here will be this array's property.
   if a ']' token is found then the array is wrapped up */
 static json_item_st*
-json_item_build_array(json_item_st *item, struct utils_s *utils)
+json_build_array(json_item_st *item, struct utils_s *utils)
 {
   json_item_st* (*item_setter)(json_item_st*, json_type_et, struct utils_s *utils);
   json_type_et tmp_type;
@@ -239,18 +239,18 @@ json_item_build_array(json_item_st *item, struct utils_s *utils)
   case ']':/*ARRAY WRAPPER DETECTED*/
       ++utils->buffer;
       json_hashtable_build(item);
-      return json_item_wrap(item);
+      return json_wrap(item);
   case '{':/*OBJECT DETECTED*/
       tmp_type = JSON_OBJECT;
-      item_setter = &json_item_set_incomplete;
+      item_setter = &json_set_incomplete;
       break;
   case '[':/*ARRAY DETECTED*/
       tmp_type = JSON_ARRAY;
-      item_setter = &json_item_set_incomplete;
+      item_setter = &json_set_incomplete;
       break;
   case '\"':/*STRING DETECTED*/
       tmp_type = JSON_STRING;
-      item_setter = &json_item_set_complete;
+      item_setter = &json_set_complete;
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
@@ -258,14 +258,14 @@ json_item_build_array(json_item_st *item, struct utils_s *utils)
         goto error;
       }
       tmp_type = JSON_BOOLEAN;
-      item_setter = &json_item_set_complete;
+      item_setter = &json_set_complete;
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
       tmp_type = JSON_NULL;
-      item_setter = &json_item_set_complete;
+      item_setter = &json_set_complete;
       break;
   case ',': /*NEXT ELEMENT TOKEN*/
       ++utils->buffer;
@@ -281,7 +281,7 @@ json_item_build_array(json_item_st *item, struct utils_s *utils)
         goto error;
       }
       tmp_type = JSON_NUMBER;
-      item_setter = &json_item_set_complete;
+      item_setter = &json_set_complete;
       break;
   }
 
@@ -300,7 +300,7 @@ json_item_build_array(json_item_st *item, struct utils_s *utils)
   whatever item is created here will be this object's property.
   if a '}' token is found then the object is wrapped up */
 static json_item_st*
-json_item_build_object(json_item_st *item, struct utils_s *utils)
+json_build_object(json_item_st *item, struct utils_s *utils)
 {
   json_item_st* (*item_setter)(json_item_st*, json_type_et, struct utils_s *utils);
   json_type_et tmp_type;
@@ -309,7 +309,7 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
   case '}':/*OBJECT WRAPPER DETECTED*/
       ++utils->buffer;
       json_hashtable_build(item);
-      return json_item_wrap(item);
+      return json_wrap(item);
   case '\"':/*KEY STRING DETECTED*/
       json_string_set_static(&utils->buffer, utils->tmp_key, KEY_LENGTH);
       return item;
@@ -321,15 +321,15 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
       switch (*utils->buffer){ //fix: move to function
       case '{':/*OBJECT DETECTED*/
           tmp_type = JSON_OBJECT;
-          item_setter = &json_item_set_incomplete;
+          item_setter = &json_set_incomplete;
           break;
       case '[':/*ARRAY DETECTED*/
           tmp_type = JSON_ARRAY;
-          item_setter = &json_item_set_incomplete;
+          item_setter = &json_set_incomplete;
           break;
       case '\"':/*STRING DETECTED*/
           tmp_type = JSON_STRING;
-          item_setter = &json_item_set_complete;
+          item_setter = &json_set_complete;
           break;
       case 't':/*CHECK FOR*/
       case 'f':/* BOOLEAN */
@@ -337,14 +337,14 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
             goto error;
           }
           tmp_type = JSON_BOOLEAN;
-          item_setter = &json_item_set_complete;
+          item_setter = &json_set_complete;
           break;
       case 'n':/*CHECK FOR NULL*/
           if (!STRNEQ(utils->buffer,"null",4)){
             goto error; 
           }
           tmp_type = JSON_NULL;
-          item_setter = &json_item_set_complete;
+          item_setter = &json_set_complete;
           break;
       default:
           /*CHECK FOR NUMBER*/
@@ -352,7 +352,7 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
             goto error;
           }
           tmp_type = JSON_NUMBER;
-          item_setter = &json_item_set_complete;
+          item_setter = &json_set_complete;
           break;
       }
       return (*item_setter)(item, tmp_type, utils);
@@ -378,7 +378,7 @@ json_item_build_object(json_item_st *item, struct utils_s *utils)
   it also allows the creation of a json that's not part of an
   array or object. ex: json_item_parse("10") */
 static json_item_st*
-json_item_build_entity(json_item_st *item, struct utils_s *utils)
+json_build_entity(json_item_st *item, struct utils_s *utils)
 {
   json_type_et tmp_type;
 
@@ -419,7 +419,7 @@ json_item_build_entity(json_item_st *item, struct utils_s *utils)
       break;
   }
 
-  return json_item_set_value(tmp_type, item, utils);
+  return json_set_value(tmp_type, item, utils);
 
 
   error:
@@ -429,15 +429,15 @@ json_item_build_entity(json_item_st *item, struct utils_s *utils)
 
 /* build json item by evaluating buffer's current position token */
 static json_item_st*
-json_item_build(json_item_st *item, struct utils_s *utils)
+json_build(json_item_st *item, struct utils_s *utils)
 {
   switch(item->type){
   case JSON_OBJECT:
-      return json_item_build_object(item, utils);
+      return json_build_object(item, utils);
   case JSON_ARRAY:
-      return json_item_build_array(item, utils);
+      return json_build_array(item, utils);
   case JSON_UNDEFINED://this should be true only at the first call
-      return json_item_build_entity(item, utils);
+      return json_build_entity(item, utils);
   default: //nothing else to build, check buffer for potential error
       if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
         ++utils->buffer; //moves if cntrl character found ('\n','\b',..)
@@ -454,7 +454,7 @@ json_item_build(json_item_st *item, struct utils_s *utils)
 /* parse contents from buffer into a json item object
   and return its root */
 json_item_st*
-json_item_parse(char *buffer)
+json_parse(char *buffer)
 {
   json_item_st *root = calloc(1, sizeof *root);
   assert(NULL != root);
@@ -466,7 +466,7 @@ json_item_parse(char *buffer)
   json_item_st *item = root;
   //build while item and buffer aren't nulled
   while ((NULL != item) && ('\0' != *utils.buffer)){
-    item = json_item_build(item, &utils);
+    item = json_build(item, &utils);
   }
 
   return root;
@@ -474,23 +474,23 @@ json_item_parse(char *buffer)
 
 /* apply user defined function to contents being parsed */
 static void
-apply_reviver(json_item_st *item, void (*reviver)(json_item_st*))
+json_apply_reviver(json_item_st *item, void (*reviver)(json_item_st*))
 {
   (*reviver)(item);
   for (size_t i=0; i < item->num_branch; ++i){
-    apply_reviver(item->branch[i], reviver);
+    json_apply_reviver(item->branch[i], reviver);
   }
 }
 
 /* like original parse, but with an option to modify json
   content during parsing */
 json_item_st*
-json_item_parse_reviver(char *buffer, void (*reviver)(json_item_st*))
+json_parse_reviver(char *buffer, void (*reviver)(json_item_st*))
 {
-  json_item_st *root = json_item_parse(buffer);
+  json_item_st *root = json_parse(buffer);
 
   if (NULL != reviver){
-    apply_reviver(root, reviver);
+    json_apply_reviver(root, reviver);
   }
 
   return root;

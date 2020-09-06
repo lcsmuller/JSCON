@@ -12,7 +12,7 @@
 /* get item with given key, successive calls will get
   the next item in line containing the same key */
 json_item_st*
-json_item_get_specific(json_item_st *item, const json_string_kt kKey)
+json_get_specific(json_item_st *item, const json_string_kt kKey)
 {
   if (!(item->type & (JSON_OBJECT|JSON_ARRAY)))
     return NULL;
@@ -25,7 +25,7 @@ json_item_get_specific(json_item_st *item, const json_string_kt kKey)
 }
 
 json_item_st*
-json_item_next_object(json_item_st *item, json_item_st **p_current_item)
+json_next_object(json_item_st *item, json_item_st **p_current_item)
 {
   json_hasht_st *current_hashtable;
 
@@ -47,7 +47,7 @@ json_item_next_object(json_item_st *item, json_item_st **p_current_item)
 
 //@todo: remake this lol
 json_item_st*
-json_item_get_clone(json_item_st *item)
+json_get_clone(json_item_st *item)
 {
   if (NULL == item) return NULL;
 
@@ -55,17 +55,17 @@ json_item_get_clone(json_item_st *item)
     as a root */
   json_string_kt tmp = item->key;
   item->key = NULL;
-  char *buffer = json_item_stringify(item, JSON_ALL);
+  char *buffer = json_stringify(item, JSON_ALL);
   item->key = tmp; //reattach its key
 
-  json_item_st *clone = json_item_parse(buffer);
+  json_item_st *clone = json_parse(buffer);
   free(buffer);
 
   return clone;
 }
 
 static inline json_item_st*
-json_item_push(json_item_st* item)
+json_push(json_item_st* item)
 {
   assert(item->last_accessed_branch < item->num_branch);//overflow assert
 
@@ -74,7 +74,7 @@ json_item_push(json_item_st* item)
 }
 
 static inline json_item_st*
-json_item_pop(json_item_st* item)
+json_pop(json_item_st* item)
 {
   assert(0 <= item->last_accessed_branch);//underflow assert
 
@@ -84,7 +84,7 @@ json_item_pop(json_item_st* item)
 
 /*this will simulate recursive movement iteratively*/
 json_item_st*
-json_item_next(json_item_st* item)
+json_next(json_item_st* item)
 {
   if (NULL == item) return NULL;
 
@@ -92,32 +92,32 @@ json_item_next(json_item_st* item)
     until item with available branch found */
   if (0 == item->num_branch){
     do { //recursive walk
-      item = json_item_pop(item);
+      item = json_pop(item);
       if ((NULL == item) || (0 == item->last_accessed_branch)){
         return NULL;
       }
      } while (item->num_branch == item->last_accessed_branch);
   }
 
-  item = json_item_push(item);
+  item = json_push(item);
 
   return item;
 }
 
 json_item_st*
-json_item_get_root(json_item_st* item)
+json_get_root(json_item_st* item)
 {
   json_item_st *tmp = item;
   do {
     item = tmp;
-    tmp = json_item_get_parent(item);
+    tmp = json_get_parent(item);
   } while (NULL != tmp);
 
   return item;
 }
 
 void
-json_item_typeof(const json_item_st *kItem, FILE* stream)
+json_typeof(const json_item_st *kItem, FILE* stream)
 {
   switch (kItem->type){
   case JSON_NUMBER:
@@ -146,25 +146,25 @@ json_item_typeof(const json_item_st *kItem, FILE* stream)
 }
 
 int
-json_item_typecmp(const json_item_st* kItem, const json_type_et kType){
+json_typecmp(const json_item_st* kItem, const json_type_et kType){
   return kItem->type & kType;
 }
 
 int
-json_item_keycmp(const json_item_st* kItem, const json_string_kt kKey){
-  return (NULL != json_item_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
+json_keycmp(const json_item_st* kItem, const json_string_kt kKey){
+  return (NULL != json_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
 }
 
 int
-json_item_numbercmp(const json_item_st* kItem, const json_number_kt kNumber){
+json_numbercmp(const json_item_st* kItem, const json_number_kt kNumber){
   assert(JSON_NUMBER == kItem->type);
   return kItem->number == kNumber;
 }
 
 json_item_st*
-json_item_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
+json_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
 {
-  const json_item_st* kParent = json_item_get_parent(kOrigin);
+  const json_item_st* kParent = json_get_parent(kOrigin);
   if ((NULL == kParent) || (kOrigin == kParent))
     return NULL;
 
@@ -180,32 +180,32 @@ json_item_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
 }
 
 json_item_st*
-json_item_get_parent(const json_item_st* kItem){
-  return json_item_pop((json_item_st*)kItem);
+json_get_parent(const json_item_st* kItem){
+  return json_pop((json_item_st*)kItem);
 }
 
 json_item_st*
-json_item_get_property(const json_item_st* kItem, const size_t index){
+json_get_property(const json_item_st* kItem, const size_t index){
   return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
 }
 
 size_t
-json_item_get_property_count(const json_item_st* kItem){
+json_get_property_count(const json_item_st* kItem){
   return kItem->num_branch;
 } 
 
 json_type_et
-json_item_get_type(const json_item_st* kItem){
+json_get_type(const json_item_st* kItem){
   return kItem->type;
 }
 
 json_string_kt
-json_item_get_key(const json_item_st* kItem){
+json_get_key(const json_item_st* kItem){
   return kItem->key;
 }
 
 json_boolean_kt
-json_item_get_boolean(const json_item_st* kItem){
+json_get_boolean(const json_item_st* kItem){
   if (NULL == kItem || JSON_NULL == kItem->type)
     return 0;
 
@@ -214,7 +214,7 @@ json_item_get_boolean(const json_item_st* kItem){
 }
 
 json_string_kt
-json_item_get_string(const json_item_st* kItem){
+json_get_string(const json_item_st* kItem){
   if (NULL == kItem || JSON_NULL == kItem->type)
     return NULL;
 
@@ -223,8 +223,8 @@ json_item_get_string(const json_item_st* kItem){
 }
 
 json_string_kt
-json_item_get_strdup(const json_item_st* kItem){
-  json_string_kt tmp = json_item_get_string(kItem);
+json_get_strdup(const json_item_st* kItem){
+  json_string_kt tmp = json_get_string(kItem);
   if (NULL == tmp){
     return NULL;
   }
@@ -236,7 +236,7 @@ json_item_get_strdup(const json_item_st* kItem){
 }
 
 json_number_kt
-json_item_get_number(const json_item_st* kItem){
+json_get_number(const json_item_st* kItem){
   if (NULL == kItem || JSON_NULL == kItem->type)
     return 0.0;
 

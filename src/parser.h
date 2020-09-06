@@ -19,7 +19,7 @@ typedef enum {
 
 typedef char* json_string_kt;
 typedef double json_number_kt;
-typedef short json_boolean_kt;
+typedef _Bool json_boolean_kt;
 
 struct json_hasht_s; //forward declaration
 
@@ -42,11 +42,11 @@ typedef struct json_item_s {
 } json_item_st;
 
 /* parse buffer and returns a json item */
-json_item_st* json_item_parse(char *buffer);
+json_item_st* json_parse(char *buffer);
 /* same, but with a user created function that can manipulate
   the parsing contents */
-json_item_st* json_item_parse_reviver(char *buffer, void (*fn)(json_item_st*));
+json_item_st* json_parse_reviver(char *buffer, void (*fn)(json_item_st*));
 /* clean up json item and global allocated keys */
-void json_item_destroy(json_item_st *item);
+void json_destroy(json_item_st *item);
 
 #endif
