@@ -164,6 +164,12 @@ json_doublecmp(const json_item_st* kItem, const json_double_kt kDouble){
   return kItem->d_number == kDouble;
 }
 
+int
+json_intcmp(const json_item_st* kItem, const json_integer_kt kInteger){
+  assert(JSON_NUMBER_INTEGER == kItem->type);
+  return kItem->i_number == kInteger;
+}
+
 json_item_st*
 json_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
 {
