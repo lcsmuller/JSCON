@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h> //for access()
-#include <limits.h> //for MAX_INT
 #include <string.h>
 #include <locale.h>
 
@@ -35,7 +34,8 @@ int main(int argc, char *argv[])
       fputc('\n', stderr);
       free(try_buffer);
     }
-  walk = json_next_object(NULL, &current_item);
+
+    walk = json_next_object(NULL, &current_item);
   } while (NULL != walk);
 
   char *new_buffer = json_stringify(root, JSON_ALL);
@@ -51,10 +51,10 @@ int main(int argc, char *argv[])
 
 FILE *select_output(int argc, char *argv[])
 {
-  char *arg_p=NULL;
+  char *p_arg=NULL;
   while (argc--){
-    arg_p = *argv++;
-    if ((*arg_p++ == '-') && (*arg_p++ == 'o') && (*arg_p == '\0')){
+    p_arg = *argv++;
+    if ((*p_arg++ == '-') && (*p_arg++ == 'o') && (*p_arg == '\0')){
       assert (argc == 1); //check if theres exactly one arg left
 
       char *file = *argv;

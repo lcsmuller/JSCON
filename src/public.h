@@ -1,12 +1,10 @@
 #ifndef JSONC_PUBLIC_H
 #define JSONC_PUBLIC_H
 
-#include <stdio.h>
-
 #include "parser.h"
 
 json_item_st* json_get_specific(json_item_st *item, const json_string_kt kKey);
-json_item_st* json_next_object(json_item_st *item, json_item_st **p_current_item);
+json_item_st* json_next_object_r(json_item_st *item, json_item_st **p_current_item);
 json_item_st* json_get_clone(json_item_st *item);
 json_item_st* json_next(json_item_st* item);
 json_item_st* json_get_root(json_item_st* item);

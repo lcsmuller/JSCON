@@ -25,7 +25,7 @@ json_get_specific(json_item_st *item, const json_string_kt kKey)
 }
 
 json_item_st*
-json_next_object(json_item_st *item, json_item_st **p_current_item)
+json_next_object_r(json_item_st *item, json_item_st **p_current_item)
 {
   json_hasht_st *current_hashtable;
 
@@ -45,7 +45,7 @@ json_next_object(json_item_st *item, json_item_st **p_current_item)
   return *p_current_item;
 }
 
-//@todo: remake this lol
+//@todo: remake this using json_next()
 json_item_st*
 json_get_clone(json_item_st *item)
 {
@@ -171,13 +171,12 @@ json_intcmp(const json_item_st* kItem, const json_integer_kt kInteger){
 }
 
 json_item_st*
-json_get_sibling(const json_item_st* kOrigin, const long kRelative_index)
+json_get_sibling(const json_item_st* kOrigin, const size_t kRelative_index)
 {
   const json_item_st* kParent = json_get_parent(kOrigin);
-  if ((NULL == kParent) || (kOrigin == kParent))
-    return NULL;
+  if (NULL == kParent) return NULL; //kOrigin is root
 
-  long origin_index=0;
+  size_t origin_index=0;
   while (kOrigin != kParent->branch[origin_index])
     ++origin_index;
 
@@ -254,6 +253,7 @@ json_get_double(const json_item_st* kItem){
 }
 
 /* converts double to string and store it in p_str */
+//@todo: try to make this more readable
 void 
 json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int kDigits)
 {
