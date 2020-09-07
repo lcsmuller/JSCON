@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <limits.h>
 
@@ -23,34 +24,38 @@ typedef enum {
 typedef char* json_string_kt;
 typedef double json_double_kt;
 typedef int64_t json_integer_kt;
-typedef _Bool json_boolean_kt;
-
-struct json_hasht_s; //forward declaration
+typedef bool json_boolean_kt;
+struct json_hasht_s; //forward declaration, type is defined at hashtable.h
 
 /* mainframe struct that holds every configuration
     necessary for when parsing a json argument */
 typedef struct json_item_s {
   json_string_kt key; //item's json key
+
   json_type_et type; //item's json datatype
-  union { //literal value
+  union { //literal values
     json_string_kt string;
     json_double_kt d_number;
     json_integer_kt i_number;
     json_boolean_kt boolean;
-    struct json_hasht_s *hashtable;
+    struct json_hasht_s *hashtable; //used for sorting through object/array branches
   };
 
   struct json_item_s *parent; //pointer to parent (null if root)
   struct json_item_s **branch; //pointer to properties
   size_t num_branch; //amount of enumerable properties
+
   size_t last_accessed_branch; //last accessed property from this item
 } json_item_st;
 
 /* parse buffer and returns a json item */
 json_item_st* json_parse(char *buffer);
+
 /* same, but with a user created function that can manipulate
   the parsing contents */
+//@todo: replace this with a write callback modifier, make a default write callback
 json_item_st* json_parse_reviver(char *buffer, void (*fn)(json_item_st*));
+
 /* clean up json item and global allocated keys */
 void json_destroy(json_item_st *item);
 
