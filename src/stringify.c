@@ -67,7 +67,7 @@ static void
 json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *utils)
 {
   /* stringify json item only if its of the same given type */
-  if (json_typecmp(item,type)){
+  if (json_typecmp(item,type|JSON_OBJECT|JSON_ARRAY)){
     if ((NULL != item->key) && !json_typecmp(item->parent,JSON_ARRAY)){
       (*utils->method)('\"',utils);
       utils_method_execute(item->key,utils);
@@ -106,23 +106,30 @@ json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *util
     default:
         fprintf(stderr,"ERROR: undefined datatype\n");
         exit(EXIT_FAILURE);
-        break;
     }
   }
 
-  for (size_t j=0; j < item->num_branch; ++j){
-    json_recursive_print(item->branch[j], type, utils);
-    (*utils->method)(',',utils);
-  } 
-   
-  if (json_typecmp(item, type & (JSON_OBJECT|JSON_ARRAY))){
-    if (0 != item->num_branch) //remove extra comma from obj/array
-      --utils->buffer_offset;
+  if (0 != item->num_branch){
+    size_t j=0;
+    for (; j < item->num_branch-1; ++j){
+      if (!json_typecmp(item->branch[j],type|JSON_OBJECT|JSON_ARRAY))
+        continue;
 
-    if (json_typecmp(item, JSON_OBJECT))
+      json_recursive_print(item->branch[j], type, utils);
+      (*utils->method)(',',utils);
+    }
+    json_recursive_print(item->branch[j], type, utils);
+  }
+
+  switch(item->type){
+  case JSON_OBJECT:
       (*utils->method)('}',utils);
-    else //is array 
+      break;
+  case JSON_ARRAY:
       (*utils->method)(']',utils);
+      break;
+  default:
+      break;
   }
 }
 

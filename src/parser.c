@@ -194,7 +194,7 @@ json_set_value(json_type_et get_type, json_item_st *item, struct utils_s *utils)
       ++utils->buffer;
       break;
   default:
-      fprintf(stderr,"ERROR: invalid datatype %ld\n", item->type);
+      fprintf(stderr,"ERROR: invalid datatype %d\n", item->type);
       exit(EXIT_FAILURE);
   }
 

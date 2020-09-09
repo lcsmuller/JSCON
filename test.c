@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
   json_item_st *walk = root;
   json_item_st *item, *current_item = NULL;
   char *try_buffer;
-  walk = json_next_object(walk, &current_item);
+  walk = json_next_object_r(walk, &current_item);
   do {
     item = json_get_specific(walk, "m");
     if (NULL != item){
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
       free(try_buffer);
     }
 
-    walk = json_next_object(NULL, &current_item);
+    walk = json_next_object_r(NULL, &current_item);
   } while (NULL != walk);
 
   char *new_buffer = json_stringify(root, JSON_ALL);

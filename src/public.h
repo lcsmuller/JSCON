@@ -13,7 +13,7 @@ int json_typecmp(const json_item_st* kItem, const json_type_et kType);
 int json_keycmp(const json_item_st* kItem, const json_string_kt kKey);
 int json_doublecmp(const json_item_st* kItem, const json_double_kt kDouble);
 int json_intcmp(const json_item_st* kItem, const json_integer_kt kInteger);
-json_item_st* json_get_sibling(const json_item_st* kOrigin, const long kRelative_index);
+json_item_st* json_get_sibling(const json_item_st* kOrigin, const size_t kRelative_index);
 json_item_st* json_get_parent(const json_item_st* kItem);
 json_item_st* json_get_property(const json_item_st* kItem, const size_t kIndex);
 size_t json_get_property_count(const json_item_st* kItem);

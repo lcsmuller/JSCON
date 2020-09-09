@@ -45,7 +45,6 @@ json_next_object_r(json_item_st *item, json_item_st **p_current_item)
   return *p_current_item;
 }
 
-//@todo: remake this using json_next() or recursively (probably best)
 json_item_st*
 json_get_clone(json_item_st *item)
 {
