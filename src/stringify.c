@@ -4,10 +4,7 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "public.h"
-#include "parser.h"
-#include "macros.h"
-
+#include "libjsonc.h"
 
 struct utils_s {
   char *buffer_base; //buffer's base (first position)
@@ -57,7 +54,7 @@ static void
 utils_buffer_fill_integer(jsonc_integer_kt i_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
-  snprintf(get_strnum, MAX_DIGITS-1, "%ld", i_number);
+  snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
 
   utils_buffer_fill_string(get_strnum,utils); //store value in utils
 }
@@ -158,7 +155,7 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
 
 /* return string converted jsonc item */
 jsonc_string_kt
-jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
+jsonc_stringify(jsonc_item_st *root, ushort type)
 {
   assert(NULL != root);
 

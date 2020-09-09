@@ -4,7 +4,7 @@
 #include <assert.h>
 
 #include "hashtable.h"
-#include "public.h"
+#include "libjsonc.h"
 #include "parser.h"
 #include "stringify.h"
 #include "macros.h"
@@ -12,7 +12,7 @@
 /* get item with given key, successive calls will get
   the next item in line containing the same key */
 jsonc_item_st*
-jsonc_foreach_specific(jsonc_item_st *item, const jsonc_string_kt kKey)
+jsonc_foreach_specific(jsonc_item_st *item, const char *kKey)
 {
   if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
     return NULL;
@@ -148,7 +148,7 @@ jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType){
 }
 
 int
-jsonc_keycmp(const jsonc_item_st* kItem, const jsonc_string_kt kKey){
+jsonc_keycmp(const jsonc_item_st* kItem, const char *kKey){
   return (NULL != jsonc_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
 }
 

@@ -4,10 +4,7 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "hashtable.h"
-#include "parser.h"
-#include "public.h"
-#include "macros.h"
+#include "libjsonc.h"
 
 struct utils_s {
   char *buffer;

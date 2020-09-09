@@ -1,9 +1,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "hashtable.h"
-#include "parser.h"
-#include "macros.h"
+#include "libjsonc.h"
 
 jsonc_hasht_st*
 jsonc_hashtable_init()
@@ -71,7 +69,7 @@ jsonc_hashtable_build(jsonc_item_st *item)
 }
 
 static size_t
-jsonc_generate_hash(const jsonc_string_kt kKey, const size_t kNum_bucket)
+jsonc_generate_hash(const char *kKey, const size_t kNum_bucket)
 {
   size_t slot = 0;
   size_t key_len = strlen(kKey);
@@ -86,7 +84,7 @@ jsonc_generate_hash(const jsonc_string_kt kKey, const size_t kNum_bucket)
 }
 
 static jsonc_hasht_entry_st*
-jsonc_hashtable_pair(const jsonc_string_kt kKey, jsonc_item_st* item)
+jsonc_hashtable_pair(const char *kKey, jsonc_item_st* item)
 {
   jsonc_hasht_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
@@ -98,7 +96,7 @@ jsonc_hashtable_pair(const jsonc_string_kt kKey, jsonc_item_st* item)
 }
 
 jsonc_item_st*
-jsonc_hashtable_get(const jsonc_string_kt kKey, jsonc_item_st *root)
+jsonc_hashtable_get(const char *kKey, jsonc_item_st *root)
 {
   if (!(root->type & (JSONC_OBJECT|JSONC_ARRAY)))
     return NULL;
@@ -121,7 +119,7 @@ jsonc_hashtable_get(const jsonc_string_kt kKey, jsonc_item_st *root)
 }
 
 jsonc_item_st*
-jsonc_hashtable_set(const jsonc_string_kt kKey, jsonc_item_st *item)
+jsonc_hashtable_set(const char *kKey, jsonc_item_st *item)
 {
   assert((item->parent->type) & (JSONC_OBJECT|JSONC_ARRAY));
 

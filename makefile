@@ -4,9 +4,10 @@ CC = gcc
 
 SRCDIR = src
 OBJDIR = obj
-EXEC = JSONc
+LIB_FILE = libjsonc.a
+TEST_EXEC = test_jsonc
 
-OBJS = $(OBJDIR)/public.o
+OBJS = $(OBJDIR)/libjsonc.o
 OBJS += $(OBJDIR)/stringify.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/hashtable.o
@@ -15,11 +16,16 @@ OBJS += $(OBJDIR)/test.o
 MAIN = test.c
 MAIN_O = $(OBJDIR)/test.o
 
-.PHONY : clean all debug purge
+.PHONY : clean all debug purge test
 
-all: $(EXEC)
+all: $(LIB_FILE)
 
-$(EXEC): build
+test: $(TEST_EXEC)
+
+$(LIB_FILE): build
+	-ar rcs $@ $(OBJS)
+
+$(TEST_EXEC): build
 	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
 build: mkdir $(MAIN_O) $(OBJS)
@@ -40,4 +46,4 @@ clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(EXEC) *.txt debug.out
+	-rm -rf $(TEST_EXEC) $(LIB_FILE) *.txt debug.out
