@@ -11,23 +11,23 @@
 
 /* get item with given key, successive calls will get
   the next item in line containing the same key */
-json_item_st*
-json_get_specific(json_item_st *item, const json_string_kt kKey)
+jsonc_item_st*
+jsonc_foreach_specific(jsonc_item_st *item, const jsonc_string_kt kKey)
 {
-  if (!(item->type & (JSON_OBJECT|JSON_ARRAY)))
+  if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
     return NULL;
 
-  item = json_hashtable_get(kKey, item);
-  if (NULL != item)
-    return item;
+  item = jsonc_hashtable_get(kKey, item);
+
+  if (NULL != item) return item;
 
   return NULL;
 }
 
-json_item_st*
-json_next_object_r(json_item_st *item, json_item_st **p_current_item)
+jsonc_item_st*
+jsonc_foreach_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
 {
-  json_hasht_st *current_hashtable;
+  jsonc_hasht_st *current_hashtable;
 
   if (NULL != item){
     current_hashtable = item->hashtable;
@@ -45,26 +45,8 @@ json_next_object_r(json_item_st *item, json_item_st **p_current_item)
   return *p_current_item;
 }
 
-/* This is not the most effective way to clone a item, but it is
-    the safest one, because it automatically accounts for any
-    new feature I might add in the future. By first stringfying the
-    (to be cloned) json_item and then parsing the resulting string into
-    a new (clone) json_item, it's guaranteed that it will be a perfect 
-    clone, with its own addressed hashtable, strings, etc */
-json_item_st*
-json_get_clone(json_item_st *item)
-{
-  if (NULL == item) return NULL;
-
-  char *tmp_buffer = json_stringify(item, JSON_ALL);
-  json_item_st *clone = json_parse(tmp_buffer);
-  free(tmp_buffer);
-
-  return clone;
-}
-
-static inline json_item_st*
-json_push(json_item_st* item)
+static inline jsonc_item_st*
+jsonc_push(jsonc_item_st* item)
 {
   assert(item->last_accessed_branch < item->num_branch); //overflow assert
 
@@ -72,8 +54,8 @@ json_push(json_item_st* item)
   return item->branch[item->last_accessed_branch-1];
 }
 
-static inline json_item_st*
-json_pop(json_item_st* item)
+static inline jsonc_item_st*
+jsonc_pop(jsonc_item_st* item)
 {
   assert(0 <= item->last_accessed_branch); //underflow assert
 
@@ -84,8 +66,8 @@ json_pop(json_item_st* item)
 /* this will simulate recursive movement iteratively, by checking the
     current item last_accessed_branch value, under no circumstance 
     should you modify last_accessed_branch value directly */
-json_item_st*
-json_next(json_item_st* item)
+jsonc_item_st*
+jsonc_foreach(jsonc_item_st* item)
 {
   if (NULL == item) return NULL;
 
@@ -93,88 +75,99 @@ json_next(json_item_st* item)
     until item with available branch found */
   if (0 == item->num_branch){
     do { //recursive walk
-      item = json_pop(item);
+      item = jsonc_pop(item);
       if ((NULL == item) || (0 == item->last_accessed_branch)){
         return NULL;
       }
      } while (item->num_branch == item->last_accessed_branch);
   }
 
-  item = json_push(item);
+  item = jsonc_push(item);
 
   return item;
 }
 
-json_item_st*
-json_get_root(json_item_st* item)
+/* This is not the most effective way to clone a item, but it is
+    the safest one, because it automatically accounts for any
+    new feature I might add in the future. By first stringfying the
+    (to be cloned) jsonc_item and then parsing the resulting string into
+    a new (clone) jsonc_item, it's guaranteed that it will be a perfect 
+    clone, with its own addressed hashtable, strings, etc */
+jsonc_item_st*
+jsonc_get_clone(jsonc_item_st *item)
 {
-  json_item_st *tmp = item;
+  if (NULL == item) return NULL;
+
+  char *tmp_buffer = jsonc_stringify(item, JSONC_ALL);
+  jsonc_item_st *clone = jsonc_parse(tmp_buffer);
+  free(tmp_buffer);
+
+  return clone;
+}
+
+jsonc_item_st*
+jsonc_get_root(jsonc_item_st* item)
+{
+  jsonc_item_st *tmp = item;
   do {
     item = tmp;
-    tmp = json_get_parent(item);
+    tmp = jsonc_get_parent(item);
   } while (NULL != tmp);
 
   return item;
 }
 
-void
-json_typeof(const json_item_st *kItem, FILE* stream)
+jsonc_string_kt
+jsonc_typeof(const jsonc_item_st *kItem)
 {
   switch (kItem->type){
-  case JSON_NUMBER_DOUBLE:
-      fprintf(stream,"Double");
-      break;
-  case JSON_NUMBER_INTEGER:
-      fprintf(stream,"Integer");
-      break;
-  case JSON_STRING:
-      fprintf(stream,"String");
-      break;
-  case JSON_NULL:
-      fprintf(stream,"Null");
-      break;
-  case JSON_BOOLEAN:
-      fprintf(stream,"Boolean");
-      break;
-  case JSON_OBJECT:
-      fprintf(stream,"Object");
-      break;
-  case JSON_ARRAY:
-      fprintf(stream,"Array");
-      break;
-  case JSON_UNDEFINED:
-      fprintf(stream,"Undefined");
+  case JSONC_NUMBER_DOUBLE:
+      return "Double";
+  case JSONC_NUMBER_INTEGER:
+      return "Integer";
+  case JSONC_STRING:
+      return "String";
+  case JSONC_NULL:
+      return "Null";
+  case JSONC_BOOLEAN:
+      return "Boolean";
+  case JSONC_OBJECT:
+      return "Object";
+  case JSONC_ARRAY:
+      return "Array";
+  case JSONC_UNDEFINED:
+      return "Undefined";
   default:
-      assert(kItem->type == !kItem->type);
+      return "NaN";
   }
 }
 
 int
-json_typecmp(const json_item_st* kItem, const json_type_et kType){
+jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType){
   return kItem->type & kType;
 }
 
 int
-json_keycmp(const json_item_st* kItem, const json_string_kt kKey){
-  return (NULL != json_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
+jsonc_keycmp(const jsonc_item_st* kItem, const jsonc_string_kt kKey){
+  return (NULL != jsonc_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
 }
 
 int
-json_doublecmp(const json_item_st* kItem, const json_double_kt kDouble){
-  assert(JSON_NUMBER_DOUBLE == kItem->type);
+jsonc_doublecmp(const jsonc_item_st* kItem, const jsonc_double_kt kDouble){
+  assert(JSONC_NUMBER_DOUBLE == kItem->type);
   return kItem->d_number == kDouble;
 }
 
 int
-json_intcmp(const json_item_st* kItem, const json_integer_kt kInteger){
-  assert(JSON_NUMBER_INTEGER == kItem->type);
+jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger){
+  assert(JSONC_NUMBER_INTEGER == kItem->type);
   return kItem->i_number == kInteger;
 }
 
-json_item_st*
-json_get_sibling(const json_item_st* kOrigin, const size_t kRelative_index)
+jsonc_item_st*
+jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index)
 {
-  const json_item_st* kParent = json_get_parent(kOrigin);
+  const jsonc_item_st* kParent = jsonc_get_parent(kOrigin);
   if (NULL == kParent) return NULL; //kOrigin is root
 
   size_t origin_index=0;
@@ -188,75 +181,84 @@ json_get_sibling(const json_item_st* kOrigin, const size_t kRelative_index)
   return NULL;
 }
 
-json_item_st*
-json_get_parent(const json_item_st* kItem){
-  return json_pop((json_item_st*)kItem);
+jsonc_item_st*
+jsonc_get_parent(const jsonc_item_st* kItem){
+  return jsonc_pop((jsonc_item_st*)kItem);
 }
 
-json_item_st*
-json_get_property(const json_item_st* kItem, const size_t index){
+jsonc_item_st*
+jsonc_get_branch(const jsonc_item_st* kItem, const size_t index){
   return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
 }
 
 size_t
-json_get_property_count(const json_item_st* kItem){
+jsonc_get_num_branch(const jsonc_item_st* kItem){
   return kItem->num_branch;
 } 
 
-json_type_et
-json_get_type(const json_item_st* kItem){
+jsonc_type_et
+jsonc_get_type(const jsonc_item_st* kItem){
   return kItem->type;
 }
 
-json_string_kt
-json_get_key(const json_item_st* kItem){
+jsonc_string_kt
+jsonc_get_key(const jsonc_item_st* kItem){
   return kItem->key;
 }
 
-json_boolean_kt
-json_get_boolean(const json_item_st* kItem){
-  if (NULL == kItem || JSON_NULL == kItem->type)
-    return 0;
+jsonc_boolean_kt
+jsonc_get_boolean(const jsonc_item_st* kItem){
+  if (NULL == kItem || JSONC_NULL == kItem->type)
+    return false;
 
-  assert(JSON_BOOLEAN == kItem->type);
+  assert(JSONC_BOOLEAN == kItem->type);
   return kItem->boolean;
 }
 
-json_string_kt
-json_get_string(const json_item_st* kItem){
-  if (NULL == kItem || JSON_NULL == kItem->type)
+jsonc_string_kt
+jsonc_get_string(const jsonc_item_st* kItem){
+  if (NULL == kItem || JSONC_NULL == kItem->type)
     return NULL;
 
-  assert(JSON_STRING == kItem->type);
+  assert(JSONC_STRING == kItem->type);
   return kItem->string;
 }
 
-json_string_kt
-json_get_strdup(const json_item_st* kItem){
-  json_string_kt tmp = json_get_string(kItem);
+jsonc_double_kt
+jsonc_get_double(const jsonc_item_st* kItem){
+  if (NULL == kItem || JSONC_NULL == kItem->type)
+    return 0.0;
+
+  assert(JSONC_NUMBER_DOUBLE == kItem->type);
+  return kItem->d_number;
+}
+
+jsonc_integer_kt
+jsonc_get_integer(const jsonc_item_st* kItem){
+  if (NULL == kItem || JSONC_NULL == kItem->type)
+    return 0;
+
+  assert(JSONC_NUMBER_INTEGER == kItem->type);
+  return kItem->i_number;
+}
+
+jsonc_string_kt
+jsonc_strdup(const jsonc_item_st* kItem){
+  jsonc_string_kt tmp = jsonc_get_string(kItem);
   if (NULL == tmp){
     return NULL;
   }
 
-  json_string_kt new_string = strdup(tmp);
+  jsonc_string_kt new_string = strdup(tmp);
   assert(NULL != new_string);
 
   return new_string;
 }
 
-json_double_kt
-json_get_double(const json_item_st* kItem){
-  if (NULL == kItem || JSON_NULL == kItem->type)
-    return 0.0;
-
-  assert(JSON_NUMBER_DOUBLE == kItem->type);
-  return kItem->d_number;
-}
-
 /* converts double to string and store it in p_str */
 //@todo: try to make this more readable
 void 
-json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int kDigits)
+jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits)
 {
   if (DOUBLE_IS_INTEGER(kDouble)){
     sprintf(p_str,"%.lf",kDouble); //convert integer to string
@@ -264,7 +266,7 @@ json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int 
   }
 
   int decimal=0, sign=0;
-  json_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
+  jsonc_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
 
   int i=0;
   if (0 > sign){ //negative sign detected
@@ -281,14 +283,11 @@ json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int 
   if (0 < decimal){
     sprintf(format,"%%.%ds.%%.7s",decimal);
     sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
-    return;
   } else if (0 > decimal) {
     sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
     sprintf(i + p_str, format, tmp_str);
-    return;
   } else {
     sprintf(format,"0.%%.7s");
     sprintf(i + p_str, format, tmp_str);
-    return;
   }
 }

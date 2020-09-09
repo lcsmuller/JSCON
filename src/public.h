@@ -3,28 +3,33 @@
 
 #include "parser.h"
 
-json_item_st* json_get_specific(json_item_st *item, const json_string_kt kKey);
-json_item_st* json_next_object_r(json_item_st *item, json_item_st **p_current_item);
-json_item_st* json_get_clone(json_item_st *item);
-json_item_st* json_next(json_item_st* item);
-json_item_st* json_get_root(json_item_st* item);
-void json_typeof(const json_item_st* kItem, FILE* stream);
-int json_typecmp(const json_item_st* kItem, const json_type_et kType);
-int json_keycmp(const json_item_st* kItem, const json_string_kt kKey);
-int json_doublecmp(const json_item_st* kItem, const json_double_kt kDouble);
-int json_intcmp(const json_item_st* kItem, const json_integer_kt kInteger);
-json_item_st* json_get_sibling(const json_item_st* kOrigin, const size_t kRelative_index);
-json_item_st* json_get_parent(const json_item_st* kItem);
-json_item_st* json_get_property(const json_item_st* kItem, const size_t kIndex);
-size_t json_get_property_count(const json_item_st* kItem);
-json_type_et json_get_type(const json_item_st* kItem);
-json_string_kt json_get_key(const json_item_st* kItem);
-json_boolean_kt json_get_boolean(const json_item_st* kItem);
-json_string_kt json_get_string(const json_item_st* kItem);
-json_string_kt json_get_strdup(const json_item_st* kItem);
-json_double_kt json_get_double(const json_item_st* kItem);
+/* JSONC UTILITIES */
+jsonc_item_st* jsonc_foreach_specific(jsonc_item_st *item, const jsonc_string_kt kKey);
+jsonc_item_st* jsonc_foreach_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
+jsonc_item_st* jsonc_foreach(jsonc_item_st* item);
+jsonc_item_st* jsonc_clone(jsonc_item_st *item);
+jsonc_string_kt jsonc_typeof(const jsonc_item_st* kItem);
+jsonc_string_kt jsonc_strdup(const jsonc_item_st* kItem);
+int jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType);
+int jsonc_keycmp(const jsonc_item_st* kItem, const jsonc_string_kt kKey);
+int jsonc_doublecmp(const jsonc_item_st* kItem, const jsonc_double_kt kDouble);
+int jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger);
+void jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits);
+
+/* JSONC GETTERS */
+jsonc_item_st* jsonc_get_root(jsonc_item_st* item);
+jsonc_item_st* jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index);
+jsonc_item_st* jsonc_get_parent(const jsonc_item_st* kItem);
+jsonc_item_st* jsonc_get_branch(const jsonc_item_st* kItem, const size_t kIndex);
+size_t jsonc_get_num_branch(const jsonc_item_st* kItem);
+jsonc_type_et jsonc_get_type(const jsonc_item_st* kItem);
+jsonc_string_kt jsonc_get_key(const jsonc_item_st* kItem);
+jsonc_boolean_kt jsonc_get_boolean(const jsonc_item_st* kItem);
+jsonc_string_kt jsonc_get_string(const jsonc_item_st* kItem);
+jsonc_double_kt jsonc_get_double(const jsonc_item_st* kItem);
+jsonc_integer_kt jsonc_get_integer(const jsonc_item_st* kItem);
 
 
-void json_double_tostr(const json_double_kt kDouble, json_string_kt p_str, const int kDigits);
+
 
 #endif

@@ -24,7 +24,7 @@ utils_buffer_method_count(char get_char, struct utils_s *utils){
 }
 
 /* fills pre-allocated buffer (by utils_buffer_method_count's length) 
-  with json items converted to string */ 
+  with jsonc items converted to string */ 
 static void
 utils_buffer_method_update(char get_char, struct utils_s *utils)
 {
@@ -34,7 +34,7 @@ utils_buffer_method_update(char get_char, struct utils_s *utils)
 
 /* fills buffer at utils->buffer_offset position with provided string */
 static void
-utils_buffer_fill_string(json_string_kt string, struct utils_s *utils)
+utils_buffer_fill_string(jsonc_string_kt string, struct utils_s *utils)
 {
   while ('\0' != *string){
     (*utils->method)(*string,utils);
@@ -44,17 +44,17 @@ utils_buffer_fill_string(json_string_kt string, struct utils_s *utils)
 
 /* converts double to string and concatenate it to buffer */
 static void
-utils_buffer_fill_double(json_double_kt d_number, struct utils_s *utils)
+utils_buffer_fill_double(jsonc_double_kt d_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
-  json_double_tostr(d_number, get_strnum, MAX_DIGITS);
+  jsonc_double_tostr(d_number, get_strnum, MAX_DIGITS);
 
   utils_buffer_fill_string(get_strnum,utils); //store value in utils
 }
 
 /* converts int to string and concatenate it to buffer */
 static void
-utils_buffer_fill_integer(json_integer_kt i_number, struct utils_s *utils)
+utils_buffer_fill_integer(jsonc_integer_kt i_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   snprintf(get_strnum, MAX_DIGITS-1, "%ld", i_number);
@@ -62,22 +62,22 @@ utils_buffer_fill_integer(json_integer_kt i_number, struct utils_s *utils)
   utils_buffer_fill_string(get_strnum,utils); //store value in utils
 }
 
-/* stringify json items by recursively going through its branches
+/* stringify jsonc items by recursively going through its branches
 
-   I could try to make this iterative by using json_next(), but there
+   I could try to make this iterative by using jsonc_foreach(), but there
     wouldn't be much to gain from it, since i still would have to 
     manage my own stack, which would lead to a more confusing and
     hardly more efficient code */
 static void
-json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *utils)
+jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *utils)
 {
-  /* stringify json item only if its of the same given type */
-  if (!json_typecmp(item, type|JSON_OBJECT|JSON_ARRAY))
+  /* stringify jsonc item only if its of the same given type */
+  if (!jsonc_typecmp(item, type|JSONC_OBJECT|JSONC_ARRAY))
     return;
 
-  /* prints only object type json members key, array could be printed
+  /* prints only object type jsonc members key, array could be printed
     aswell, but that wouldn't conform to standard*/
-  if ((NULL != item->key) && json_typecmp(item->parent, JSON_OBJECT)){
+  if ((NULL != item->key) && jsonc_typecmp(item->parent, JSONC_OBJECT)){
     (*utils->method)('\"', utils);
     utils_buffer_fill_string(item->key, utils);
     (*utils->method)('\"', utils);
@@ -86,31 +86,31 @@ json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *util
   
   /* converts item value to its string format */
   switch (item->type){
-  case JSON_NULL:
+  case JSONC_NULL:
       utils_buffer_fill_string("null", utils);
       break;
-  case JSON_BOOLEAN:
+  case JSONC_BOOLEAN:
       if (true == item->boolean){
         utils_buffer_fill_string("true", utils);
         break;
       }
       utils_buffer_fill_string("false", utils);
       break;
-  case JSON_NUMBER_DOUBLE:
+  case JSONC_NUMBER_DOUBLE:
       utils_buffer_fill_double(item->d_number, utils);
       break;
-  case JSON_NUMBER_INTEGER:
+  case JSONC_NUMBER_INTEGER:
       utils_buffer_fill_integer(item->i_number, utils);
       break;
-  case JSON_STRING:
+  case JSONC_STRING:
       (*utils->method)('\"', utils);
       utils_buffer_fill_string(item->string, utils);
       (*utils->method)('\"', utils);
       break;
-  case JSON_OBJECT:
+  case JSONC_OBJECT:
       (*utils->method)('{', utils);
       break;
-  case JSON_ARRAY:
+  case JSONC_ARRAY:
       (*utils->method)('[', utils);
       break;
   default:
@@ -124,8 +124,8 @@ json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *util
   /* prints (recursively) first branch that fits the type criteria */
   size_t first_index=0;
   while (first_index < item->num_branch){
-    if (json_typecmp(item->branch[first_index], type|JSON_OBJECT|JSON_ARRAY)){
-      json_recursive_print(item->branch[first_index], type, utils);
+    if (jsonc_typecmp(item->branch[first_index], type|JSONC_OBJECT|JSONC_ARRAY)){
+      jsonc_recursive_print(item->branch[first_index], type, utils);
       break;
     }
     ++first_index;
@@ -135,30 +135,30 @@ json_recursive_print(json_item_st *item, json_type_et type, struct utils_s *util
       criteria, and adds a comma before it */
   for (size_t j = first_index+1; j < item->num_branch; ++j){
     /* skips branch that don't fit the criteria */
-    if (!json_typecmp(item->branch[j], type|JSON_OBJECT|JSON_ARRAY))
+    if (!jsonc_typecmp(item->branch[j], type|JSONC_OBJECT|JSONC_ARRAY))
       continue;
 
     (*utils->method)(',',utils);
-    json_recursive_print(item->branch[j], type, utils);
+    jsonc_recursive_print(item->branch[j], type, utils);
   }
 
   /* prints object or array wrapper token */
   switch(item->type){
-  case JSON_OBJECT:
+  case JSONC_OBJECT:
       (*utils->method)('}', utils);
       break;
-  case JSON_ARRAY:
+  case JSONC_ARRAY:
       (*utils->method)(']', utils);
       break;
   default: /* this shouldn't ever happen, but just in case */
-      fprintf(stderr,"ERROR: not a wrapper (object or array) json type\n");
+      fprintf(stderr,"ERROR: not a wrapper (object or array) jsonc type\n");
       exit(EXIT_FAILURE);
   }
 }
 
-/* return string converted json item */
-json_string_kt
-json_stringify(json_item_st *root, json_type_et type)
+/* return string converted jsonc item */
+jsonc_string_kt
+jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 {
   assert(NULL != root);
 
@@ -166,13 +166,13 @@ json_stringify(json_item_st *root, json_type_et type)
 
   /* remove root->key temporarily to make sure its treated as a root
     when printing (roots don't have keys) */
-  json_string_kt tmp = root->key;
+  jsonc_string_kt tmp = root->key;
   root->key = NULL;
 
   /* count how many chars will fill the buffer with
       utils_buffer_method_count, then allocate buffer that amount */
   utils.method = &utils_buffer_method_count;
-  json_recursive_print(root, type, &utils);
+  jsonc_recursive_print(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+5);//extra +5 safety
   assert(NULL != utils.buffer_base);
 
@@ -181,7 +181,7 @@ json_stringify(json_item_st *root, json_type_et type)
   utils.buffer_offset = 0;
 
   utils.method = &utils_buffer_method_update;
-  json_recursive_print(root, type, &utils);
+  jsonc_recursive_print(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
 
   root->key = tmp; //reattach its key

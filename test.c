@@ -10,7 +10,7 @@
 
 FILE *select_output(int argc, char *argv[]);
 char *get_buffer(char filename[]);
-void reviver_test(json_item_st *item);
+void reviver_test(jsonc_item_st *item);
 
 int main(int argc, char *argv[])
 {
@@ -20,28 +20,28 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  json_item_st *root = json_parse_reviver(buffer, NULL);
+  jsonc_item_st *root = jsonc_parse_reviver(buffer, NULL);
 
-  json_item_st *walk = root;
-  json_item_st *item, *current_item = NULL;
-  char *try_buffer;
-  walk = json_next_object_r(walk, &current_item);
+  jsonc_item_st *walk = root;
+  jsonc_item_st *item, *current_item = NULL;
+  char *test1_buffer;
+  walk = jsonc_foreach_object_r(walk, &current_item);
   do {
-    item = json_get_specific(walk, "m");
+    item = jsonc_foreach_specific(walk, "m");
     if (NULL != item){
-      try_buffer = json_stringify(item, JSON_ALL);
-      fwrite(try_buffer, 1, strlen(try_buffer), stderr);
+      test1_buffer = jsonc_stringify(item, JSONC_ALL);
+      fwrite(test1_buffer, 1, strlen(test1_buffer), stderr);
       fputc('\n', stderr);
-      free(try_buffer);
+      free(test1_buffer);
     }
 
-    walk = json_next_object_r(NULL, &current_item);
+    walk = jsonc_foreach_object_r(NULL, &current_item);
   } while (NULL != walk);
 
-  char *new_buffer = json_stringify(root, JSON_ALL);
-  fwrite(new_buffer,1,strlen(new_buffer),f_out);
-  free(new_buffer);
-  json_destroy(root);
+  char *test2_buffer = jsonc_stringify(root, JSONC_ALL);
+  fwrite(test2_buffer,1,strlen(test2_buffer),f_out);
+  free(test2_buffer);
+  jsonc_destroy(root);
 
   free(buffer);
   fclose(f_out);
@@ -86,8 +86,8 @@ read_file(FILE* p_file, long filesize)
   char *buffer = malloc(filesize+1);
   assert(NULL != buffer);
   //read file into buffer
-  fread(buffer,sizeof(char),filesize,p_file);
-  buffer[filesize] = '\0';
+  fread(buffer,1,filesize,p_file);
+  buffer[filesize] = 0;
 
   return buffer;
 }
@@ -107,11 +107,11 @@ get_buffer(char filename[])
   return buffer;
 }
 
-void reviver_test(json_item_st *item){
-  if (json_keycmp(item,"u") && json_intcmp(item,3)){
-        json_item_st *sibling = json_get_sibling(item,2);
-        if (json_keycmp(sibling,"m")){
-          fputs(json_get_string(sibling),stdout);
+void reviver_test(jsonc_item_st *item){
+  if (jsonc_keycmp(item,"u") && jsonc_intcmp(item,3)){
+        jsonc_item_st *sibling = jsonc_get_sibling(item,2);
+        if (jsonc_keycmp(sibling,"m")){
+          fputs(jsonc_get_string(sibling),stdout);
           fputc('\n',stdout);
         }
   }

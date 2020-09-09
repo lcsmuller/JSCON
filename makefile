@@ -4,7 +4,7 @@ CC = gcc
 
 SRCDIR = src
 OBJDIR = obj
-EXEC = JSON
+EXEC = JSONc
 
 OBJS = $(OBJDIR)/public.o
 OBJS += $(OBJDIR)/stringify.o

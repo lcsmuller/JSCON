@@ -4,25 +4,25 @@
 #include "parser.h"
 
 
-typedef struct json_hasht_entry_s {
-  json_string_kt key;
-  json_item_st *item; //this entry's value
-  struct json_hasht_entry_s *next; //next entry pointer for when keys don't match
-} json_hasht_entry_st;
+typedef struct jsonc_hasht_entry_s {
+  jsonc_string_kt key;
+  jsonc_item_st *item; //this entry's value
+  struct jsonc_hasht_entry_s *next; //next entry pointer for when keys don't match
+} jsonc_hasht_entry_st;
 
-typedef struct json_hasht_s {
-  json_item_st *root;
-  struct json_hasht_s *next; //@todo: make this point to differente buckets instead ?
-  json_hasht_entry_st **bucket;
+typedef struct jsonc_hasht_s {
+  jsonc_item_st *root;
+  struct jsonc_hasht_s *next; //@todo: make this point to differente buckets instead ?
+  jsonc_hasht_entry_st **bucket;
   size_t num_bucket;
-} json_hasht_st;
+} jsonc_hasht_st;
 
 
-json_hasht_st* json_hashtable_init();
-void json_hashtable_destroy(json_hasht_st *hashtable);
-void json_hashtable_link_r(json_item_st *item, json_hasht_st **last_accessed_hashtable);
-void json_hashtable_build(json_item_st *item);
-json_item_st* json_hashtable_get(const json_string_kt kKey, json_item_st *item);
-json_item_st* json_hashtable_set(const json_string_kt kKey, json_item_st *item);
+jsonc_hasht_st* jsonc_hashtable_init();
+void jsonc_hashtable_destroy(jsonc_hasht_st *hashtable);
+void jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_hasht_st **last_accessed_hashtable);
+void jsonc_hashtable_build(jsonc_item_st *item);
+jsonc_item_st* jsonc_hashtable_get(const jsonc_string_kt kKey, jsonc_item_st *item);
+jsonc_item_st* jsonc_hashtable_set(const jsonc_string_kt kKey, jsonc_item_st *item);
 
 #endif
