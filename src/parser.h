@@ -26,23 +26,46 @@ typedef int64_t json_integer_kt;
 typedef bool json_boolean_kt;
 struct json_hasht_s; //forward declaration, type is defined at hashtable.h
 
-/* main json struct */
+/* members should not be accessed directly, they are only
+    mean't to be used internally by the lib, or accessed through
+    public.h functions, access directly at your own risk. 
+    
+    key: item's json key (NULL if root)
+
+    parent: object or array that its part of (NULL if root)
+
+    num_branch: amount of enumerable properties (0 if not object or array type)
+
+    type: item's json datatype (check enum json_type_e for flags)
+
+    union {string, d_number, i_number, boolean, hashtable}:
+      string,d_number,i_number,boolean: item literal value, denoted by
+        its type. 
+      hashtable: if item type is object or array, it will have a
+        hashtable for easily sorting through its branches by keys
+
+    last_accessed_branch: simulate stack trace by storing last accessed
+      branch value, this is used for movement functions that require state 
+      to be preserved between calls, while also adhering to recursivity
+      rules. (check public.c json_next() for example)
+*/
 typedef struct json_item_s {
-  json_string_kt key; //item's json key
+  json_string_kt key;
 
-  struct json_item_s *parent; //pointer to parent (null if root)
-  struct json_item_s **branch; //pointer to properties
-  size_t num_branch; //amount of enumerable properties
-  size_t last_accessed_branch; //last accessed property from this item
+  struct json_item_s *parent;
+  struct json_item_s **branch;
+  size_t num_branch;
 
-  json_type_et type; //item's json datatype
-  union { //literal values
+  json_type_et type;
+  union {
     json_string_kt string;
     json_double_kt d_number;
     json_integer_kt i_number;
     json_boolean_kt boolean;
-    struct json_hasht_s *hashtable; //used for sorting through object/array branches
+    struct json_hasht_s *hashtable;
   };
+
+  size_t last_accessed_branch;
 
 } json_item_st;
 

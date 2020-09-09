@@ -45,20 +45,20 @@ json_next_object_r(json_item_st *item, json_item_st **p_current_item)
   return *p_current_item;
 }
 
+/* This is not the most effective way to clone a item, but it is
+    the safest one, because it automatically accounts for any
+    new feature I might add in the future. By first stringfying the
+    (to be cloned) json_item and then parsing the resulting string into
+    a new (clone) json_item, it's guaranteed that it will be a perfect 
+    clone, with its own addressed hashtable, strings, etc */
 json_item_st*
 json_get_clone(json_item_st *item)
 {
   if (NULL == item) return NULL;
 
-  /* remove item->key temporarily, so that it can be treated
-    as a root */
-  json_string_kt tmp = item->key;
-  item->key = NULL;
-  char *buffer = json_stringify(item, JSON_ALL);
-  item->key = tmp; //reattach its key
-
-  json_item_st *clone = json_parse(buffer);
-  free(buffer);
+  char *tmp_buffer = json_stringify(item, JSON_ALL);
+  json_item_st *clone = json_parse(tmp_buffer);
+  free(tmp_buffer);
 
   return clone;
 }
@@ -66,7 +66,7 @@ json_get_clone(json_item_st *item)
 static inline json_item_st*
 json_push(json_item_st* item)
 {
-  assert(item->last_accessed_branch < item->num_branch);//overflow assert
+  assert(item->last_accessed_branch < item->num_branch); //overflow assert
 
   ++item->last_accessed_branch;
   return item->branch[item->last_accessed_branch-1];
@@ -75,13 +75,15 @@ json_push(json_item_st* item)
 static inline json_item_st*
 json_pop(json_item_st* item)
 {
-  assert(0 <= item->last_accessed_branch);//underflow assert
+  assert(0 <= item->last_accessed_branch); //underflow assert
 
   item->last_accessed_branch = 0;
   return item->parent;
 }
 
-/*this will simulate recursive movement iteratively*/
+/* this will simulate recursive movement iteratively, by checking the
+    current item last_accessed_branch value, under no circumstance 
+    should you modify last_accessed_branch value directly */
 json_item_st*
 json_next(json_item_st* item)
 {

@@ -164,6 +164,11 @@ json_stringify(json_item_st *root, json_type_et type)
 
   struct utils_s utils = {0};
 
+  /* remove root->key temporarily to make sure its treated as a root
+    when printing (roots don't have keys) */
+  json_string_kt tmp = root->key;
+  root->key = NULL;
+
   /* count how many chars will fill the buffer with
       utils_buffer_method_count, then allocate buffer that amount */
   utils.method = &utils_buffer_method_count;
@@ -178,6 +183,8 @@ json_stringify(json_item_st *root, json_type_et type)
   utils.method = &utils_buffer_method_update;
   json_recursive_print(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
+
+  root->key = tmp; //reattach its key
 
   return utils.buffer_base;
 }
