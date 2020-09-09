@@ -155,7 +155,7 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
 
 /* return string converted jsonc item */
 jsonc_string_kt
-jsonc_stringify(jsonc_item_st *root, ushort type)
+jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 {
   assert(NULL != root);
 

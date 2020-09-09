@@ -4,7 +4,7 @@
 #include <string.h>
 #include <locale.h>
 
-#include "src/libjsonc.h"
+#include "libjsonc.h"
 
 FILE *select_output(int argc, char *argv[]);
 char *get_buffer(char filename[]);

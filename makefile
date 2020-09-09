@@ -2,12 +2,14 @@ CFLAGS = -Wall -Werror -pedantic
 LDLIBS =
 CC = gcc
 
+
 SRCDIR = src
 OBJDIR = obj
+INCLUDE = include
 LIB_FILE = libjsonc.a
 TEST_EXEC = test_jsonc
 
-OBJS = $(OBJDIR)/libjsonc.o
+OBJS = $(OBJDIR)/public.o
 OBJS += $(OBJDIR)/stringify.o
 OBJS += $(OBJDIR)/parser.o
 OBJS += $(OBJDIR)/hashtable.o
@@ -34,10 +36,10 @@ mkdir:
 	-mkdir -p $(OBJDIR)
 
 $(MAIN_O): $(MAIN)
-	$(CC) -c $< -o $@ $(CFLAGS)
+	$(CC) -I$(INCLUDE) -c $< -o $@ $(CFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) -c $< -o $@ $(CFLAGS)
+	$(CC) -I$(INCLUDE) -c $< -o $@ $(CFLAGS)
 
 debug : $(MAIN) $(SRCDIR)/*.c
 	$(CC) -g $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)

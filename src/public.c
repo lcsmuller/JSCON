@@ -3,11 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "hashtable.h"
 #include "libjsonc.h"
-#include "parser.h"
-#include "stringify.h"
-#include "macros.h"
 
 /* get item with given key, successive calls will get
   the next item in line containing the same key */

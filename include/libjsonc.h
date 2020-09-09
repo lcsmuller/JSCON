@@ -8,8 +8,6 @@
 
 #include "macros.h"
 #include "hashtable.h"
-#include "parser.h"
-#include "stringify.h"
 
 /* All of the possible jsonc datatypes */
 typedef enum {
@@ -31,7 +29,6 @@ typedef char* jsonc_string_kt;
 typedef double jsonc_double_kt;
 typedef long long jsonc_integer_kt;
 typedef _Bool jsonc_boolean_kt;
-struct jsonc_hasht_s; //forward declaration, type is defined at hashtable.h
 
 /* members should not be accessed directly, they are only
     mean't to be used internally by the lib, or accessed through
@@ -75,6 +72,18 @@ typedef struct jsonc_item_s {
   size_t last_accessed_branch;
 
 } jsonc_item_st;
+
+
+/* JSON PARSER */
+/* parse buffer and returns a jsonc item */
+jsonc_item_st* jsonc_parse(char *buffer);
+//@todo: replace this with a write callback modifier, make a default write callback
+jsonc_item_st* jsonc_parse_reviver(char *buffer, void (*fn)(jsonc_item_st*));
+/* clean up jsonc item and global allocated keys */
+void jsonc_destroy(jsonc_item_st *item);
+
+/* JSON STRINGIFY */
+char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
 
 
 /* JSONC UTILITIES */

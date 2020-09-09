@@ -7,3 +7,5 @@
 !makefile
 !src
 !src/*
+!include
+!include/*
