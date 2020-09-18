@@ -5,9 +5,10 @@ CC = gcc
 
 SRCDIR = src
 OBJDIR = obj
-INCLUDE = include
-LIB_FILE = libjsonc.a
-TEST_EXEC = test_jsonc
+INCLUDEDIR = include
+LIBDIR = lib
+LIB = $(LIBDIR)/libjsonc.a
+TEST1 = test_jsonc
 
 OBJS = $(OBJDIR)/public.o
 OBJS += $(OBJDIR)/stringify.o
@@ -20,26 +21,26 @@ MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug purge test
 
-all: $(LIB_FILE)
+all: build
 
-test: $(TEST_EXEC)
+test: $(TEST1)
 
-$(LIB_FILE): build
-	-ar rcs $@ $(OBJS)
-
-$(TEST_EXEC): build
+$(TEST1): build
 	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
-build: mkdir $(MAIN_O) $(OBJS)
+build: mkdir $(MAIN_O) $(OBJS) $(LIB)
 
 mkdir:
-	-mkdir -p $(OBJDIR)
+	-mkdir -p $(OBJDIR) $(LIBDIR)
 
 $(MAIN_O): $(MAIN)
-	$(CC) -I$(INCLUDE) -c $< -o $@ $(CFLAGS)
+	$(CC) -I$(INCLUDEDIR) -c $< -o $@ $(CFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) -I$(INCLUDE) -c $< -o $@ $(CFLAGS)
+	$(CC) -I$(INCLUDEDIR) -c $< -o $@ $(CFLAGS)
+
+$(LIB):
+	-ar rcs $@ $(OBJS)
 
 debug : $(MAIN) $(SRCDIR)/*.c
 	$(CC) -g $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)
@@ -48,4 +49,4 @@ clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(TEST_EXEC) $(LIB_FILE) *.txt debug.out
+	-rm -rf $(TEST1) $(LIBDIR) *.txt debug.out

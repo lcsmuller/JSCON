@@ -11,9 +11,10 @@ struct utils_s {
   char *buffer;
   char tmp_key[KEY_LENGTH]; //holds keys found between calls
   jsonc_hasht_st *last_accessed_hashtable; //holds last hashtable accessed
-  jsonc_parsercb_ft* callback; //parser callback
+  jsonc_callbacks_ft* parser_cb; //parser callback
 };
-  typedef jsonc_item_st* (jsonc_item_set_ft)(jsonc_item_st*, jsonc_type_et, struct utils_s *utils);
+
+typedef jsonc_item_st* (jsonc_item_set_ft)(jsonc_item_st*, jsonc_type_et, struct utils_s *utils);
 
 /* create and branch jsonc item to current's and return it's address */
 static jsonc_item_st*
@@ -197,7 +198,7 @@ jsonc_set_value(jsonc_type_et get_type, jsonc_item_st *item, struct utils_s *uti
       exit(EXIT_FAILURE);
   }
 
-  return (utils->callback)(item);
+  return (utils->parser_cb)(item);
 }
 
 /* Create nested object and return the nested object address. 
@@ -461,10 +462,10 @@ jsonc_default_callback(jsonc_item_st *item){
   return item;
 }
 
-jsonc_parsercb_ft*
-jsonc_parser_callback(jsonc_parsercb_ft *new_cb)
+jsonc_callbacks_ft*
+jsonc_parser_callback(jsonc_callbacks_ft *new_cb)
 {
-  static jsonc_parsercb_ft *parser_cb = &jsonc_default_callback;
+  jsonc_callbacks_ft *parser_cb = &jsonc_default_callback;
 
   if (NULL != new_cb){
     parser_cb = new_cb;
@@ -483,7 +484,7 @@ jsonc_parse(char *buffer)
 
   struct utils_s utils = {
     .buffer = buffer,
-    .callback = jsonc_parser_callback(NULL),
+    .parser_cb = jsonc_parser_callback(NULL),
   };
 
   jsonc_item_st *item = root;

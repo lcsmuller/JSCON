@@ -72,13 +72,13 @@ typedef struct jsonc_item_s {
 
 } jsonc_item_st;
 
-//write callback for when parsing json text at parser.c
-typedef jsonc_item_st* (jsonc_parsercb_ft)(jsonc_item_st* item); 
+//used for setting callbacks
+typedef jsonc_item_st* (jsonc_callbacks_ft)(jsonc_item_st*);
 
 /* JSON PARSER */
 /* parse buffer and returns a jsonc item */
 jsonc_item_st* jsonc_parse(char *buffer);
-jsonc_parsercb_ft* jsonc_parser_callback(jsonc_parsercb_ft *new_cb);
+jsonc_callbacks_ft* jsonc_parser_callback(jsonc_callbacks_ft *new_cb);
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
 
