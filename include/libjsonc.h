@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <limits.h>
 
 #include "macros.h"
@@ -73,12 +72,13 @@ typedef struct jsonc_item_s {
 
 } jsonc_item_st;
 
+//write callback for when parsing json text at parser.c
+typedef jsonc_item_st* (jsonc_parsercb_ft)(jsonc_item_st* item); 
 
 /* JSON PARSER */
 /* parse buffer and returns a jsonc item */
 jsonc_item_st* jsonc_parse(char *buffer);
-//@todo: replace this with a write callback modifier, make a default write callback
-jsonc_item_st* jsonc_parse_reviver(char *buffer, void (*fn)(jsonc_item_st*));
+jsonc_parsercb_ft* jsonc_parser_callback(jsonc_parsercb_ft *new_cb);
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
 

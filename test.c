@@ -8,7 +8,7 @@
 
 FILE *select_output(int argc, char *argv[]);
 char *get_buffer(char filename[]);
-void reviver_test(jsonc_item_st *item);
+jsonc_item_st *callback_test(jsonc_item_st *item);
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  jsonc_item_st *root = jsonc_parse_reviver(buffer, NULL);
+  jsonc_parser_callback(&callback_test);
+  jsonc_item_st *root = jsonc_parse(buffer);
 
   jsonc_item_st *item, *current_item = NULL;
   char *test1_buffer;
@@ -116,12 +117,11 @@ get_buffer(char filename[])
   return buffer;
 }
 
-void reviver_test(jsonc_item_st *item){
-  if (jsonc_keycmp(item,"u") && jsonc_intcmp(item,3)){
-        jsonc_item_st *sibling = jsonc_get_sibling(item,2);
-        if (jsonc_keycmp(sibling,"m")){
-          fputs(jsonc_get_string(sibling),stdout);
-          fputc('\n',stdout);
-        }
+jsonc_item_st *callback_test(jsonc_item_st *item)
+{
+  if (NULL != item && jsonc_keycmp(item, "m")){
+    fprintf(stdout, "%s\n", jsonc_get_string(item));
   }
+    
+  return item;
 }

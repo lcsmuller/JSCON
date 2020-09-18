@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -10,7 +11,9 @@ struct utils_s {
   char *buffer;
   char tmp_key[KEY_LENGTH]; //holds keys found between calls
   jsonc_hasht_st *last_accessed_hashtable; //holds last hashtable accessed
+  jsonc_parsercb_ft* callback; //parser callback
 };
+  typedef jsonc_item_st* (jsonc_item_set_ft)(jsonc_item_st*, jsonc_type_et, struct utils_s *utils);
 
 /* create and branch jsonc item to current's and return it's address */
 static jsonc_item_st*
@@ -84,7 +87,6 @@ static void
 jsonc_string_set_static(char **p_buffer, char set_str[], const int kStr_length)
 {
   char *start = *p_buffer;
-  assert('\"' == *start); //makes sure a string is given
 
   char *end = ++start;
   while (('\0' != *end) && ('\"' != *end)){
@@ -195,7 +197,7 @@ jsonc_set_value(jsonc_type_et get_type, jsonc_item_st *item, struct utils_s *uti
       exit(EXIT_FAILURE);
   }
 
-  return item;
+  return (utils->callback)(item);
 }
 
 /* Create nested object and return the nested object address. 
@@ -204,9 +206,10 @@ static jsonc_item_st*
 jsonc_set_incomplete(jsonc_item_st *item, jsonc_type_et get_type, struct utils_s *utils)
 {
   item = jsonc_branch_create(item);
-  item = jsonc_set_value(get_type, item, utils);
   item->key = strdup(utils->tmp_key);
   assert(NULL != item->key);
+
+  item = jsonc_set_value(get_type, item, utils);
 
   return item;
 }
@@ -234,7 +237,7 @@ jsonc_set_complete(jsonc_item_st *item, jsonc_type_et get_type, struct utils_s *
 static jsonc_item_st*
 jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_item_st* (*item_setter)(jsonc_item_st*, jsonc_type_et, struct utils_s *utils);
+  jsonc_item_set_ft *item_setter;
   jsonc_type_et tmp_type;
 
   switch (*utils->buffer){
@@ -294,7 +297,7 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 
 
   error:
-    fprintf(stderr,"ERROR: invalid jsonc token %c\n", *utils->buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -304,7 +307,7 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 static jsonc_item_st*
 jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_item_st* (*item_setter)(jsonc_item_st*, jsonc_type_et, struct utils_s *utils);
+  jsonc_item_set_ft *item_setter;
   jsonc_type_et tmp_type;
 
   switch (*utils->buffer){
@@ -372,7 +375,7 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 
 
   error:
-    fprintf(stderr,"ERROR: invalid jsonc token %c\n", *utils->buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -425,7 +428,7 @@ jsonc_build_entity(jsonc_item_st *item, struct utils_s *utils)
 
 
   error:
-    fprintf(stderr,"ERROR: invalid jsonc token %c\n", *utils->buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
     exit(EXIT_FAILURE);
 }
 
@@ -449,8 +452,25 @@ jsonc_build(jsonc_item_st *item, struct utils_s *utils)
   }
 
   error:
-    fprintf(stderr,"ERROR: invalid jsonc token %c\n",*utils->buffer);
+    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
     exit(EXIT_FAILURE);
+}
+
+static inline jsonc_item_st*
+jsonc_default_callback(jsonc_item_st *item){
+  return item;
+}
+
+jsonc_parsercb_ft*
+jsonc_parser_callback(jsonc_parsercb_ft *new_cb)
+{
+  static jsonc_parsercb_ft *parser_cb = &jsonc_default_callback;
+
+  if (NULL != new_cb){
+    parser_cb = new_cb;
+  }
+
+  return parser_cb;
 }
 
 /* parse contents from buffer into a jsonc item object
@@ -463,36 +483,13 @@ jsonc_parse(char *buffer)
 
   struct utils_s utils = {
     .buffer = buffer,
+    .callback = jsonc_parser_callback(NULL),
   };
 
   jsonc_item_st *item = root;
   //build while item and buffer aren't nulled
   while ((NULL != item) && ('\0' != *utils.buffer)){
     item = jsonc_build(item, &utils);
-  }
-
-  return root;
-}
-
-/* apply user defined function to contents being parsed */
-static void
-jsonc_apply_reviver(jsonc_item_st *item, void (*reviver)(jsonc_item_st*))
-{
-  (*reviver)(item);
-  for (size_t i=0; i < item->num_branch; ++i){
-    jsonc_apply_reviver(item->branch[i], reviver);
-  }
-}
-
-/* like original parse, but with an option to modify jsonc
-  content during parsing */
-jsonc_item_st*
-jsonc_parse_reviver(char *buffer, void (*reviver)(jsonc_item_st*))
-{
-  jsonc_item_st *root = jsonc_parse(buffer);
-
-  if (NULL != reviver){
-    jsonc_apply_reviver(root, reviver);
   }
 
   return root;
