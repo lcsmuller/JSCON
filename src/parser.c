@@ -146,7 +146,7 @@ jsonc_number_set(jsonc_item_st *item, char **p_buffer)
   strncpy(get_numstr, start, end-start);
 
   jsonc_double_kt set_double;
-  sscanf(get_numstr,"%lf",&set_double); //@todo: replace sscanf?
+  sscanf(get_numstr,"%lf",&set_double); //TODO: replace sscanf?
 
   if (!DOUBLE_IS_INTEGER(set_double)){
     item->type = JSONC_NUMBER_DOUBLE;

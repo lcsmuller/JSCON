@@ -5,23 +5,17 @@
 
 #include "libjsonc.h"
 
-/* get item with given key, successive calls will get
-  the next item in line containing the same key */
+/* TODO: define some of these functions as a libjsonc.h #define */
+
+/* reentrant function, works similar to strtok. the starting point is set
+    by doing the function call before the main iteration loop, then
+    consecutive function calls inside the loop will continue the iteration
+    from then on if item is then set to NULL.
+    
+    p_current_item allows for thread safety reentrancy, it should not be
+    tempered with outside this function*/
 jsonc_item_st*
-jsonc_foreach_specific(jsonc_item_st *item, const char *kKey)
-{
-  if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
-    return NULL;
-
-  item = jsonc_hashtable_get(kKey, item);
-
-  if (NULL != item) return item;
-
-  return NULL;
-}
-
-jsonc_item_st*
-jsonc_foreach_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
+jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
 {
   jsonc_hasht_st *current_hashtable;
 
@@ -41,13 +35,18 @@ jsonc_foreach_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
   return *p_current_item;
 }
 
+/* return next (not yet accessed) item, by using item->last_accessed_branch as the branch index */
 static inline jsonc_item_st*
 jsonc_push(jsonc_item_st* item)
 {
   assert(item->last_accessed_branch < item->num_branch); //overflow assert
 
-  ++item->last_accessed_branch;
-  return item->branch[item->last_accessed_branch-1];
+  ++item->last_accessed_branch; //update last_accessed_branch to next
+  jsonc_item_st *next_item = item->branch[item->last_accessed_branch-1];
+
+  next_item->last_accessed_branch = 0; //resets incase its already set
+
+  return next_item; //return item from next branch in line
 }
 
 static inline jsonc_item_st*
@@ -55,17 +54,20 @@ jsonc_pop(jsonc_item_st* item)
 {
   assert(0 <= item->last_accessed_branch); //underflow assert
 
-  item->last_accessed_branch = 0;
-  return item->parent;
+  item->last_accessed_branch = 0; //resets item->last_accessed_branch
+
+  return item->parent; //return item's parent
 }
 
-/* this will simulate recursive movement iteratively, by checking the
-    current item last_accessed_branch value, under no circumstance 
+/* this will simulate recursive movement iteratively, by using 
+    item->last_accessed_branch as a stack trace. under no circumstance 
     should you modify last_accessed_branch value directly */
 jsonc_item_st*
-jsonc_foreach(jsonc_item_st* item)
+jsonc_next(jsonc_item_st* item)
 {
   if (NULL == item) return NULL;
+
+  item->last_accessed_branch = 0; //resets root stack
 
   /* no branch available to branch, retrieve parent
     until item with available branch found */
@@ -90,7 +92,7 @@ jsonc_foreach(jsonc_item_st* item)
     a new (clone) jsonc_item, it's guaranteed that it will be a perfect 
     clone, with its own addressed hashtable, strings, etc */
 jsonc_item_st*
-jsonc_get_clone(jsonc_item_st *item)
+jsonc_clone(jsonc_item_st *item)
 {
   if (NULL == item) return NULL;
 
@@ -99,18 +101,6 @@ jsonc_get_clone(jsonc_item_st *item)
   free(tmp_buffer);
 
   return clone;
-}
-
-jsonc_item_st*
-jsonc_get_root(jsonc_item_st* item)
-{
-  jsonc_item_st *tmp = item;
-  do {
-    item = tmp;
-    tmp = jsonc_get_parent(item);
-  } while (NULL != tmp);
-
-  return item;
 }
 
 jsonc_string_kt
@@ -138,6 +128,19 @@ jsonc_typeof(const jsonc_item_st *kItem)
   }
 }
 
+jsonc_string_kt
+jsonc_strdup(const jsonc_item_st* kItem)
+{
+  jsonc_string_kt tmp = jsonc_get_string(kItem);
+
+  if (NULL == tmp) return NULL;
+
+  jsonc_string_kt new_string = strdup(tmp);
+  assert(NULL != new_string);
+
+  return new_string;
+}
+
 int
 jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType){
   return kItem->type & kType;
@@ -160,10 +163,79 @@ jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger){
   return kItem->i_number == kInteger;
 }
 
+/* converts double to string and store it in p_str */
+//TODO: try to make this more readable
+void 
+jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits)
+{
+  if (DOUBLE_IS_INTEGER(kDouble)){
+    sprintf(p_str,"%.lf",kDouble); //convert integer to string
+    return;
+  }
+
+  int decimal=0, sign=0;
+  jsonc_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
+
+  int i=0;
+  if (0 > sign){ //negative sign detected
+    p_str[i++] = '-';
+  }
+
+  if (IN_RANGE(decimal,-7,17)){
+    //print scientific notation
+    sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
+    return;
+  }
+
+  char format[100];
+  if (0 < decimal){
+    sprintf(format,"%%.%ds.%%.7s",decimal);
+    sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
+  } else if (0 > decimal) {
+    sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
+    sprintf(i + p_str, format, tmp_str);
+  } else {
+    sprintf(format,"0.%%.7s");
+    sprintf(i + p_str, format, tmp_str);
+  }
+}
+
+jsonc_item_st*
+jsonc_get_root(jsonc_item_st* item)
+{
+  jsonc_item_st *tmp = item;
+  do {
+    item = tmp;
+    tmp = jsonc_get_parent(item);
+  } while (NULL != tmp);
+
+  return item;
+}
+
+/* get item branch with given key,
+  successive calls will get the next item in
+  line containing the same key (if there are any) */
+jsonc_item_st*
+jsonc_get_branch(jsonc_item_st *item, const char *kKey)
+{
+  if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
+    return NULL;
+
+  /* search for entry with given key at item's hashtable,
+    and retrieve found (or not found) item */
+  item = jsonc_hashtable_get(kKey, item);
+
+  if (NULL != item) return item; //found
+
+  return NULL; //not found
+}
+
+/* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
 jsonc_item_st*
 jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index)
 {
   const jsonc_item_st* kParent = jsonc_get_parent(kOrigin);
+
   if (NULL == kParent) return NULL; //kOrigin is root
 
   size_t origin_index=0;
@@ -177,13 +249,14 @@ jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index)
   return NULL;
 }
 
+/* return parent safely */
 jsonc_item_st*
 jsonc_get_parent(const jsonc_item_st* kItem){
   return jsonc_pop((jsonc_item_st*)kItem);
 }
 
 jsonc_item_st*
-jsonc_get_branch(const jsonc_item_st* kItem, const size_t index){
+jsonc_get_byindex(const jsonc_item_st* kItem, const size_t index){
   return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
 }
 
@@ -236,54 +309,4 @@ jsonc_get_integer(const jsonc_item_st* kItem){
 
   assert(JSONC_NUMBER_INTEGER == kItem->type);
   return kItem->i_number;
-}
-
-jsonc_string_kt
-jsonc_strdup(const jsonc_item_st* kItem){
-  jsonc_string_kt tmp = jsonc_get_string(kItem);
-  if (NULL == tmp){
-    return NULL;
-  }
-
-  jsonc_string_kt new_string = strdup(tmp);
-  assert(NULL != new_string);
-
-  return new_string;
-}
-
-/* converts double to string and store it in p_str */
-//@todo: try to make this more readable
-void 
-jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits)
-{
-  if (DOUBLE_IS_INTEGER(kDouble)){
-    sprintf(p_str,"%.lf",kDouble); //convert integer to string
-    return;
-  }
-
-  int decimal=0, sign=0;
-  jsonc_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
-
-  int i=0;
-  if (0 > sign){ //negative sign detected
-    p_str[i++] = '-';
-  }
-
-  if (IN_RANGE(decimal,-7,17)){
-    //print scientific notation
-    sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
-    return;
-  }
-
-  char format[100];
-  if (0 < decimal){
-    sprintf(format,"%%.%ds.%%.7s",decimal);
-    sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
-  } else if (0 > decimal) {
-    sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
-    sprintf(i + p_str, format, tmp_str);
-  } else {
-    sprintf(format,"0.%%.7s");
-    sprintf(i + p_str, format, tmp_str);
-  }
 }

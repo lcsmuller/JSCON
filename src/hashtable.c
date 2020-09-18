@@ -74,6 +74,7 @@ jsonc_generate_hash(const char *kKey, const size_t kNum_bucket)
   size_t slot = 0;
   size_t key_len = strlen(kKey);
 
+  //TODO: look for different algorithms, learn if there are any improvements
   for (size_t i=0; i < key_len; ++i){
     slot = slot * 37 + kKey[i];
   }

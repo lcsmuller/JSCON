@@ -20,12 +20,11 @@ int main(int argc, char *argv[])
 
   jsonc_item_st *root = jsonc_parse_reviver(buffer, NULL);
 
-  jsonc_item_st *walk = root;
   jsonc_item_st *item, *current_item = NULL;
   char *test1_buffer;
-  walk = jsonc_foreach_object_r(walk, &current_item);
+  jsonc_item_st *walk1 = jsonc_next_object_r(root, &current_item);
   do {
-    item = jsonc_foreach_specific(walk, "m");
+    item = jsonc_get_branch(walk1, "m");
     if (NULL != item){
       test1_buffer = jsonc_stringify(item, JSONC_ALL);
       fwrite(test1_buffer, 1, strlen(test1_buffer), stderr);
@@ -33,8 +32,20 @@ int main(int argc, char *argv[])
       free(test1_buffer);
     }
 
-    walk = jsonc_foreach_object_r(NULL, &current_item);
-  } while (NULL != walk);
+    walk1 = jsonc_next_object_r(NULL, &current_item);
+  } while (NULL != walk1);
+
+  jsonc_item_st *walk2 = root;
+  for (int i=0; i < 5 && walk2; ++i){
+    fprintf(stderr, "%s\n", walk2->key);
+    walk2 = jsonc_next(walk2);
+  }
+
+  walk2 = root;
+  do {
+    fprintf(stderr, "%s\n", walk2->key);
+    walk2 = jsonc_next(walk2);
+  } while (NULL != walk2);
 
   char *test2_buffer = jsonc_stringify(root, JSONC_ALL);
   fwrite(test2_buffer,1,strlen(test2_buffer),f_out);

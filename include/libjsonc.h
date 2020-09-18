@@ -85,11 +85,9 @@ void jsonc_destroy(jsonc_item_st *item);
 /* JSON STRINGIFY */
 char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
 
-
 /* JSONC UTILITIES */
-jsonc_item_st* jsonc_foreach_specific(jsonc_item_st *item, const char *kKey);
-jsonc_item_st* jsonc_foreach_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
-jsonc_item_st* jsonc_foreach(jsonc_item_st* item);
+jsonc_item_st* jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
+jsonc_item_st* jsonc_next(jsonc_item_st* item);
 jsonc_item_st* jsonc_clone(jsonc_item_st *item);
 jsonc_string_kt jsonc_typeof(const jsonc_item_st* kItem);
 jsonc_string_kt jsonc_strdup(const jsonc_item_st* kItem);
@@ -101,9 +99,10 @@ void jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, co
 
 /* JSONC GETTERS */
 jsonc_item_st* jsonc_get_root(jsonc_item_st* item);
+jsonc_item_st* jsonc_get_branch(jsonc_item_st *item, const char *kKey);
 jsonc_item_st* jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index);
 jsonc_item_st* jsonc_get_parent(const jsonc_item_st* kItem);
-jsonc_item_st* jsonc_get_branch(const jsonc_item_st* kItem, const size_t kIndex);
+jsonc_item_st* jsonc_get_byindex(const jsonc_item_st* kItem, const size_t kIndex);
 size_t jsonc_get_num_branch(const jsonc_item_st* kItem);
 jsonc_type_et jsonc_get_type(const jsonc_item_st* kItem);
 jsonc_string_kt jsonc_get_key(const jsonc_item_st* kItem);
