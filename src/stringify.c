@@ -32,7 +32,7 @@ utils_buffer_method_update(char get_char, struct utils_s *utils)
 
 /* fills buffer at utils->buffer_offset position with provided string */
 static void
-utils_buffer_fill_string(jsonc_string_kt string, struct utils_s *utils)
+utils_buffer_fill_string(jsonc_char_kt* string, struct utils_s *utils)
 {
   while ('\0' != *string){
     (*utils->method)(*string,utils);
@@ -165,7 +165,7 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
 }
 
 /* return string converted jsonc item */
-jsonc_string_kt
+jsonc_char_kt*
 jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 {
   assert(NULL != root);
@@ -174,7 +174,7 @@ jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 
   /* remove root->key temporarily to make sure its treated as a root
     when printing (roots don't have keys) */
-  jsonc_string_kt tmp = root->key;
+  jsonc_char_kt *tmp = root->key;
   root->key = NULL;
 
   /* count how many chars will fill the buffer with

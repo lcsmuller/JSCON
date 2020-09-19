@@ -104,7 +104,7 @@ jsonc_clone(jsonc_item_st *item)
   return clone;
 }
 
-jsonc_string_kt
+jsonc_char_kt*
 jsonc_typeof(const jsonc_item_st *kItem)
 {
   switch (kItem->type){
@@ -129,14 +129,14 @@ jsonc_typeof(const jsonc_item_st *kItem)
   }
 }
 
-jsonc_string_kt
+jsonc_char_kt*
 jsonc_strdup(const jsonc_item_st* kItem)
 {
-  jsonc_string_kt tmp = jsonc_get_string(kItem);
+  jsonc_char_kt *tmp = jsonc_get_string(kItem);
 
   if (NULL == tmp) return NULL;
 
-  jsonc_string_kt new_string = strdup(tmp);
+  jsonc_char_kt *new_string = strdup(tmp);
   assert(NULL != new_string);
 
   return new_string;
@@ -167,7 +167,7 @@ jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger){
 /* converts double to string and store it in p_str */
 //TODO: try to make this more readable
 void 
-jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits)
+jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_char_kt *p_str, const int kDigits)
 {
   if (DOUBLE_IS_INTEGER(kDouble)){
     sprintf(p_str,"%.lf",kDouble); //convert integer to string
@@ -175,7 +175,7 @@ jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const i
   }
 
   int decimal=0, sign=0;
-  jsonc_string_kt tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
+  jsonc_char_kt *tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
 
   int i=0;
   if (0 > sign){ //negative sign detected
@@ -271,7 +271,7 @@ jsonc_get_type(const jsonc_item_st* kItem){
   return kItem->type;
 }
 
-jsonc_string_kt
+jsonc_char_kt*
 jsonc_get_key(const jsonc_item_st* kItem){
   return kItem->key;
 }
@@ -285,7 +285,7 @@ jsonc_get_boolean(const jsonc_item_st* kItem){
   return kItem->boolean;
 }
 
-jsonc_string_kt
+jsonc_char_kt*
 jsonc_get_string(const jsonc_item_st* kItem){
   if (NULL == kItem || JSONC_NULL == kItem->type)
     return NULL;

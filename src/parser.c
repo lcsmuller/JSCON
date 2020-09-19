@@ -61,7 +61,7 @@ jsonc_destroy(jsonc_item_st *item)
 
 /* fetch string type jsonc and return
   allocated string */
-static jsonc_string_kt
+static jsonc_char_kt*
 jsonc_string_set(char **p_buffer)
 {
   char *start = *p_buffer;
@@ -77,7 +77,7 @@ jsonc_string_set(char **p_buffer)
 
   *p_buffer = end + 1; //skips double quotes buffer position
 
-  jsonc_string_kt set_str = strndup(start, end - start);
+  jsonc_char_kt* set_str = strndup(start, end - start);
   assert(NULL != set_str);
 
   return set_str;

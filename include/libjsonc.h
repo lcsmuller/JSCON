@@ -24,7 +24,7 @@ typedef enum {
   JSONC_ALL              = USHRT_MAX,
 } jsonc_type_et;
 
-typedef char* jsonc_string_kt;
+typedef char jsonc_char_kt;
 typedef double jsonc_double_kt;
 typedef long long jsonc_integer_kt;
 typedef _Bool jsonc_boolean_kt;
@@ -61,7 +61,7 @@ typedef struct jsonc_item_s {
 
   jsonc_type_et type;
   union {
-    jsonc_string_kt string;
+    jsonc_char_kt *string;
     jsonc_double_kt d_number;
     jsonc_integer_kt i_number;
     jsonc_boolean_kt boolean;
@@ -89,13 +89,13 @@ char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
 jsonc_item_st* jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
 jsonc_item_st* jsonc_next(jsonc_item_st* item);
 jsonc_item_st* jsonc_clone(jsonc_item_st *item);
-jsonc_string_kt jsonc_typeof(const jsonc_item_st* kItem);
-jsonc_string_kt jsonc_strdup(const jsonc_item_st* kItem);
+jsonc_char_kt* jsonc_typeof(const jsonc_item_st* kItem);
+jsonc_char_kt* jsonc_strdup(const jsonc_item_st* kItem);
 int jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType);
 int jsonc_keycmp(const jsonc_item_st* kItem, const char *kKey);
 int jsonc_doublecmp(const jsonc_item_st* kItem, const jsonc_double_kt kDouble);
 int jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger);
-void jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_string_kt p_str, const int kDigits);
+void jsonc_double_tostr(const jsonc_double_kt kDouble, jsonc_char_kt* p_str, const int kDigits);
 
 /* JSONC GETTERS */
 jsonc_item_st* jsonc_get_root(jsonc_item_st* item);
@@ -105,9 +105,9 @@ jsonc_item_st* jsonc_get_parent(const jsonc_item_st* kItem);
 jsonc_item_st* jsonc_get_byindex(const jsonc_item_st* kItem, const size_t kIndex);
 size_t jsonc_get_num_branch(const jsonc_item_st* kItem);
 jsonc_type_et jsonc_get_type(const jsonc_item_st* kItem);
-jsonc_string_kt jsonc_get_key(const jsonc_item_st* kItem);
+jsonc_char_kt* jsonc_get_key(const jsonc_item_st* kItem);
 jsonc_boolean_kt jsonc_get_boolean(const jsonc_item_st* kItem);
-jsonc_string_kt jsonc_get_string(const jsonc_item_st* kItem);
+jsonc_char_kt* jsonc_get_string(const jsonc_item_st* kItem);
 jsonc_double_kt jsonc_get_double(const jsonc_item_st* kItem);
 jsonc_integer_kt jsonc_get_integer(const jsonc_item_st* kItem);
 
