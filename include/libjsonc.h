@@ -91,6 +91,7 @@ jsonc_item_st* jsonc_next(jsonc_item_st* item);
 jsonc_item_st* jsonc_clone(jsonc_item_st *item);
 jsonc_char_kt* jsonc_typeof(const jsonc_item_st* kItem);
 jsonc_char_kt* jsonc_strdup(const jsonc_item_st* kItem);
+jsonc_char_kt* jsonc_strncpy(char *dest, const jsonc_item_st* kItem, size_t n);
 int jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType);
 int jsonc_keycmp(const jsonc_item_st* kItem, const char *kKey);
 int jsonc_doublecmp(const jsonc_item_st* kItem, const jsonc_double_kt kDouble);

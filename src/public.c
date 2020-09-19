@@ -142,6 +142,18 @@ jsonc_strdup(const jsonc_item_st* kItem)
   return new_string;
 }
 
+jsonc_char_kt*
+jsonc_strncpy(char *dest, const jsonc_item_st* kItem, size_t n)
+{
+  jsonc_char_kt *tmp = jsonc_get_string(kItem);
+
+  if (NULL == tmp) return NULL;
+
+  strncpy(dest, tmp, n);
+
+  return dest;
+}
+
 int
 jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType){
   return kItem->type & kType;
