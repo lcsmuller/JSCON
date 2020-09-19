@@ -116,8 +116,18 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
       exit(EXIT_FAILURE);
   }
 
-  /* empty num_branch means item is not of object or array type */
-  if (0 == item->num_branch) return;
+  if (0 == item->num_branch){
+    switch(item->type){
+    case JSONC_OBJECT:
+        (*utils->method)('}', utils);
+        return;
+    case JSONC_ARRAY:
+        (*utils->method)(']', utils);
+        return;
+    default:
+        return;
+    }
+  }
 
   /* prints (recursively) first branch that fits the type criteria */
   size_t first_index=0;
