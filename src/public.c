@@ -87,7 +87,7 @@ jsonc_next(jsonc_item_st* item)
 }
 
 /* This is not the most effective way to clone a item, but it is
-    the safest one, because it automatically accounts for any
+    the most reliable, because it automatically accounts for any
     new feature I might add in the future. By first stringfying the
     (to be cloned) jsonc_item and then parsing the resulting string into
     a new (clone) jsonc_item, it's guaranteed that it will be a perfect 
