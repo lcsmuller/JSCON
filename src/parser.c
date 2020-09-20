@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdarg.h>
 #include <ctype.h>
 #include <assert.h>
 
@@ -218,7 +217,7 @@ jsonc_set_value_array(jsonc_item_st *item, struct utils_s *utils)
 /* Create nested object and return the nested object address. 
   This is used for arrays and objects type jsonc */
 static jsonc_item_st*
-jsonc_set_item_incomplete(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
+jsonc_set_incomplete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
 {
   item = jsonc_branch_create(item);
   item->key = strdup(utils->hold_key);
@@ -232,7 +231,10 @@ jsonc_set_item_incomplete(jsonc_item_st *item, struct utils_s *utils, jsonc_crea
 /* Wrap array or object type jsonc, which means
   all of its properties have been created */
 static jsonc_item_st*
-jsonc_wrap(jsonc_item_st *item){
+jsonc_wrap_incomplete_item(jsonc_item_st *item, struct utils_s *utils)
+{
+  ++utils->buffer; //skips '}' or ']'
+  jsonc_hashtable_build(item);
   return jsonc_get_parent(item);
 }
 
@@ -240,10 +242,10 @@ jsonc_wrap(jsonc_item_st *item){
   of its value is created at once, as opposite
   of array or object type jsonc */
 static jsonc_item_st*
-jsonc_set_item_complete(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
+jsonc_set_complete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
 {
-  item = jsonc_set_item_incomplete(item, utils, value_setter);
-  return jsonc_wrap(item);
+  item = jsonc_set_incomplete_item(item, utils, value_setter);
+  return jsonc_get_parent(item);
 }
 
 /* this will be active if the current item is of array type jsonc,
@@ -257,19 +259,17 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      ++utils->buffer;
-      jsonc_hashtable_build(item);
-      return jsonc_wrap(item);
+      return jsonc_wrap_incomplete_item(item, utils);
   case '{':/*OBJECT DETECTED*/
-      item_setter = &jsonc_set_item_incomplete;
+      item_setter = &jsonc_set_incomplete_item;
       value_setter = &jsonc_set_value_object;
       break;
   case '[':/*ARRAY DETECTED*/
-      item_setter = &jsonc_set_item_incomplete;
+      item_setter = &jsonc_set_incomplete_item;
       value_setter = &jsonc_set_value_array;
       break;
   case '\"':/*STRING DETECTED*/
-      item_setter = &jsonc_set_item_complete;
+      item_setter = &jsonc_set_complete_item;
       value_setter = &jsonc_set_value_string;
       break;
   case 't':/*CHECK FOR*/
@@ -277,14 +277,14 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      item_setter = &jsonc_set_item_complete;
+      item_setter = &jsonc_set_complete_item;
       value_setter = &jsonc_set_value_boolean;
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
-      item_setter = &jsonc_set_item_complete;
+      item_setter = &jsonc_set_complete_item;
       value_setter = &jsonc_set_value_null;
       break;
   case ',': /*NEXT ELEMENT TOKEN*/
@@ -300,7 +300,7 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
-      item_setter = &jsonc_set_item_complete;
+      item_setter = &jsonc_set_complete_item;
       value_setter = &jsonc_set_value_number;
       break;
   }
@@ -327,10 +327,7 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      /* TODO: turn into a function? (used at jsonc_build_array too) */
-      ++utils->buffer; //skips '}'
-      jsonc_hashtable_build(item);
-      return jsonc_wrap(item);
+      return jsonc_wrap_incomplete_item(item, utils);
   case '\"':/*KEY STRING DETECTED*/
       jsonc_hold_key(utils);
       return item;
@@ -344,15 +341,15 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 
       switch (*utils->buffer){ //TODO: nested switch are weird
       case '{':/*OBJECT DETECTED*/
-          item_setter = &jsonc_set_item_incomplete;
+          item_setter = &jsonc_set_incomplete_item;
           value_setter = &jsonc_set_value_object;
           break;
       case '[':/*ARRAY DETECTED*/
-          item_setter = &jsonc_set_item_incomplete;
+          item_setter = &jsonc_set_incomplete_item;
           value_setter = &jsonc_set_value_array;
           break;
       case '\"':/*STRING DETECTED*/
-          item_setter = &jsonc_set_item_complete;
+          item_setter = &jsonc_set_complete_item;
           value_setter = &jsonc_set_value_string;
           break;
       case 't':/*CHECK FOR*/
@@ -360,14 +357,14 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
           if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
             goto error;
           }
-          item_setter = &jsonc_set_item_complete;
+          item_setter = &jsonc_set_complete_item;
           value_setter = &jsonc_set_value_boolean;
           break;
       case 'n':/*CHECK FOR NULL*/
           if (!STRNEQ(utils->buffer,"null",4)){
             goto error; 
           }
-          item_setter = &jsonc_set_item_complete;
+          item_setter = &jsonc_set_complete_item;
           value_setter = &jsonc_set_value_null;
           break;
       default:
@@ -375,7 +372,7 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
           if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
             goto error;
           }
-          item_setter = &jsonc_set_item_complete;
+          item_setter = &jsonc_set_complete_item;
           value_setter = &jsonc_set_value_number;
           break;
       }
@@ -460,12 +457,14 @@ jsonc_build(jsonc_item_st *item, struct utils_s *utils)
   case JSONC_UNDEFINED://this should be true only at the first call
       return jsonc_build_entity(item, utils);
   default: //nothing else to build, check buffer for potential error
+      /* TODO: turn this into a while loop */
       if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
         ++utils->buffer; //moves if cntrl character found ('\n','\b',..)
         return item;
       }
       goto error;
   }
+
 
   error:
     fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
@@ -502,8 +501,8 @@ jsonc_parse(char *buffer)
     .parser_cb = jsonc_parser_callback(NULL),
   };
 
-  jsonc_item_st *item = root;
   //build while item and buffer aren't nulled
+  jsonc_item_st *item = root;
   while ((NULL != item) && ('\0' != *utils.buffer)){
     item = jsonc_build(item, &utils);
   }
