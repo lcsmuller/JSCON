@@ -445,32 +445,6 @@ jsonc_build_entity(jsonc_item_st *item, struct utils_s *utils)
     exit(EXIT_FAILURE);
 }
 
-/* build jsonc item by evaluating buffer's current position token */
-static jsonc_item_st*
-jsonc_build(jsonc_item_st *item, struct utils_s *utils)
-{
-  switch(item->type){
-  case JSONC_OBJECT:
-      return jsonc_build_object(item, utils);
-  case JSONC_ARRAY:
-      return jsonc_build_array(item, utils);
-  case JSONC_UNDEFINED://this should be true only at the first call
-      return jsonc_build_entity(item, utils);
-  default: //nothing else to build, check buffer for potential error
-      /* TODO: turn this into a while loop */
-      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-        ++utils->buffer; //moves if cntrl character found ('\n','\b',..)
-        return item;
-      }
-      goto error;
-  }
-
-
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
-    exit(EXIT_FAILURE);
-}
-
 static inline jsonc_item_st*
 jsonc_default_callback(jsonc_item_st *item){
   return item;
@@ -504,8 +478,29 @@ jsonc_parse(char *buffer)
   //build while item and buffer aren't nulled
   jsonc_item_st *item = root;
   while ((NULL != item) && ('\0' != *utils.buffer)){
-    item = jsonc_build(item, &utils);
+    switch(item->type){
+    case JSONC_OBJECT:
+        item = jsonc_build_object(item, &utils);
+        break;
+    case JSONC_ARRAY:
+        item = jsonc_build_array(item, &utils);
+        break;
+    case JSONC_UNDEFINED://this should be true only at the first call
+        item = jsonc_build_entity(item, &utils);
+        break;
+    default: //nothing else to build, check buffer for potential error
+        if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
+          goto error;
+        }
+        ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
+        break;
+    }
   }
 
   return root;
+
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n",*utils.buffer);
+    exit(EXIT_FAILURE);
 }
