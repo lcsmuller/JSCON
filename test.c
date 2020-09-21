@@ -18,7 +18,14 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
+  /*
+  jsonc_item_st *map_meta_test;
+  jsonc_map(buffer, "meta,user,tchau", &map_meta_test);
+  fprintf(stdout, "%s", jsonc_stringify(map_meta_test, JSONC_ALL));
+  jsonc_destroy(map_meta_test);
+  */
   jsonc_parser_callback(&callback_test);
+  
   jsonc_item_st *root = jsonc_parse(buffer);
 
   jsonc_item_st *item, *current_item = NULL;
@@ -49,7 +56,7 @@ int main(int argc, char *argv[])
   } while (NULL != walk2);
 
   char *test2_buffer = jsonc_stringify(root, JSONC_ALL);
-  fwrite(test2_buffer,1,strlen(test2_buffer),f_out);
+  fwrite(test2_buffer, 1, strlen(test2_buffer), f_out);
   free(test2_buffer);
   jsonc_destroy(root);
 
@@ -95,6 +102,7 @@ read_file(FILE* p_file, long filesize)
 {
   char *buffer = malloc(filesize+1);
   assert(NULL != buffer);
+
   //read file into buffer
   fread(buffer,1,filesize,p_file);
   buffer[filesize] = 0;
@@ -107,7 +115,7 @@ char*
 get_buffer(char filename[])
 {
   FILE *file = fopen(filename, "rb");
-  assert(file);
+  assert(NULL != file);
 
   long filesize = fetch_filesize(file);
   char *buffer = read_file(file, filesize);

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -9,7 +10,7 @@
 
 struct utils_s {
   char *buffer;
-  char hold_key[KEY_LENGTH]; //holds keys found between calls
+  char set_key[KEY_LENGTH]; //holds key
   jsonc_hasht_st *last_accessed_hashtable; //holds last hashtable accessed
   jsonc_callbacks_ft* parser_cb; //parser callback
 };
@@ -65,7 +66,7 @@ jsonc_destroy(jsonc_item_st *item)
 
 /* fetch string type jsonc and parse into static string */
 static void
-jsonc_hold_key(struct utils_s *utils)
+jsonc_set_key(struct utils_s *utils)
 {
   char *start = utils->buffer;
 
@@ -83,19 +84,17 @@ jsonc_hold_key(struct utils_s *utils)
     use the actual length instead */
   int length;
   if (KEY_LENGTH > end - start){
-    strncpy(utils->hold_key, start, end - start);
+    strncpy(utils->set_key, start, end - start);
     length = end-start;
   } else {
-    strncpy(utils->hold_key, start, KEY_LENGTH-1);
+    strncpy(utils->set_key, start, KEY_LENGTH-1);
     length = KEY_LENGTH-1;
   }
-  utils->hold_key[length] = 0;
+  utils->set_key[length] = 0;
 }
 
-/* fetch string type jsonc and return
-  allocated string */
-static void
-jsonc_set_value_string(jsonc_item_st *item, struct utils_s *utils)
+static jsonc_char_kt*
+utils_buffer_skip_string(struct utils_s *utils)
 {
   char *start = utils->buffer;
   assert('\"' == *start); //makes sure a string is given
@@ -113,15 +112,21 @@ jsonc_set_value_string(jsonc_item_st *item, struct utils_s *utils)
   jsonc_char_kt* set_str = strndup(start, end - start);
   assert(NULL != set_str);
 
-  item->string = set_str;
+  return set_str;
+}
 
+/* fetch string type jsonc and return
+  allocated string */
+static void
+jsonc_set_value_string(jsonc_item_st *item, struct utils_s *utils)
+{
+
+  item->string = utils_buffer_skip_string(utils);
   item->type = JSONC_STRING;
 }
 
-/* fetch number jsonc type by parsing string,
-  find out whether its a integer or double and assign*/
-static void
-jsonc_set_value_number(jsonc_item_st *item, struct utils_s *utils)
+static jsonc_double_kt
+utils_buffer_skip_double(struct utils_s *utils)
 {
   char *start = utils->buffer;
   char *end = start;
@@ -157,36 +162,53 @@ jsonc_set_value_number(jsonc_item_st *item, struct utils_s *utils)
   jsonc_double_kt set_double;
   sscanf(get_numstr,"%lf",&set_double); //TODO: replace sscanf?
 
-  if (!DOUBLE_IS_INTEGER(set_double)){
+  utils->buffer = end; //skips entire length of number
+
+  return set_double;
+}
+
+/* fetch number jsonc type by parsing string,
+  find out whether its a integer or double and assign*/
+static void
+jsonc_set_value_number(jsonc_item_st *item, struct utils_s *utils)
+{
+  double set_double = utils_buffer_skip_double(utils);
+  if (DOUBLE_IS_INTEGER(set_double)){
+    item->i_number = (jsonc_integer_kt)set_double;
+    item->type = JSONC_NUMBER_INTEGER;
+  } else {
     item->d_number = set_double;
     item->type = JSONC_NUMBER_DOUBLE;
-  } else {
-    item->i_number = (int64_t)set_double;
-    item->type = JSONC_NUMBER_INTEGER;
   }
+}
 
-  utils->buffer = end; //skips entire length of number
+static jsonc_boolean_kt
+utils_buffer_skip_boolean(struct utils_s *utils)
+{
+  if ('t' == *utils->buffer){
+    utils->buffer += 4; //skips length of "true"
+    return true;
+  }
+  utils->buffer += 5; //skips length of "false"
+  return false;
 }
 
 static void
 jsonc_set_value_boolean(jsonc_item_st *item, struct utils_s *utils)
 {
-  if ('t' == *utils->buffer){
-    item->boolean = true;
-    utils->buffer += 4; //skips length of "true"
-    return;
-  }
-  item->boolean = false;
-  utils->buffer += 5; //skips length of "false"
-
+  item->boolean = utils_buffer_skip_boolean(utils);
   item->type = JSONC_BOOLEAN;
+}
+
+static void
+utils_buffer_skip_null(struct utils_s *utils){
+  utils->buffer += 4; //skips length of "null"
 }
 
 static void
 jsonc_set_value_null(jsonc_item_st *item, struct utils_s *utils)
 {
-  utils->buffer += 4; //skips length of "null"
-
+  utils_buffer_skip_null(utils);
   item->type = JSONC_NULL;
 }
 
@@ -220,7 +242,7 @@ static jsonc_item_st*
 jsonc_set_incomplete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
 {
   item = jsonc_branch_create(item);
-  item->key = strdup(utils->hold_key);
+  item->key = strdup(utils->set_key);
   assert(NULL != item->key);
 
   (*value_setter)(item, utils);
@@ -306,7 +328,67 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
   }
 
   //creates numerical key for the array element
-  snprintf(utils->hold_key, MAX_DIGITS-1, "%ld", item->num_branch);
+  snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->num_branch);
+
+  return (*item_setter)(item, utils, value_setter);
+
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
+    exit(EXIT_FAILURE);
+}
+
+static jsonc_item_st*
+jsonc_set_object_property(jsonc_item_st *item, struct utils_s *utils)
+{
+  jsonc_set_key(utils);
+  assert(':' == *utils->buffer);
+
+  /* skips ':' and consecutive space and any control characters */
+  do {
+    ++utils->buffer;
+  } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+
+  jsonc_create_item_ft *item_setter;
+  jsonc_create_value_ft *value_setter;
+
+  switch (*utils->buffer){
+  case '{':/*OBJECT DETECTED*/
+      item_setter = &jsonc_set_incomplete_item;
+      value_setter = &jsonc_set_value_object;
+      break;
+  case '[':/*ARRAY DETECTED*/
+      item_setter = &jsonc_set_incomplete_item;
+      value_setter = &jsonc_set_value_array;
+      break;
+  case '\"':/*STRING DETECTED*/
+      item_setter = &jsonc_set_complete_item;
+      value_setter = &jsonc_set_value_string;
+      break;
+  case 't':/*CHECK FOR*/
+  case 'f':/* BOOLEAN */
+      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+        goto error;
+      }
+      item_setter = &jsonc_set_complete_item;
+      value_setter = &jsonc_set_value_boolean;
+      break;
+  case 'n':/*CHECK FOR NULL*/
+      if (!STRNEQ(utils->buffer,"null",4)){
+        goto error; 
+      }
+      item_setter = &jsonc_set_complete_item;
+      value_setter = &jsonc_set_value_null;
+      break;
+  default:
+      /*CHECK FOR NUMBER*/
+      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+        goto error;
+      }
+      item_setter = &jsonc_set_complete_item;
+      value_setter = &jsonc_set_value_number;
+      break;
+  }
 
   return (*item_setter)(item, utils, value_setter);
 
@@ -322,70 +404,21 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 static jsonc_item_st*
 jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_create_item_ft *item_setter;
-  jsonc_create_value_ft *value_setter;
-
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
       return jsonc_wrap_incomplete_item(item, utils);
   case '\"':/*KEY STRING DETECTED*/
-      jsonc_hold_key(utils);
-      return item;
+      return jsonc_set_object_property(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
       ++utils->buffer; //skips ','
       return item;
-  case ':':/*VALUE DETECTED*/
-      do {
-        ++utils->buffer; //skips ':' and consecutive space and control characters (if any)
-      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
-
-      switch (*utils->buffer){ //TODO: nested switch are weird
-      case '{':/*OBJECT DETECTED*/
-          item_setter = &jsonc_set_incomplete_item;
-          value_setter = &jsonc_set_value_object;
-          break;
-      case '[':/*ARRAY DETECTED*/
-          item_setter = &jsonc_set_incomplete_item;
-          value_setter = &jsonc_set_value_array;
-          break;
-      case '\"':/*STRING DETECTED*/
-          item_setter = &jsonc_set_complete_item;
-          value_setter = &jsonc_set_value_string;
-          break;
-      case 't':/*CHECK FOR*/
-      case 'f':/* BOOLEAN */
-          if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-            goto error;
-          }
-          item_setter = &jsonc_set_complete_item;
-          value_setter = &jsonc_set_value_boolean;
-          break;
-      case 'n':/*CHECK FOR NULL*/
-          if (!STRNEQ(utils->buffer,"null",4)){
-            goto error; 
-          }
-          item_setter = &jsonc_set_complete_item;
-          value_setter = &jsonc_set_value_null;
-          break;
-      default:
-          /*CHECK FOR NUMBER*/
-          if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-            goto error;
-          }
-          item_setter = &jsonc_set_complete_item;
-          value_setter = &jsonc_set_value_number;
-          break;
-      }
-
-      return (*item_setter)(item, utils, value_setter);
-
   default:
       /*SKIPS IF CONTROL CHARACTER*/
-      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-        ++utils->buffer;
-        return item;
+      if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
+        goto error;
       }
-      goto error;
+      ++utils->buffer;
+      return item;
   }
 
 
@@ -503,4 +536,216 @@ jsonc_parse(char *buffer)
   error:
     fprintf(stderr,"ERROR: invalid json token %c\n",*utils.buffer);
     exit(EXIT_FAILURE);
+}
+
+static void
+jsonc_map_assign(struct utils_s *utils, va_list ap)
+{
+  switch (*utils->buffer){
+  /* TODO: fix wrong object being selected (first child) */
+  case '{':/*OBJECT DETECTED*/
+  case '[':/*ARRAY DETECTED*/
+      *va_arg(ap, jsonc_item_st**) = jsonc_parse(utils->buffer);
+      break;
+  case '\"':/*STRING DETECTED*/
+      *va_arg(ap, jsonc_char_kt**) = utils_buffer_skip_string(utils);
+      break;
+  case 't':/*CHECK FOR*/
+  case 'f':/* BOOLEAN */
+      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+        goto error;
+      }
+      *va_arg(ap, jsonc_boolean_kt*) = utils_buffer_skip_boolean(utils);
+      break;
+  case 'n':/*CHECK FOR NULL*/
+      if (!STRNEQ(utils->buffer,"null",4)){
+        goto error; 
+      }
+      utils_buffer_skip_null(utils);
+      break;
+  default:
+      /*CHECK FOR NUMBER*/
+      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+        goto error;
+      }
+      
+      {
+        double set_double = utils_buffer_skip_double(utils);
+        if (DOUBLE_IS_INTEGER(set_double)){
+          *va_arg(ap, jsonc_integer_kt*) = (jsonc_integer_kt)set_double;
+        } else {
+          *va_arg(ap, jsonc_double_kt*) = set_double;
+        }
+      }
+      break;
+  }
+
+  return;
+
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
+    exit(EXIT_FAILURE);
+}
+
+static void
+jsonc_map_skip(struct utils_s *utils)
+{
+  /* TODO: fix cases repeating themselves */
+  int num_nest = 1;
+  switch (*utils->buffer){
+  case '{':/*OBJECT DETECTED*/
+      do {
+        if (0 == num_nest){
+          break;
+        }
+
+        switch(*utils->buffer){
+        case '{':
+            ++num_nest;
+            ++utils->buffer;
+            break;
+        case '}':
+            --num_nest;
+            ++utils->buffer;
+            break;
+        case '\"':
+            do {
+              if ('\\' == *utils->buffer++){
+                ++utils->buffer;
+              }
+            } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
+            assert('\"' == *utils->buffer);
+            ++utils->buffer; //skips last comma
+            break;
+        default:
+            ++utils->buffer;
+            break;
+        }
+      } while ('\0' != *utils->buffer);
+      assert('\0' != *utils->buffer);
+      break;
+  case '[':/*ARRAY DETECTED*/
+      do {
+        if (0 == num_nest){
+          break;
+        }
+
+        switch(*utils->buffer){
+        case '[':
+            ++num_nest;
+            ++utils->buffer;
+            break;
+        case ']':
+            --num_nest;
+            ++utils->buffer;
+            break;
+        case '\"':
+            do {
+              if ('\\' == *utils->buffer++){
+                ++utils->buffer;
+              }
+            } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
+            assert('\"' == *utils->buffer);
+            ++utils->buffer; //skips last comma
+            break;
+        default:
+            ++utils->buffer;
+            break;
+        }
+      } while ('\0' != *utils->buffer);
+      assert('\0' != *utils->buffer);
+      break;
+  case '\"':/*STRING DETECTED*/
+      do {
+        if ('\\' == *utils->buffer++){
+          ++utils->buffer;
+        }
+      } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
+      assert('\"' == *utils->buffer);
+      ++utils->buffer; //skips last comma
+      break;
+  default:
+      while ('\0' != *utils->buffer && ',' != *utils->buffer){
+        ++utils->buffer;
+      }
+      break;
+  }
+}
+
+void
+jsonc_map(char *buffer, char *arg_keys, ...)
+{
+  //skip any space and control characters at start of buffer
+  while (isspace(*buffer) || iscntrl(*buffer)){
+    ++buffer;
+  }
+  assert('{' == *buffer); //must be a json object
+
+  struct utils_s utils = {
+    .buffer = buffer,
+  };
+
+  va_list ap;
+  va_start(ap, arg_keys);
+
+  /* TODO: check for wrong inputs, ex : ",,,,A,B,C,,,D,"
+      check for individual words, instead of amount of commas*/
+  size_t num_keys = 1;
+  for (int i=0; '\0' != arg_keys[i]; ++i){
+   if (',' == arg_keys[i]){
+      ++num_keys;
+   }
+  }
+
+  char keys_array[num_keys][KEY_LENGTH];
+
+  /* split individual keys from arg_keys and make
+      each a key_array element */
+  char c;
+  size_t key_index = 0;
+  size_t char_index = 0;
+  do {
+    if (',' == (c = *arg_keys++)){
+      keys_array[key_index][char_index] = '\0';
+      char_index = 0;
+      ++key_index;
+      assert(key_index <= num_keys);
+    } else {
+      keys_array[key_index][char_index] = c;
+      ++char_index;
+      assert(char_index <= KEY_LENGTH);
+    }
+  } while ('\0' != c);
+
+
+  size_t last_key_index = 0;
+  while ('\0' != *utils.buffer){
+    switch (*utils.buffer){
+    case '\"':
+        jsonc_set_key(&utils);
+        assert(':' == *utils.buffer);
+        /* skips ':' and consecutive space and any control characters */
+        do {
+          ++utils.buffer;
+        } while (isspace(*utils.buffer) || iscntrl(*utils.buffer));
+
+        /* check wether key found is wanted or not */
+        /* TODO: turn this into a hashtable implementation */
+        if (STREQ(keys_array[last_key_index], utils.set_key)){
+          jsonc_map_assign(&utils, ap);
+          ++last_key_index;
+        } else {
+          jsonc_map_skip(&utils);
+        }
+
+        fprintf(stderr, "%s\n", utils.set_key);
+        break;
+    default:
+        ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
+        break;
+    }
+  }
+
+  va_end(ap);
 }
