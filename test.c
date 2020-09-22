@@ -18,18 +18,32 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  /*
-  jsonc_item_st *map_meta_test, *map_data_test;
-  jsonc_map(buffer, "meta,data,tchau,omg,lol", &map_meta_test, &map_data_test);
-  char *buffer_meta = jsonc_stringify(map_meta_test, JSONC_ALL);
-  char *buffer_data = jsonc_stringify(map_data_test, JSONC_ALL);
+  jsonc_item_st *map1 = NULL, *map2 = NULL;
+  jsonc_char_kt *map3 = NULL;
 
-  fprintf(stdout, "%s\n%s", buffer_meta, buffer_data);
-  free(buffer_meta);
-  free(buffer_data);
-  jsonc_destroy(map_meta_test);
-  jsonc_destroy(map_data_test);
-  */
+  jsonc_map(buffer, "meta,data,string", &map1,&map2,&map3);
+  
+  char* buffer1;
+  if (NULL != map1){
+    buffer1 = jsonc_stringify(map1, JSONC_ALL);
+    fputs(buffer1, stdout);
+    free(buffer1);
+    jsonc_destroy(map1);
+  }
+
+  char *buffer2;
+  if (NULL != map2){
+    buffer2 = jsonc_stringify(map2, JSONC_ALL);
+    fputs(buffer2, stdout);
+    free(buffer2);
+    jsonc_destroy(map2);
+  }
+
+  if (NULL != map3){
+    fputs(map3, stdout);
+    free(map3);
+  }
+
   jsonc_parser_callback(&callback_test);
   
   jsonc_item_st *root = jsonc_parse(buffer);

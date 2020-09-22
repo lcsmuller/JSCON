@@ -54,15 +54,25 @@ hashtable_genhash(const char *kKey, const size_t kNum_bucket)
 }
 
 static hashtable_entry_st*
-hashtable_pair(const char *kKey, jsonc_item_st* item)
+hashtable_pair(const char *kKey, void *value)
 {
   hashtable_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
 
-  entry->key = item->key;
-  entry->value = item;
+  entry->key = (char*)kKey;
+  entry->value = value;
 
   return entry;
+}
+
+/* TODO: merge this with hashtable_init ? */
+void
+hashtable_build(hashtable_st *hashtable, size_t num_index)
+{
+  hashtable->num_bucket = num_index * 1.3;
+
+  hashtable->bucket = calloc(1, hashtable->num_bucket * sizeof *hashtable->bucket);
+  assert(NULL != hashtable->bucket);
 }
 
 void*
@@ -144,11 +154,7 @@ jsonc_hashtable_build(jsonc_item_st *item)
 {
   assert(item->type & (JSONC_OBJECT|JSONC_ARRAY));
 
-  jsonc_htwrap_st *htwrap = item->htwrap;
-  htwrap->hashtable.num_bucket = item->num_branch * 1.3;
-
-  htwrap->hashtable.bucket = calloc(1, htwrap->hashtable.num_bucket * sizeof *htwrap->hashtable.bucket);
-  assert(NULL != htwrap->hashtable.bucket);
+  hashtable_build(&item->htwrap->hashtable, item->num_branch);
 
   for (int i=0; i < item->num_branch; ++i){
     jsonc_hashtable_set(item->branch[i]->key, item->branch[i]);

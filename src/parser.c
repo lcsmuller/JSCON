@@ -539,23 +539,34 @@ jsonc_parse(char *buffer)
 }
 
 static void
-jsonc_map_assign(struct utils_s *utils, va_list ap)
+jsonc_map_assign(struct utils_s *utils, hashtable_st *hashtable)
 {
+  void *value = hashtable_get(hashtable, utils->set_key);
+
   switch (*utils->buffer){
   /* TODO: fix wrong object being selected (first child) */
   case '{':/*OBJECT DETECTED*/
   case '[':/*ARRAY DETECTED*/
-      *va_arg(ap, jsonc_item_st**) = jsonc_parse(utils->buffer);
+      {
+        jsonc_item_st **item = value;
+        *item = jsonc_parse(utils->buffer);
+      }
       break;
   case '\"':/*STRING DETECTED*/
-      *va_arg(ap, jsonc_char_kt**) = utils_buffer_skip_string(utils);
+      {
+        jsonc_char_kt **string = value;
+        *string = utils_buffer_skip_string(utils);
+      }
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      *va_arg(ap, jsonc_boolean_kt*) = utils_buffer_skip_boolean(utils);
+      {
+        jsonc_boolean_kt *boolean = value;
+        *boolean = utils_buffer_skip_boolean(utils);
+      }
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
@@ -570,11 +581,13 @@ jsonc_map_assign(struct utils_s *utils, va_list ap)
       }
       
       {
-        double set_double = utils_buffer_skip_double(utils);
-        if (DOUBLE_IS_INTEGER(set_double)){
-          *va_arg(ap, jsonc_integer_kt*) = (jsonc_integer_kt)set_double;
+        double tmp = utils_buffer_skip_double(utils);
+        if (DOUBLE_IS_INTEGER(tmp)){
+          jsonc_double_kt *number_d = value; 
+          *number_d = (jsonc_integer_kt)tmp;
         } else {
-          *va_arg(ap, jsonc_double_kt*) = set_double;
+          jsonc_integer_kt *number_i = value;
+          *number_i = (jsonc_integer_kt)tmp;
         }
       }
       break;
@@ -596,10 +609,6 @@ jsonc_map_skip(struct utils_s *utils)
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
       do {
-        if (0 == num_nest){
-          break;
-        }
-
         switch(*utils->buffer){
         case '{':
             ++num_nest;
@@ -622,15 +631,13 @@ jsonc_map_skip(struct utils_s *utils)
             ++utils->buffer;
             break;
         }
+
+        if (1 == num_nest) break;
+
       } while ('\0' != *utils->buffer);
-      assert('\0' != *utils->buffer);
       break;
   case '[':/*ARRAY DETECTED*/
       do {
-        if (0 == num_nest){
-          break;
-        }
-
         switch(*utils->buffer){
         case '[':
             ++num_nest;
@@ -653,8 +660,10 @@ jsonc_map_skip(struct utils_s *utils)
             ++utils->buffer;
             break;
         }
+
+        if (1 == num_nest) break;
+
       } while ('\0' != *utils->buffer);
-      assert('\0' != *utils->buffer);
       break;
   case '\"':/*STRING DETECTED*/
       do {
@@ -695,23 +704,29 @@ jsonc_map_count_keys(char *arg_keys)
 }
 
 static void
-jsonc_map_split_keys(char *arg_keys, size_t num_keys, char keys_array[num_keys][KEY_LENGTH])
+jsonc_map_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 {
   /* split individual keys from arg_keys and make
       each a key_array element */
   char c;
-  size_t key_index = 0;
+  char key[KEY_LENGTH], *tmp;
   size_t char_index = 0;
-  while ('\0' != (c = *arg_keys++)){
+  while (1){
+    c = *arg_keys++;
+
     if (isalnum(c)){ //form key while char is alphanumeric
-      keys_array[key_index][char_index] = c;
+      key[char_index] = c;
       ++char_index;
       assert(char_index <= KEY_LENGTH);
     } else { //key formation completed
-      keys_array[key_index][char_index] = '\0';
+      key[char_index] = '\0';
+      tmp = strdup(key);
+      assert(NULL != tmp);
+      hashtable_set(hashtable, tmp, va_arg(ap, void*));
+
+      if ('\0' == c) return;
+
       char_index = 0;
-      ++key_index;
-      assert(key_index <= num_keys);
     }
   }
 }
@@ -732,12 +747,10 @@ jsonc_map(char *buffer, char *arg_keys, ...)
   va_list ap;
   va_start(ap, arg_keys);
 
-  size_t num_keys = jsonc_map_count_keys(arg_keys);
-  char keys_array[num_keys][KEY_LENGTH];
+  hashtable_st *hashtable = hashtable_init();
+  hashtable_build(hashtable, jsonc_map_count_keys(arg_keys));
+  jsonc_map_split_keys(arg_keys, hashtable, ap);
 
-  jsonc_map_split_keys(arg_keys, num_keys, keys_array);
-
-  size_t last_key_index = 0;
   while ('\0' != *utils.buffer){
     switch (*utils.buffer){
     case '\"':
@@ -749,10 +762,8 @@ jsonc_map(char *buffer, char *arg_keys, ...)
         } while (isspace(*utils.buffer) || iscntrl(*utils.buffer));
 
         /* check wether key found is wanted or not */
-        /* TODO: turn this into a hashtable implementation */
-        if (STREQ(keys_array[last_key_index], utils.set_key)){
-          jsonc_map_assign(&utils, ap);
-          ++last_key_index;
+        if (NULL != hashtable_get(hashtable, utils.set_key)){
+          jsonc_map_assign(&utils, hashtable);
         } else {
           jsonc_map_skip(&utils);
         }
@@ -762,6 +773,8 @@ jsonc_map(char *buffer, char *arg_keys, ...)
         break;
     }
   }
+
+  hashtable_destroy(hashtable);
 
   va_end(ap);
 }
