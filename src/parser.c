@@ -581,11 +581,11 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
       
       double tmp = utils_buffer_skip_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
-        jsonc_double_kt *number_d = value; 
-        *number_d = (jsonc_integer_kt)tmp;
-      } else {
         jsonc_integer_kt *number_i = value;
         *number_i = (jsonc_integer_kt)tmp;
+      } else {
+        jsonc_double_kt *number_d = value; 
+        *number_d = tmp;
       }
       break;
    }
