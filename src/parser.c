@@ -539,35 +539,34 @@ jsonc_parse(char *buffer)
 }
 
 static void
-jsonc_map_assign(struct utils_s *utils, hashtable_st *hashtable)
+jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 {
   void *value = hashtable_get(hashtable, utils->set_key);
 
   switch (*utils->buffer){
-  /* TODO: fix wrong object being selected (first child) */
   case '{':/*OBJECT DETECTED*/
   case '[':/*ARRAY DETECTED*/
-      {
-        jsonc_item_st **item = value;
-        *item = jsonc_parse(utils->buffer);
-      }
+   {
+      jsonc_item_st **item = value;
+      *item = jsonc_parse(utils->buffer);
       break;
+   }
   case '\"':/*STRING DETECTED*/
-      {
-        jsonc_char_kt **string = value;
-        *string = utils_buffer_skip_string(utils);
-      }
+   {
+      jsonc_char_kt **string = value;
+      *string = utils_buffer_skip_string(utils);
       break;
+   }
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
+   {
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      {
-        jsonc_boolean_kt *boolean = value;
-        *boolean = utils_buffer_skip_boolean(utils);
-      }
-      break;
+      jsonc_boolean_kt *boolean = value;
+      *boolean = utils_buffer_skip_boolean(utils);
+   }
+  break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error; 
@@ -575,22 +574,21 @@ jsonc_map_assign(struct utils_s *utils, hashtable_st *hashtable)
       utils_buffer_skip_null(utils);
       break;
   default:
-      /*CHECK FOR NUMBER*/
+   { /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
       
-      {
-        double tmp = utils_buffer_skip_double(utils);
-        if (DOUBLE_IS_INTEGER(tmp)){
-          jsonc_double_kt *number_d = value; 
-          *number_d = (jsonc_integer_kt)tmp;
-        } else {
-          jsonc_integer_kt *number_i = value;
-          *number_i = (jsonc_integer_kt)tmp;
-        }
+      double tmp = utils_buffer_skip_double(utils);
+      if (DOUBLE_IS_INTEGER(tmp)){
+        jsonc_double_kt *number_d = value; 
+        *number_d = (jsonc_integer_kt)tmp;
+      } else {
+        jsonc_integer_kt *number_i = value;
+        *number_i = (jsonc_integer_kt)tmp;
       }
       break;
+   }
   }
 
   return;
@@ -601,89 +599,72 @@ jsonc_map_assign(struct utils_s *utils, hashtable_st *hashtable)
     exit(EXIT_FAILURE);
 }
 
-static void
-jsonc_map_skip(struct utils_s *utils)
+inline static void
+jsonc_sscanf_skip_string(struct utils_s *utils)
 {
-  /* TODO: fix cases repeating themselves */
-  int num_nest = 1;
+  /* loops until null terminator or end of string are found */
+  do {
+    /* skips escaped characters */
+    if ('\\' == *utils->buffer++){
+      ++utils->buffer;
+    }
+  } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
+  assert('\"' == *utils->buffer);
+  ++utils->buffer; //skips last comma
+}
+
+inline static void
+jsonc_sscanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
+{
+  /* skips the item and all of its nests, special care is taken for any
+      inner string is found, as it might contain a delim character that
+      if not treated as a string will incorrectly trigger 
+      num_nest action*/
+  int num_nest = 0;
+
+  do {
+    if (ldelim == *utils->buffer){
+      ++num_nest;
+      ++utils->buffer; //skips ldelim char
+    } else if (rdelim == *utils->buffer) {
+      --num_nest;
+      ++utils->buffer; //skips rdelim char
+    } else if ('\"' == *utils->buffer) { //treat string separetely
+      jsonc_sscanf_skip_string(utils);
+    } else {
+      ++utils->buffer; //skips whatever char
+    }
+
+
+    if (0 == num_nest) return; //entire item has been skipped, return
+
+  } while ('\0' != *utils->buffer);
+}
+
+static void
+jsonc_sscanf_skip(struct utils_s *utils)
+{
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      do {
-        switch(*utils->buffer){
-        case '{':
-            ++num_nest;
-            ++utils->buffer;
-            break;
-        case '}':
-            --num_nest;
-            ++utils->buffer;
-            break;
-        case '\"':
-            do {
-              if ('\\' == *utils->buffer++){
-                ++utils->buffer;
-              }
-            } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-            assert('\"' == *utils->buffer);
-            ++utils->buffer; //skips last comma
-            break;
-        default:
-            ++utils->buffer;
-            break;
-        }
-
-        if (1 == num_nest) break;
-
-      } while ('\0' != *utils->buffer);
-      break;
+      jsonc_sscanf_skip_item('{', '}', utils);
+      return;
   case '[':/*ARRAY DETECTED*/
-      do {
-        switch(*utils->buffer){
-        case '[':
-            ++num_nest;
-            ++utils->buffer;
-            break;
-        case ']':
-            --num_nest;
-            ++utils->buffer;
-            break;
-        case '\"':
-            do {
-              if ('\\' == *utils->buffer++){
-                ++utils->buffer;
-              }
-            } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-            assert('\"' == *utils->buffer);
-            ++utils->buffer; //skips last comma
-            break;
-        default:
-            ++utils->buffer;
-            break;
-        }
-
-        if (1 == num_nest) break;
-
-      } while ('\0' != *utils->buffer);
-      break;
+      jsonc_sscanf_skip_item('[', ']', utils);
+      return;
   case '\"':/*STRING DETECTED*/
-      do {
-        if ('\\' == *utils->buffer++){
-          ++utils->buffer;
-        }
-      } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-      assert('\"' == *utils->buffer);
-      ++utils->buffer; //skips last comma
-      break;
+      jsonc_sscanf_skip_string(utils);
+      return;
   default:
+      //consume characters while not end of string or not new key
       while ('\0' != *utils->buffer && ',' != *utils->buffer){
         ++utils->buffer;
       }
-      break;
+      return;
   }
 }
 
 static size_t
-jsonc_map_count_keys(char *arg_keys)
+jsonc_sscanf_count_keys(char *arg_keys)
 {
   /* count each "word" formed by alphanumerical characters
       as a key */
@@ -704,14 +685,16 @@ jsonc_map_count_keys(char *arg_keys)
 }
 
 static void
-jsonc_map_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
+jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 {
+  assert('\0' != *arg_keys); //can't be empty string
+
   /* split individual keys from arg_keys and make
       each a key_array element */
   char c;
   char key[KEY_LENGTH], *tmp;
   size_t char_index = 0;
-  while (1){
+  while (true){ //run until end of string found
     c = *arg_keys++;
 
     if (isalnum(c)){ //form key while char is alphanumeric
@@ -731,8 +714,13 @@ jsonc_map_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
   }
 }
 
+/* works like sscanf, will parse stuff only for the keys specified to the arg_keys string parameter. the variables assigned to ... must be in
+the correct order, and type, as the requested keys.
+
+  every key found that doesn't match any of the requested keys will be
+  ignored along with all its contents. */
 void
-jsonc_map(char *buffer, char *arg_keys, ...)
+jsonc_sscanf(char *buffer, char *arg_keys, ...)
 {
   //skip any space and control characters at start of buffer
   while (isspace(*buffer) || iscntrl(*buffer)){
@@ -748,8 +736,8 @@ jsonc_map(char *buffer, char *arg_keys, ...)
   va_start(ap, arg_keys);
 
   hashtable_st *hashtable = hashtable_init();
-  hashtable_build(hashtable, jsonc_map_count_keys(arg_keys));
-  jsonc_map_split_keys(arg_keys, hashtable, ap);
+  hashtable_build(hashtable, jsonc_sscanf_count_keys(arg_keys));
+  jsonc_sscanf_split_keys(arg_keys, hashtable, ap);
 
   while ('\0' != *utils.buffer){
     switch (*utils.buffer){
@@ -763,9 +751,9 @@ jsonc_map(char *buffer, char *arg_keys, ...)
 
         /* check wether key found is wanted or not */
         if (NULL != hashtable_get(hashtable, utils.set_key)){
-          jsonc_map_assign(&utils, hashtable);
+          jsonc_sscanf_assign(&utils, hashtable);
         } else {
-          jsonc_map_skip(&utils);
+          jsonc_sscanf_skip(&utils);
         }
         break;
     default:

@@ -82,8 +82,8 @@ jsonc_item_st* jsonc_parse(char *buffer);
 jsonc_callbacks_ft* jsonc_parser_callback(jsonc_callbacks_ft *new_cb);
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
-/* allocates json values based on parameters */
-void jsonc_map(char *buffer, char *arg_keys, ...);
+/* only parse json values from given parameters */
+void jsonc_sscanf(char *buffer, char *arg_keys, ...);
 
 /* JSON STRINGIFY */
 char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);

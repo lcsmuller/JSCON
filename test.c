@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
   jsonc_item_st *map1 = NULL, *map2 = NULL;
   jsonc_char_kt *map3 = NULL;
 
-  jsonc_map(buffer, "meta,data,string", &map1,&map2,&map3);
+  jsonc_sscanf(buffer, "meta,data,string", &map1,&map2,&map3);
   
   char* buffer1;
   if (NULL != map1){
