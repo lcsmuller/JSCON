@@ -18,21 +18,21 @@
 jsonc_item_st*
 jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
 {
-  jsonc_hasht_st *current_hashtable;
+  jsonc_htwrap_st *current_htwrap;
 
   if (NULL != item){
-    current_hashtable = item->hashtable;
-    *p_current_item = current_hashtable->root;
+    current_htwrap = item->htwrap;
+    *p_current_item = current_htwrap->root;
     return *p_current_item;
   }
 
-  current_hashtable = (*p_current_item)->hashtable->next;
-  if (NULL == current_hashtable){
+  current_htwrap = (*p_current_item)->htwrap->next;
+  if (NULL == current_htwrap){
     *p_current_item = NULL;
     return NULL;
   }
 
-  *p_current_item = current_hashtable->root;
+  *p_current_item = current_htwrap->root;
   return *p_current_item;
 }
 
@@ -91,7 +91,7 @@ jsonc_next(jsonc_item_st* item)
     new feature I might add in the future. By first stringfying the
     (to be cloned) jsonc_item and then parsing the resulting string into
     a new (clone) jsonc_item, it's guaranteed that it will be a perfect 
-    clone, with its own addressed hashtable, strings, etc */
+    clone, with its own addressed htwrap, strings, etc */
 jsonc_item_st*
 jsonc_clone(jsonc_item_st *item)
 {
@@ -234,7 +234,7 @@ jsonc_get_branch(jsonc_item_st *item, const char *kKey)
   if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
     return NULL;
 
-  /* search for entry with given key at item's hashtable,
+  /* search for entry with given key at item's htwrap,
     and retrieve found (or not found) item */
   item = jsonc_hashtable_get(kKey, item);
 

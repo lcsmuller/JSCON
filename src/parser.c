@@ -11,7 +11,7 @@
 struct utils_s {
   char *buffer;
   char set_key[KEY_LENGTH]; //holds key
-  jsonc_hasht_st *last_accessed_hashtable; //holds last hashtable accessed
+  jsonc_htwrap_st *last_accessed_htwrap; //holds last htwrap accessed
   jsonc_callbacks_ft* parser_cb; //parser callback
 };
 
@@ -52,7 +52,7 @@ jsonc_destroy(jsonc_item_st *item)
     break;
   case JSONC_OBJECT:
   case JSONC_ARRAY:
-    jsonc_hashtable_destroy(item->hashtable);
+    jsonc_hashtable_destroy(item->htwrap);
     free(item->branch);
     item->branch = NULL;
     break;
@@ -216,8 +216,8 @@ jsonc_set_value_null(jsonc_item_st *item, struct utils_s *utils)
 inline static void
 jsonc_set_hashtable(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->hashtable = jsonc_hashtable_init();
-  jsonc_hashtable_link_r(item, &utils->last_accessed_hashtable);
+  item->htwrap = jsonc_hashtable_init();
+  jsonc_hashtable_link_r(item, &utils->last_accessed_htwrap);
 }
 
 static void
@@ -673,6 +673,49 @@ jsonc_map_skip(struct utils_s *utils)
   }
 }
 
+static size_t
+jsonc_map_count_keys(char *arg_keys)
+{
+  /* count each "word" formed by alphanumerical characters
+      as a key */
+  size_t num_keys = 0;
+  char c;
+  while ('\0' != (c = *arg_keys)){
+    if (isalnum(c)){ //found key, increment num_keys
+      ++num_keys;
+      do { //consume remaining alphanumerical characters
+        c = *++arg_keys;
+      } while (isalnum(c));
+    } else { //skip delimeter
+      ++arg_keys;
+    }
+  }
+
+  return num_keys;
+}
+
+static void
+jsonc_map_split_keys(char *arg_keys, size_t num_keys, char keys_array[num_keys][KEY_LENGTH])
+{
+  /* split individual keys from arg_keys and make
+      each a key_array element */
+  char c;
+  size_t key_index = 0;
+  size_t char_index = 0;
+  while ('\0' != (c = *arg_keys++)){
+    if (isalnum(c)){ //form key while char is alphanumeric
+      keys_array[key_index][char_index] = c;
+      ++char_index;
+      assert(char_index <= KEY_LENGTH);
+    } else { //key formation completed
+      keys_array[key_index][char_index] = '\0';
+      char_index = 0;
+      ++key_index;
+      assert(key_index <= num_keys);
+    }
+  }
+}
+
 void
 jsonc_map(char *buffer, char *arg_keys, ...)
 {
@@ -689,35 +732,10 @@ jsonc_map(char *buffer, char *arg_keys, ...)
   va_list ap;
   va_start(ap, arg_keys);
 
-  /* TODO: check for wrong inputs, ex : ",,,,A,B,C,,,D,"
-      check for individual words, instead of amount of commas*/
-  size_t num_keys = 1;
-  for (int i=0; '\0' != arg_keys[i]; ++i){
-   if (',' == arg_keys[i]){
-      ++num_keys;
-   }
-  }
-
+  size_t num_keys = jsonc_map_count_keys(arg_keys);
   char keys_array[num_keys][KEY_LENGTH];
 
-  /* split individual keys from arg_keys and make
-      each a key_array element */
-  char c;
-  size_t key_index = 0;
-  size_t char_index = 0;
-  do {
-    if (',' == (c = *arg_keys++)){
-      keys_array[key_index][char_index] = '\0';
-      char_index = 0;
-      ++key_index;
-      assert(key_index <= num_keys);
-    } else {
-      keys_array[key_index][char_index] = c;
-      ++char_index;
-      assert(char_index <= KEY_LENGTH);
-    }
-  } while ('\0' != c);
-
+  jsonc_map_split_keys(arg_keys, num_keys, keys_array);
 
   size_t last_key_index = 0;
   while ('\0' != *utils.buffer){
@@ -738,8 +756,6 @@ jsonc_map(char *buffer, char *arg_keys, ...)
         } else {
           jsonc_map_skip(&utils);
         }
-
-        fprintf(stderr, "%s\n", utils.set_key);
         break;
     default:
         ++utils.buffer; //moves if cntrl character found ('\n','\b',..)

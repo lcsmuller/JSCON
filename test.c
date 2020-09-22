@@ -19,10 +19,16 @@ int main(int argc, char *argv[])
   char *buffer = get_buffer(argv[1]);
 
   /*
-  jsonc_item_st *map_meta_test;
-  jsonc_map(buffer, "meta,user,tchau", &map_meta_test);
-  fprintf(stdout, "%s", jsonc_stringify(map_meta_test, JSONC_ALL));
+  jsonc_item_st *map_meta_test, *map_data_test;
+  jsonc_map(buffer, "meta,data,tchau,omg,lol", &map_meta_test, &map_data_test);
+  char *buffer_meta = jsonc_stringify(map_meta_test, JSONC_ALL);
+  char *buffer_data = jsonc_stringify(map_data_test, JSONC_ALL);
+
+  fprintf(stdout, "%s\n%s", buffer_meta, buffer_data);
+  free(buffer_meta);
+  free(buffer_data);
   jsonc_destroy(map_meta_test);
+  jsonc_destroy(map_data_test);
   */
   jsonc_parser_callback(&callback_test);
   

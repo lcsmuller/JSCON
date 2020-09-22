@@ -44,8 +44,9 @@ typedef _Bool jsonc_boolean_kt;
     union {string, d_number, i_number, boolean, hashtable}:
       string,d_number,i_number,boolean: item literal value, denoted by
         its type. 
-      hashtable: if item type is object or array, it will have a
+      htwrap: if item type is object or array, it will have a
         hashtable for easily sorting through its branches by keys
+        (check hashtable.h and hashtable.c for more info)
 
     last_accessed_branch: simulate stack trace by storing last accessed
       branch value, this is used for movement functions that require state 
@@ -65,7 +66,7 @@ typedef struct jsonc_item_s {
     jsonc_double_kt d_number;
     jsonc_integer_kt i_number;
     jsonc_boolean_kt boolean;
-    struct jsonc_hasht_s *hashtable;
+    struct jsonc_htwrap_s *htwrap;
   };
 
   size_t last_accessed_branch;

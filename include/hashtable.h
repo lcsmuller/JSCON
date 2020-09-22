@@ -1,26 +1,36 @@
 #ifndef JSONC_HASHTABLE_H
 #define JSONC_HASHTABLE_H
 
+/* GENERAL USE IMPLEMENTATIONS */
+typedef struct hashtable_entry_s {
+  char *key; //this entry key tag
+  void *value; //this entry value
+  struct hashtable_entry_s *next; //next entry pointer for when keys don't match
+} hashtable_entry_st;
+
+typedef struct hashtable_s {
+  hashtable_entry_st **bucket;
+  size_t num_bucket;
+} hashtable_st;
+
+hashtable_st* hashtable_init();
+void hashtable_destroy(hashtable_st *hashtable);
+void *hashtable_get(hashtable_st *hashtable, const char *kKey);
+void *hashtable_set(hashtable_st *hashtable, const char *kKey, void *value);
+
+/* JSONC SPECIFIC IMPLEMENTATIONS */
 struct jsonc_item_s; //forward declaration
 
+typedef struct jsonc_htwrap_s {
+  hashtable_st hashtable;
 
-typedef struct jsonc_hasht_entry_s {
-  char *key;
-  struct jsonc_item_s *item; //this entry's value
-  struct jsonc_hasht_entry_s *next; //next entry pointer for when keys don't match
-} jsonc_hasht_entry_st;
+  struct jsonc_item_s *root; //points to root item (object or array)
+  struct jsonc_htwrap_s *next; //points to linked hashtable
+} jsonc_htwrap_st;
 
-typedef struct jsonc_hasht_s {
-  struct jsonc_item_s *root;
-  struct jsonc_hasht_s *next; //@todo: make this point to differente buckets instead ?
-  jsonc_hasht_entry_st **bucket;
-  size_t num_bucket;
-} jsonc_hasht_st;
-
-
-jsonc_hasht_st* jsonc_hashtable_init();
-void jsonc_hashtable_destroy(jsonc_hasht_st *hashtable);
-void jsonc_hashtable_link_r(struct jsonc_item_s *item, jsonc_hasht_st **last_accessed_hashtable);
+jsonc_htwrap_st* jsonc_hashtable_init();
+void jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap);
+void jsonc_hashtable_link_r(struct jsonc_item_s *item, jsonc_htwrap_st **last_accessed_htwrap);
 void jsonc_hashtable_build(struct jsonc_item_s *item);
 struct jsonc_item_s* jsonc_hashtable_get(const char *kKey, struct jsonc_item_s *item);
 struct jsonc_item_s* jsonc_hashtable_set(const char *kKey, struct jsonc_item_s *item);
