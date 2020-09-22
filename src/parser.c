@@ -538,67 +538,6 @@ jsonc_parse(char *buffer)
     exit(EXIT_FAILURE);
 }
 
-static void
-jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
-{
-  void *value = hashtable_get(hashtable, utils->set_key);
-
-  switch (*utils->buffer){
-  case '{':/*OBJECT DETECTED*/
-  case '[':/*ARRAY DETECTED*/
-   {
-      jsonc_item_st **item = value;
-      *item = jsonc_parse(utils->buffer);
-      break;
-   }
-  case '\"':/*STRING DETECTED*/
-   {
-      jsonc_char_kt **string = value;
-      *string = utils_buffer_skip_string(utils);
-      break;
-   }
-  case 't':/*CHECK FOR*/
-  case 'f':/* BOOLEAN */
-   {
-      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto error;
-      }
-      jsonc_boolean_kt *boolean = value;
-      *boolean = utils_buffer_skip_boolean(utils);
-   }
-  break;
-  case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(utils->buffer,"null",4)){
-        goto error; 
-      }
-      utils_buffer_skip_null(utils);
-      break;
-  default:
-   { /*CHECK FOR NUMBER*/
-      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto error;
-      }
-      
-      double tmp = utils_buffer_skip_double(utils);
-      if (DOUBLE_IS_INTEGER(tmp)){
-        jsonc_integer_kt *number_i = value;
-        *number_i = (jsonc_integer_kt)tmp;
-      } else {
-        jsonc_double_kt *number_d = value; 
-        *number_d = tmp;
-      }
-      break;
-   }
-  }
-
-  return;
-
-
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
-    exit(EXIT_FAILURE);
-}
-
 inline static void
 jsonc_sscanf_skip_string(struct utils_s *utils)
 {
@@ -663,6 +602,74 @@ jsonc_sscanf_skip(struct utils_s *utils)
   }
 }
 
+static void
+jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
+{
+  void *value = hashtable_get(hashtable, utils->set_key);
+
+  switch (*utils->buffer){
+  case '{':/*OBJECT DETECTED*/
+   {
+      jsonc_item_st **item = value;
+      *item = jsonc_parse(utils->buffer);
+      jsonc_sscanf_skip_item('{', '}', utils);
+      break;
+   }
+  case '[':/*ARRAY DETECTED*/
+   {
+      jsonc_item_st **item = value;
+      *item = jsonc_parse(utils->buffer);
+      jsonc_sscanf_skip_item('[', ']', utils);
+      break;
+   }
+  case '\"':/*STRING DETECTED*/
+   {
+      jsonc_char_kt **string = value;
+      *string = utils_buffer_skip_string(utils);
+      break;
+   }
+  case 't':/*CHECK FOR*/
+  case 'f':/* BOOLEAN */
+   {
+      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+        goto error;
+      }
+      jsonc_boolean_kt *boolean = value;
+      *boolean = utils_buffer_skip_boolean(utils);
+   }
+  break;
+  case 'n':/*CHECK FOR NULL*/
+      if (!STRNEQ(utils->buffer,"null",4)){
+        goto error; 
+      }
+      utils_buffer_skip_null(utils);
+      break;
+  default:
+   { /*CHECK FOR NUMBER*/
+      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+        goto error;
+      }
+      
+      double tmp = utils_buffer_skip_double(utils);
+      if (DOUBLE_IS_INTEGER(tmp)){
+        jsonc_integer_kt *number_i = value;
+        *number_i = (jsonc_integer_kt)tmp;
+      } else {
+        jsonc_double_kt *number_d = value; 
+        *number_d = tmp;
+      }
+      break;
+   }
+  }
+
+  return;
+
+
+  error:
+    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
+    exit(EXIT_FAILURE);
+}
+
 static size_t
 jsonc_sscanf_count_keys(char *arg_keys)
 {
@@ -671,11 +678,11 @@ jsonc_sscanf_count_keys(char *arg_keys)
   size_t num_keys = 0;
   char c;
   while ('\0' != (c = *arg_keys)){
-    if (isalnum(c)){ //found key, increment num_keys
+    if (isalnum(c) || '_' == c){ //found key, increment num_keys
       ++num_keys;
       do { //consume remaining alphanumerical characters
         c = *++arg_keys;
-      } while (isalnum(c));
+      } while (isalnum(c) || '_' == c);
     } else { //skip delimeter
       ++arg_keys;
     }
@@ -697,7 +704,7 @@ jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
   while (true){ //run until end of string found
     c = *arg_keys++;
 
-    if (isalnum(c)){ //form key while char is alphanumeric
+    if (isalnum(c) || '_' == c){ //form key while char is alphanumeric
       key[char_index] = c;
       ++char_index;
       assert(char_index <= KEY_LENGTH);
@@ -705,6 +712,8 @@ jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
       key[char_index] = '\0';
       tmp = strdup(key);
       assert(NULL != tmp);
+
+      fprintf(stderr, "SPLIT: %s\n", tmp);
       hashtable_set(hashtable, tmp, va_arg(ap, void*));
 
       if ('\0' == c) return;
@@ -752,8 +761,10 @@ jsonc_sscanf(char *buffer, char *arg_keys, ...)
         /* check wether key found is wanted or not */
         if (NULL != hashtable_get(hashtable, utils.set_key)){
           jsonc_sscanf_assign(&utils, hashtable);
+          fprintf(stderr, "ASSIGN: %s\n", utils.set_key);
         } else {
           jsonc_sscanf_skip(&utils);
+          fprintf(stderr, "SKIP: %s\n", utils.set_key);
         }
         break;
     default:
