@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
   char *buffer = get_buffer(argv[1]);
 
   jsonc_item_st *map1 = NULL, *map2 = NULL;
-  jsonc_char_kt *map3 = malloc(KEY_LENGTH);
+  jsonc_char_kt map3[256];
 
   jsonc_sscanf(buffer, "meta%p,data%p,string%s", (void**)&map1, (void**)&map2, map3);
   
@@ -41,7 +41,6 @@ int main(int argc, char *argv[])
 
   if (NULL != map3){
     fputs(map3, stdout);
-    free(map3);
   }
 
   jsonc_parser_callback(&callback_test);

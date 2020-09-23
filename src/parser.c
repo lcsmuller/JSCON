@@ -634,11 +634,18 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
       return;
    }
   case '\"':/*STRING DETECTED*/
+   {
       if (!STREQ(tmp_type, "s")){
         goto type_error;
       }
-      strcpy(entry->value, utils_buffer_set_string(utils));
+
+      jsonc_char_kt *string = utils_buffer_set_string(utils);
+      if (NULL != string){
+        strcpy(entry->value, string);
+      }
+      free(string);
       return;
+   }
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
    {
