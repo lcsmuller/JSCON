@@ -54,29 +54,28 @@ hashtable_genhash(const char *kKey, const size_t kNum_bucket)
 }
 
 static hashtable_entry_st*
-hashtable_pair(const char *kKey, void *value)
+hashtable_pair(const char *kKey, const void *kValue)
 {
   hashtable_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
 
   entry->key = (char*)kKey;
-  entry->value = value;
+  entry->value = (void*)kValue;
 
   return entry;
 }
 
-/* TODO: merge this with hashtable_init ? */
 void
-hashtable_build(hashtable_st *hashtable, size_t num_index)
+hashtable_build(hashtable_st *hashtable, const size_t kNum_index)
 {
-  hashtable->num_bucket = num_index * 1.3;
+  hashtable->num_bucket = kNum_index;
 
   hashtable->bucket = calloc(1, hashtable->num_bucket * sizeof *hashtable->bucket);
   assert(NULL != hashtable->bucket);
 }
 
-void*
-hashtable_get(hashtable_st *hashtable, const char *kKey)
+hashtable_entry_st*
+hashtable_get_entry(hashtable_st *hashtable, const char *kKey)
 {
   if (0 == hashtable->num_bucket)
     return NULL;
@@ -86,7 +85,7 @@ hashtable_get(hashtable_st *hashtable, const char *kKey)
   hashtable_entry_st *entry = hashtable->bucket[slot];
   while (NULL != entry){ //try to find key and return it
     if (STREQ(entry->key, kKey)){
-      return entry->value;
+      return entry;
     }
     entry = entry->next;
   }
@@ -95,14 +94,21 @@ hashtable_get(hashtable_st *hashtable, const char *kKey)
 }
 
 void*
-hashtable_set(hashtable_st *hashtable, const char *kKey, void *value)
+hashtable_get(hashtable_st *hashtable, const char *kKey)
+{
+  hashtable_entry_st *entry = hashtable_get_entry(hashtable, kKey);
+  return (NULL != entry) ? entry->value : NULL;
+}
+
+void*
+hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
 {
   size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
 
   hashtable_entry_st *entry = hashtable->bucket[slot];
 
   if (NULL == entry){
-    hashtable->bucket[slot] = hashtable_pair(kKey, value);
+    hashtable->bucket[slot] = hashtable_pair(kKey, kValue);
     return hashtable->bucket[slot]->value;
   }
 
@@ -115,9 +121,9 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, void *value)
     entry = entry->next;
   }
 
-  entry_prev->next = hashtable_pair(kKey, value);
+  entry_prev->next = hashtable_pair(kKey, kValue);
 
-  return value;
+  return (void*)kValue;
 }
 
 jsonc_htwrap_st*
@@ -154,7 +160,7 @@ jsonc_hashtable_build(jsonc_item_st *item)
 {
   assert(item->type & (JSONC_OBJECT|JSONC_ARRAY));
 
-  hashtable_build(&item->htwrap->hashtable, item->num_branch);
+  hashtable_build(&item->htwrap->hashtable, item->num_branch * 1.3); //30% size increase to account for future expansions
 
   for (int i=0; i < item->num_branch; ++i){
     jsonc_hashtable_set(item->branch[i]->key, item->branch[i]);

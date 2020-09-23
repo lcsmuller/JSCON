@@ -12,5 +12,8 @@
 
 #define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
 
+//allowed characters for key naming
+#define ALLOWED_KEY_CHAR(c) (isalnum(c) || ('_' == (c)) || ('-' == (c)))
+
 #endif
 

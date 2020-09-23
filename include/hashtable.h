@@ -15,9 +15,10 @@ typedef struct hashtable_s {
 
 hashtable_st* hashtable_init();
 void hashtable_destroy(hashtable_st *hashtable);
-void hashtable_build(hashtable_st *hashtable, size_t num_index);
+void hashtable_build(hashtable_st *hashtable, const size_t kNum_index);
+hashtable_entry_st *hashtable_get_entry(hashtable_st *hashtable, const char *kKey);
 void *hashtable_get(hashtable_st *hashtable, const char *kKey);
-void *hashtable_set(hashtable_st *hashtable, const char *kKey, void *value);
+void *hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue);
 
 /* JSONC SPECIFIC IMPLEMENTATIONS */
 struct jsonc_item_s; //forward declaration
