@@ -14,7 +14,7 @@
     from then on if item is then set to NULL.
     
     p_current_item allows for thread safety reentrancy, it should not be
-    tempered with outside this function*/
+    modified outside of this routine*/
 jsonc_item_st*
 jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
 {
@@ -40,7 +40,8 @@ jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
 static inline jsonc_item_st*
 jsonc_push(jsonc_item_st* item)
 {
-  assert(item->last_accessed_branch < item->num_branch); //overflow assert
+  assert(IS_OBJECT(item));//item has to be of Object type to fetch a branch
+  assert(item->last_accessed_branch < item->num_branch);//overflow assert
 
   ++item->last_accessed_branch; //update last_accessed_branch to next
   jsonc_item_st *next_item = item->branch[item->last_accessed_branch-1];
@@ -60,23 +61,27 @@ jsonc_pop(jsonc_item_st* item)
   return item->parent; //return item's parent
 }
 
-/* this will simulate recursive movement iteratively, by using 
-    item->last_accessed_branch as a stack trace. under no circumstance 
+/* this will simulate tree preorder traversal iteratively, by using 
+    item->last_accessed_branch like a stack trace. under no circumstance 
     should you modify last_accessed_branch value directly */
 jsonc_item_st*
 jsonc_next(jsonc_item_st* item)
 {
   if (NULL == item) return NULL;
 
-  item->last_accessed_branch = 0; //resets root stack
+  /* TODO: not really sure what this do...? */
+  if (IS_OBJECT(item)){
+    item->last_accessed_branch = 0; //resets root stack
+  }
 
-  /* no branch available to branch, retrieve parent
-    until item with available branch found */
-  if (0 == item->num_branch){
-    do { //recursive walk
+  /* item is a leaf, fetch parent until found a item with any not yet 
+      accessed branch */
+  if (IS_LEAF(item)){
+    /* fetch parent until a item with available branch is found */
+    do {
       item = jsonc_pop(item);
       if ((NULL == item) || (0 == item->last_accessed_branch)){
-        return NULL;
+        return NULL; //return NULL if exceeded root
       }
      } while (item->num_branch == item->last_accessed_branch);
   }
@@ -108,24 +113,15 @@ jsonc_char_kt*
 jsonc_typeof(const jsonc_item_st *kItem)
 {
   switch (kItem->type){
-  case JSONC_NUMBER_DOUBLE:
-      return "Double";
-  case JSONC_NUMBER_INTEGER:
-      return "Integer";
-  case JSONC_STRING:
-      return "String";
-  case JSONC_NULL:
-      return "Null";
-  case JSONC_BOOLEAN:
-      return "Boolean";
-  case JSONC_OBJECT:
-      return "Object";
-  case JSONC_ARRAY:
-      return "Array";
-  case JSONC_UNDEFINED:
-      return "Undefined";
-  default:
-      return "NaN";
+    case JSONC_NUMBER_DOUBLE: return "Double";
+    case JSONC_NUMBER_INTEGER: return "Integer";
+    case JSONC_STRING: return "String";
+    case JSONC_NULL: return "Null";
+    case JSONC_BOOLEAN: return "Boolean";
+    case JSONC_OBJECT: return "Object";
+    case JSONC_ARRAY: return "Array";
+    case JSONC_UNDEFINED: return "Undefined";
+    default: return "NaN";
   }
 }
 
@@ -156,7 +152,7 @@ jsonc_strncpy(char *dest, const jsonc_item_st* kItem, size_t n)
 
 int
 jsonc_typecmp(const jsonc_item_st* kItem, const jsonc_type_et kType){
-  return kItem->type & kType;
+  return kItem->type & kType; //BITMASK AND
 }
 
 int
@@ -166,13 +162,13 @@ jsonc_keycmp(const jsonc_item_st* kItem, const char *kKey){
 
 int
 jsonc_doublecmp(const jsonc_item_st* kItem, const jsonc_double_kt kDouble){
-  assert(JSONC_NUMBER_DOUBLE == kItem->type);
+  assert(JSONC_NUMBER_DOUBLE == kItem->type); //check if given item is double
   return kItem->d_number == kDouble;
 }
 
 int
 jsonc_intcmp(const jsonc_item_st* kItem, const jsonc_integer_kt kInteger){
-  assert(JSONC_NUMBER_INTEGER == kItem->type);
+  assert(JSONC_NUMBER_INTEGER == kItem->type); //check if given item is integer
   return kItem->i_number == kInteger;
 }
 
@@ -231,16 +227,12 @@ jsonc_get_root(jsonc_item_st* item)
 jsonc_item_st*
 jsonc_get_branch(jsonc_item_st *item, const char *kKey)
 {
-  if (!(item->type & (JSONC_OBJECT|JSONC_ARRAY)))
-    return NULL;
+  //return NULL if item is not of Object type
+  if (!IS_OBJECT(item)) return NULL;
 
   /* search for entry with given key at item's htwrap,
-    and retrieve found (or not found) item */
-  item = jsonc_hashtable_get(kKey, item);
-
-  if (NULL != item) return item; //found
-
-  return NULL; //not found
+    and retrieve found or not found(NULL) item */
+  return jsonc_hashtable_get(kKey, item);
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
@@ -249,12 +241,17 @@ jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index)
 {
   const jsonc_item_st* kParent = jsonc_get_parent(kOrigin);
 
-  if (NULL == kParent) return NULL; //kOrigin is root
+  //if NULL kOrigin is a root, not a member of any Object
+  if (NULL == kParent) return NULL; 
 
+  //get parent's branch index of the kOrigin item
   size_t origin_index=0;
-  while (kOrigin != kParent->branch[origin_index])
+  while (kOrigin != kParent->branch[origin_index]){
     ++origin_index;
+  }
 
+  /* if relative index given doesn't exceed kParent branch amount,
+    or dropped below 0, return branch at given relative index */
   if ((0 <= (origin_index + kRelative_index)) && (kParent->num_branch > (origin_index + kRelative_index))){
     return kParent->branch[origin_index + kRelative_index];
   }
@@ -269,12 +266,16 @@ jsonc_get_parent(const jsonc_item_st* kItem){
 }
 
 jsonc_item_st*
-jsonc_get_byindex(const jsonc_item_st* kItem, const size_t index){
+jsonc_get_byindex(const jsonc_item_st* kItem, const size_t index)
+{
+  assert(IS_OBJECT(kItem));
   return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
 }
 
 size_t
-jsonc_get_num_branch(const jsonc_item_st* kItem){
+jsonc_get_num_branch(const jsonc_item_st* kItem)
+{
+  assert(IS_OBJECT(kItem));
   return kItem->num_branch;
 } 
 

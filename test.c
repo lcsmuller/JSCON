@@ -19,21 +19,19 @@ int main(int argc, char *argv[])
   char *buffer = get_buffer(argv[1]);
 
   jsonc_item_st *map1 = NULL, *map2 = NULL;
-  jsonc_char_kt map3[256];
+  jsonc_char_kt map3[256] = {0};
 
   jsonc_sscanf(buffer, "meta%p,data%p,string%s", (void**)&map1, (void**)&map2, map3);
   
-  char* buffer1;
   if (NULL != map1){
-    buffer1 = jsonc_stringify(map1, JSONC_ALL);
+    char *buffer1 = jsonc_stringify(map1, JSONC_ALL);
     fputs(buffer1, stdout);
     free(buffer1);
     jsonc_destroy(map1);
   }
 
-  char *buffer2;
   if (NULL != map2){
-    buffer2 = jsonc_stringify(map2, JSONC_ALL);
+    char *buffer2 = jsonc_stringify(map2, JSONC_ALL);
     fputs(buffer2, stdout);
     free(buffer2);
     jsonc_destroy(map2);
