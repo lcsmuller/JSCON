@@ -9,30 +9,32 @@
 
 struct utils_s {
   char *buffer_base; //buffer's base (first position)
-  size_t buffer_offset; //length of buffer
-  /*a setter method, will be either utils_buffer_method_count or
-     utils_buffer_method_update*/
+  size_t buffer_offset; //current distance to buffer's base (aka length)
+  /*a setter method that can be either utils_buffer_method_count or
+     utils_buffer_method_append*/
   void (*method)(char get_char, struct utils_s* utils);
 };
 
-/* calculates buffer length */ 
+/* every time its called, it adds one position to buffer_offset,
+    so that it can be used for counting how many position to be expected
+    for buffer */ 
 static void
 utils_buffer_method_count(char get_char, struct utils_s *utils){
   ++utils->buffer_offset;
 }
 
-/* fills pre-allocated buffer (by utils_buffer_method_count's length) 
-  with jsonc items converted to string */ 
+/* fills allocated buffer (with its length calculated by
+    utils_buffer_method_count) with string converted jsonc items */
 static void
-utils_buffer_method_update(char get_char, struct utils_s *utils)
+utils_buffer_method_append(char get_char, struct utils_s *utils)
 {
   utils->buffer_base[utils->buffer_offset] = get_char;
   ++utils->buffer_offset;
 }
 
-/* fills buffer at utils->buffer_offset position with provided string */
+/* get string value to perform buffer method calls */
 static void
-utils_buffer_fill_string(jsonc_char_kt* string, struct utils_s *utils)
+utils_buffer_get_string(jsonc_char_kt* string, struct utils_s *utils)
 {
   while ('\0' != *string){
     (*utils->method)(*string,utils);
@@ -40,69 +42,67 @@ utils_buffer_fill_string(jsonc_char_kt* string, struct utils_s *utils)
   }
 }
 
-/* converts double to string and concatenate it to buffer */
+/* get double converted to string and then perform buffer method calls */
 static void
-utils_buffer_fill_double(jsonc_double_kt d_number, struct utils_s *utils)
+utils_buffer_write_double(jsonc_double_kt d_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   jsonc_double_tostr(d_number, get_strnum, MAX_DIGITS);
 
-  utils_buffer_fill_string(get_strnum,utils); //store value in utils
+  utils_buffer_get_string(get_strnum,utils); //store value in utils
 }
 
-/* converts int to string and concatenate it to buffer */
+/* get int converted to string and then perform buffer method calls */
 static void
-utils_buffer_fill_integer(jsonc_integer_kt i_number, struct utils_s *utils)
+utils_buffer_write_integer(jsonc_integer_kt i_number, struct utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
 
-  utils_buffer_fill_string(get_strnum,utils); //store value in utils
+  utils_buffer_get_string(get_strnum,utils); //store value in utils
 }
 
-/* stringify jsonc items by recursively going through its branches
-
-   I could try to make this iterative by using jsonc_foreach(), but there
-    wouldn't be much to gain from it, since i still would have to 
-    manage my own stack, which would lead to a more confusing and
-    hardly more efficient code */
+/* walk jsonc item, by traversing its branches recursively,
+    and perform buffer_method callback on each branch */
 static void
-jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *utils)
+jsonc_preorder_traversal(jsonc_item_st *item, jsonc_type_et type, struct utils_s *utils)
 {
-  /* stringify jsonc item only if its of the same given type */
-  if (!jsonc_typecmp(item, type|JSONC_OBJECT|JSONC_ARRAY))
+  /* 1st STEP: stringify jsonc item only if it match the type
+      given as parameter or is a Object type item */
+  if (!jsonc_typecmp(item, type) && !IS_OBJECT(item))
     return;
 
-  /* prints only object type jsonc members key, array could be printed
-    aswell, but that wouldn't conform to standard*/
-  if ((NULL != item->key) && jsonc_typecmp(item->parent, JSONC_OBJECT)){
+  /* 2nd STEP: prints item key only if its a Object object's property,
+      array's numerical keys could be print aswell, but that wouldn't
+      conform to standard*/
+  if (IS_PROPERTY(item)){
     (*utils->method)('\"', utils);
-    utils_buffer_fill_string(item->key, utils);
+    utils_buffer_get_string(item->key, utils);
     (*utils->method)('\"', utils);
     (*utils->method)(':', utils);
   }
   
-  /* converts item value to its string format */
+  /* 3rd STEP: converts item to its string format and append to buffer */
   switch (item->type){
   case JSONC_NULL:
-      utils_buffer_fill_string("null", utils);
+      utils_buffer_get_string("null", utils);
       break;
   case JSONC_BOOLEAN:
       if (true == item->boolean){
-        utils_buffer_fill_string("true", utils);
+        utils_buffer_get_string("true", utils);
         break;
       }
-      utils_buffer_fill_string("false", utils);
+      utils_buffer_get_string("false", utils);
       break;
   case JSONC_NUMBER_DOUBLE:
-      utils_buffer_fill_double(item->d_number, utils);
+      utils_buffer_write_double(item->d_number, utils);
       break;
   case JSONC_NUMBER_INTEGER:
-      utils_buffer_fill_integer(item->i_number, utils);
+      utils_buffer_write_integer(item->i_number, utils);
       break;
   case JSONC_STRING:
       (*utils->method)('\"', utils);
-      utils_buffer_fill_string(item->string, utils);
+      utils_buffer_get_string(item->string, utils);
       (*utils->method)('\"', utils);
       break;
   case JSONC_OBJECT:
@@ -116,7 +116,9 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
       exit(EXIT_FAILURE);
   }
 
-  if (0 == item->num_branch){
+  /* 4th STEP: if item is is a branch's leaf (defined at macros.h),
+      the 5th step can be ignored and returned */
+  if (IS_LEAF(item)){
     switch(item->type){
     case JSONC_OBJECT:
         (*utils->method)('}', utils);
@@ -124,33 +126,34 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
     case JSONC_ARRAY:
         (*utils->method)(']', utils);
         return;
-    default:
+    default: //is a primitive, just return
         return;
     }
   }
 
-  /* prints (recursively) first branch that fits the type criteria */
+  /* 5th STEP: find first item's branch that matches the given type, and 
+      calls the write function on it */
   size_t first_index=0;
   while (first_index < item->num_branch){
-    if (jsonc_typecmp(item->branch[first_index], type|JSONC_OBJECT|JSONC_ARRAY)){
-      jsonc_recursive_print(item->branch[first_index], type, utils);
+    if (jsonc_typecmp(item->branch[first_index], type) || IS_OBJECT(item->branch[first_index])){
+      jsonc_preorder_traversal(item->branch[first_index], type, utils);
       break;
     }
     ++first_index;
   }
 
-  /* prints (recursively) every consecutive branch that fits the type
-      criteria, and adds a comma before it */
+  /* 6th STEP: calls the write function on every consecutive branch
+      that matches the type criteria, with an added comma before it */
   for (size_t j = first_index+1; j < item->num_branch; ++j){
     /* skips branch that don't fit the criteria */
-    if (!jsonc_typecmp(item->branch[j], type|JSONC_OBJECT|JSONC_ARRAY))
+    if (!jsonc_typecmp(item, type) && !IS_OBJECT(item)){
       continue;
-
+    }
     (*utils->method)(',',utils);
-    jsonc_recursive_print(item->branch[j], type, utils);
+    jsonc_preorder_traversal(item->branch[j], type, utils);
   }
 
-  /* prints object or array wrapper token */
+  /* 7th STEP: write the Object's type item wrapper token */
   switch(item->type){
   case JSONC_OBJECT:
       (*utils->method)('}', utils);
@@ -164,7 +167,7 @@ jsonc_recursive_print(jsonc_item_st *item, jsonc_type_et type, struct utils_s *u
   }
 }
 
-/* return string converted jsonc item */
+/* converts a jsonc item to a json formatted text, and return it */
 jsonc_char_kt*
 jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 {
@@ -172,27 +175,27 @@ jsonc_stringify(jsonc_item_st *root, jsonc_type_et type)
 
   struct utils_s utils = {0};
 
-  /* remove root->key temporarily to make sure its treated as a root
-    when printing (roots don't have keys) */
+  /* 1st STEP: remove root->key temporarily to make sure the given item
+      is treated as a root when printing (roots don't have keys) */
   jsonc_char_kt *tmp = root->key;
   root->key = NULL;
 
-  /* count how many chars will fill the buffer with
-      utils_buffer_method_count, then allocate buffer that amount */
+  /* 2nd STEP: count how many chars will fill the buffer with
+      utils_buffer_method_count, then allocate the buffer to that amount */
   utils.method = &utils_buffer_method_count;
-  jsonc_recursive_print(root, type, &utils);
-  utils.buffer_base = malloc(utils.buffer_offset+5);//extra +5 safety
+  jsonc_preorder_traversal(root, type, &utils);
+  utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
   assert(NULL != utils.buffer_base);
 
-  /* reset buffer_offset and proceed with utils_.method_update to
-    fill allocated buffer */
+  /* 3rd STEP: reset buffer_offset and proceed with
+      utils_method_append to fill allocated buffer */
   utils.buffer_offset = 0;
-
-  utils.method = &utils_buffer_method_update;
-  jsonc_recursive_print(root, type, &utils);
+  utils.method = &utils_buffer_method_append;
+  jsonc_preorder_traversal(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
 
-  root->key = tmp; //reattach its key
+  /* 4th STEP: reattach key from step 1 */
+  root->key = tmp;
 
   return utils.buffer_base;
 }

@@ -640,10 +640,9 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
       }
 
       jsonc_char_kt *string = utils_buffer_set_string(utils);
-      if (NULL != string){
-        strcpy(entry->value, string);
-      }
+      strcpy(entry->value, string);
       free(string);
+
       return;
    }
   case 't':/*CHECK FOR*/
@@ -803,7 +802,7 @@ jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 
     tmp_type = &tmp[strlen(tmp)+1];
 
-    fprintf(stderr, "SPLIT: %s TYPE: %s\n", tmp, tmp_type);
+    //fprintf(stderr, "SPLIT: %s TYPE: %s\n", tmp, tmp_type);
     /* TODO: this is ugly fixit */
     if (STREQ(tmp_type, "s")){
       hashtable_set(hashtable, tmp, va_arg(ap, jsonc_char_kt*));
@@ -866,10 +865,10 @@ jsonc_sscanf(char *buffer, char *arg_keys, ...)
         /* check wether key found is wanted or not */
         if (NULL != hashtable_get(hashtable, utils.set_key)){
           jsonc_sscanf_assign(&utils, hashtable);
-          fprintf(stderr, "ASSIGN: %s\n", utils.set_key);
+          //fprintf(stderr, "ASSIGN: %s\n", utils.set_key);
         } else {
           jsonc_sscanf_skip(&utils);
-          fprintf(stderr, "SKIP: %s\n", utils.set_key);
+          //fprintf(stderr, "SKIP: %s\n", utils.set_key);
         }
         break;
     default:
