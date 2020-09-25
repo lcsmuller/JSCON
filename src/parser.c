@@ -47,17 +47,17 @@ jsonc_destroy(jsonc_item_st *item)
 
   switch (jsonc_get_type(item)){
   case JSONC_STRING:
-    free(item->string);
-    item->string = NULL;
-    break;
+      free(item->string);
+      item->string = NULL;
+      break;
   case JSONC_OBJECT:
   case JSONC_ARRAY:
-    jsonc_hashtable_destroy(item->htwrap);
-    free(item->branch);
-    item->branch = NULL;
-    break;
+      jsonc_hashtable_destroy(item->htwrap);
+      free(item->branch);
+      item->branch = NULL;
+      break;
   default:
-    break;
+      break;
   }
 
   free(item);
@@ -120,7 +120,6 @@ utils_buffer_set_string(struct utils_s *utils)
 static void
 jsonc_set_value_string(jsonc_item_st *item, struct utils_s *utils)
 {
-
   item->string = utils_buffer_set_string(utils);
   item->type = JSONC_STRING;
 }
@@ -270,85 +269,9 @@ jsonc_set_complete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create
   return jsonc_get_parent(item);
 }
 
-/* this will be active if the current item is of array type jsonc,
-  whatever item is created here will be this array's property.
-  if a ']' token is found then the array is wrapped up */
 static jsonc_item_st*
-jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
+jsonc_set_object_branch(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_create_item_ft *item_setter;
-  jsonc_create_value_ft *value_setter;
-
-  switch (*utils->buffer){
-  case ']':/*ARRAY WRAPPER DETECTED*/
-      return jsonc_wrap_incomplete_item(item, utils);
-  case '{':/*OBJECT DETECTED*/
-      item_setter = &jsonc_set_incomplete_item;
-      value_setter = &jsonc_set_value_object;
-      break;
-  case '[':/*ARRAY DETECTED*/
-      item_setter = &jsonc_set_incomplete_item;
-      value_setter = &jsonc_set_value_array;
-      break;
-  case '\"':/*STRING DETECTED*/
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_string;
-      break;
-  case 't':/*CHECK FOR*/
-  case 'f':/* BOOLEAN */
-      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto error;
-      }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_boolean;
-      break;
-  case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(utils->buffer,"null",4)){
-        goto error;
-      }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_null;
-      break;
-  case ',': /*NEXT ELEMENT TOKEN*/
-      ++utils->buffer; //skips ','
-      return item;
-  default:
-      /*SKIPS IF CONTROL CHARACTER*/
-      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-        ++utils->buffer;
-        return item;
-      }
-      /*CHECK FOR NUMBER*/
-      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto error;
-      }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_number;
-      break;
-  }
-
-  //creates numerical key for the array element
-  snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->num_branch);
-
-  return (*item_setter)(item, utils, value_setter);
-
-
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
-    exit(EXIT_FAILURE);
-}
-
-static jsonc_item_st*
-jsonc_set_object_property(jsonc_item_st *item, struct utils_s *utils)
-{
-  jsonc_set_key(utils);
-  assert(':' == *utils->buffer);
-
-  /* skips ':' and consecutive space and any control characters */
-  do {
-    ++utils->buffer;
-  } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
-
   jsonc_create_item_ft *item_setter;
   jsonc_create_value_ft *value_setter;
 
@@ -398,6 +321,31 @@ jsonc_set_object_property(jsonc_item_st *item, struct utils_s *utils)
     exit(EXIT_FAILURE);
 }
 
+/* this will be active if the current item is of array type jsonc,
+  whatever item is created here will be this array's property.
+  if a ']' token is found then the array is wrapped up */
+static jsonc_item_st*
+jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
+{
+  switch (*utils->buffer){
+  case ']':/*ARRAY WRAPPER DETECTED*/
+      return jsonc_wrap_incomplete_item(item, utils);
+  case ',': /*NEXT ELEMENT TOKEN*/
+      /* skips ',' and consecutive space and/or control characters */
+      do {
+        ++utils->buffer;
+      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+
+      return item;
+  default:
+      //creates numerical key for the array element
+      snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->num_branch);
+      return jsonc_set_object_branch(item, utils);
+  }
+
+  //token error checking done inside jsonc_set_object_branch
+}
+
 /* this will be active if the current item is of object type jsonc,
   whatever item is created here will be this object's property.
   if a '}' token is found then the object is wrapped up */
@@ -408,7 +356,15 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
   case '}':/*OBJECT WRAPPER DETECTED*/
       return jsonc_wrap_incomplete_item(item, utils);
   case '\"':/*KEY STRING DETECTED*/
-      return jsonc_set_object_property(item, utils);
+      jsonc_set_key(utils);
+      assert(':' == *utils->buffer); //check for key's assign token 
+
+      /* skips ':' and consecutive space and/or control characters */
+      do {
+        ++utils->buffer;
+      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+
+      return jsonc_set_object_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
       ++utils->buffer; //skips ','
       return item;
