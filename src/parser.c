@@ -21,40 +21,42 @@ struct utils_s {
 typedef void (jsonc_create_value_ft)(jsonc_item_st *item, struct utils_s *utils);
 typedef jsonc_item_st* (jsonc_create_item_ft)(jsonc_item_st*, struct utils_s*, jsonc_create_value_ft*);
 
-/* create a new branch to current jsonc item, and return the new branch address */
+/* create a new branch to current jsonc object item, and return
+  the new branch address */
 static jsonc_item_st*
 jsonc_branch_create(jsonc_item_st *item)
 {
-  ++item->num_branch;
-  item->branch = realloc(item->branch, item->num_branch * sizeof *item);
-  assert(NULL != item->branch);
+  ++item->obj->num_branch;
+  item->obj->branch = realloc(item->obj->branch, item->obj->num_branch * sizeof *item);
+  assert(NULL != item->obj->branch);
 
-  item->branch[item->num_branch-1] = calloc(1, sizeof *item);
-  assert(NULL != item->branch[item->num_branch-1]);
+  item->obj->branch[item->obj->num_branch-1] = calloc(1, sizeof *item);
+  assert(NULL != item->obj->branch[item->obj->num_branch-1]);
 
-  item->branch[item->num_branch-1]->parent = item;
+  item->obj->branch[item->obj->num_branch-1]->parent = item;
 
-  return item->branch[item->num_branch-1];
+  return item->obj->branch[item->obj->num_branch-1];
 }
 
 /* destroy current item and all of its nested object/arrays */
 void
 jsonc_destroy(jsonc_item_st *item)
 {
-  for (size_t i=0; i < item->num_branch; ++i){
-    jsonc_destroy(item->branch[i]);
-  }
-
   switch (jsonc_get_type(item)){
+  case JSONC_OBJECT:
+  case JSONC_ARRAY:
+      for (size_t i=0; i < item->obj->num_branch; ++i){
+        jsonc_destroy(item->obj->branch[i]);
+      }
+      jsonc_hashtable_destroy(&item->obj->htwrap);
+      free(item->obj->branch);
+      item->obj->branch = NULL;
+      free(item->obj);
+      item->obj = NULL;
+      break;
   case JSONC_STRING:
       free(item->string);
       item->string = NULL;
-      break;
-  case JSONC_OBJECT:
-  case JSONC_ARRAY:
-      jsonc_hashtable_destroy(item->htwrap);
-      free(item->branch);
-      item->branch = NULL;
       break;
   default:
       break;
@@ -69,6 +71,7 @@ static void
 jsonc_set_key(struct utils_s *utils)
 {
   char *start = utils->buffer;
+  assert('\"' == *start); //makes sure a string is given
 
   char *end = ++start;
   while (('\0' != *end) && ('\"' != *end)){
@@ -84,13 +87,12 @@ jsonc_set_key(struct utils_s *utils)
     use the actual length instead */
   int length;
   if (KEY_LENGTH > end - start){
-    strncpy(utils->set_key, start, end - start);
     length = end-start;
   } else {
-    strncpy(utils->set_key, start, KEY_LENGTH-1);
     length = KEY_LENGTH-1;
   }
-  utils->set_key[length] = 0;
+  strncpy(utils->set_key, start, length);
+  utils->set_key[length] = '\0';
 }
 
 static jsonc_char_kt*
@@ -215,24 +217,30 @@ jsonc_set_value_null(jsonc_item_st *item, struct utils_s *utils)
 inline static void
 jsonc_set_hashtable(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->htwrap = jsonc_hashtable_init();
+  item->obj->htwrap.hashtable = hashtable_init();
   jsonc_hashtable_link_r(item, &utils->last_accessed_htwrap);
 }
 
 static void
 jsonc_set_value_object(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_set_hashtable(item, utils);
+  item->obj = calloc(1, sizeof *item->obj);
+  assert(NULL != item->obj);
+
   ++utils->buffer; //skips '{' token
   item->type = JSONC_OBJECT;
+  jsonc_set_hashtable(item, utils);
 }
 
 static void
 jsonc_set_value_array(jsonc_item_st *item, struct utils_s *utils)
 {
-  jsonc_set_hashtable(item, utils);
+  item->obj = calloc(1, sizeof *item->obj);
+  assert(NULL != item->obj);
+
   ++utils->buffer; //skips '[' token
   item->type = JSONC_ARRAY;
+  jsonc_set_hashtable(item, utils);
 }
 
 /* Create nested object and return the nested object address. 
@@ -269,6 +277,8 @@ jsonc_set_complete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create
   return jsonc_get_parent(item);
 }
 
+/* this routine is called when setting a branch of a Object type
+    (object and array) item. */
 static jsonc_item_st*
 jsonc_set_object_branch(jsonc_item_st *item, struct utils_s *utils)
 {
@@ -339,7 +349,7 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
       return item;
   default:
       //creates numerical key for the array element
-      snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->num_branch);
+      snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->obj->num_branch);
       return jsonc_set_object_branch(item, utils);
   }
 
@@ -366,7 +376,11 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 
       return jsonc_set_object_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
-      ++utils->buffer; //skips ','
+      /* skips ',' and consecutive space and/or control characters */
+      do {
+        ++utils->buffer;
+      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+
       return item;
   default:
       /*SKIPS IF CONTROL CHARACTER*/
@@ -495,7 +509,7 @@ jsonc_parse(char *buffer)
 }
 
 inline static void
-jsonc_sscanf_skip_string(struct utils_s *utils)
+jsonc_scanf_skip_string(struct utils_s *utils)
 {
   /* loops until null terminator or end of string are found */
   do {
@@ -509,7 +523,7 @@ jsonc_sscanf_skip_string(struct utils_s *utils)
 }
 
 inline static void
-jsonc_sscanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
+jsonc_scanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
 {
   /* skips the item and all of its nests, special care is taken for any
       inner string is found, as it might contain a delim character that
@@ -525,7 +539,7 @@ jsonc_sscanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
       --num_nest;
       ++utils->buffer; //skips rdelim char
     } else if ('\"' == *utils->buffer) { //treat string separetely
-      jsonc_sscanf_skip_string(utils);
+      jsonc_scanf_skip_string(utils);
     } else {
       ++utils->buffer; //skips whatever char
     }
@@ -537,17 +551,17 @@ jsonc_sscanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
 }
 
 static void
-jsonc_sscanf_skip(struct utils_s *utils)
+jsonc_scanf_skip(struct utils_s *utils)
 {
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      jsonc_sscanf_skip_item('{', '}', utils);
+      jsonc_scanf_skip_item('{', '}', utils);
       return;
   case '[':/*ARRAY DETECTED*/
-      jsonc_sscanf_skip_item('[', ']', utils);
+      jsonc_scanf_skip_item('[', ']', utils);
       return;
   case '\"':/*STRING DETECTED*/
-      jsonc_sscanf_skip_string(utils);
+      jsonc_scanf_skip_string(utils);
       return;
   default:
       //consume characters while not end of string or not new key
@@ -559,7 +573,7 @@ jsonc_sscanf_skip(struct utils_s *utils)
 }
 
 static void
-jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
+jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 {
   hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils->set_key);
   assert(NULL != entry);
@@ -575,7 +589,7 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
       jsonc_item_st **item = entry->value;
       *item = jsonc_parse(utils->buffer);
-      jsonc_sscanf_skip_item('{', '}', utils);
+      jsonc_scanf_skip_item('{', '}', utils);
       return;
    }
   case '[':/*ARRAY DETECTED*/
@@ -586,7 +600,7 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
       jsonc_item_st **item = entry->value;
       *item = jsonc_parse(utils->buffer);
-      jsonc_sscanf_skip_item('[', ']', utils);
+      jsonc_scanf_skip_item('[', ']', utils);
       return;
    }
   case '\"':/*STRING DETECTED*/
@@ -646,8 +660,6 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
    }
   }
 
-  return;
-
 
   token_error:
     fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
@@ -661,7 +673,7 @@ jsonc_sscanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
 /* count amount of keys and check for formatting errors */
 static size_t
-jsonc_sscanf_count_keys(char *arg_keys)
+jsonc_scanf_count_keys(char *arg_keys)
 {
   /* count each "word" composed of allowed key characters */
   size_t num_keys = 0;
@@ -702,7 +714,7 @@ jsonc_sscanf_count_keys(char *arg_keys)
 
     /*3rd STEP: check if delimiter fits the criteria of being a comma */
     if (',' != c){
-      fprintf(stderr, "\nERROR: invalid jsonc_sscanf delimiter '%c'\n\n", c);
+      fprintf(stderr, "\nERROR: invalid jsonc_scanf delimiter '%c'\n\n", c);
       exit(EXIT_FAILURE);
     }
 
@@ -719,7 +731,7 @@ jsonc_sscanf_count_keys(char *arg_keys)
       input:    'phones%s\0'
       output:   'phones\0s\0'   */
 static void
-jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
+jsonc_scanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 {
   assert('\0' != *arg_keys); //can't be empty string
 
@@ -783,13 +795,13 @@ jsonc_sscanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
   }
 }
 
-/* works like sscanf, will parse stuff only for the keys specified to the arg_keys string parameter. the variables assigned to ... must be in
+/* works like scanf, will parse stuff only for the keys specified to the arg_keys string parameter. the variables assigned to ... must be in
 the correct order, and type, as the requested keys.
 
   every key found that doesn't match any of the requested keys will be
   ignored along with all its contents. */
 void
-jsonc_sscanf(char *buffer, char *arg_keys, ...)
+jsonc_scanf(char *buffer, char *arg_keys, ...)
 {
   //skip any space and control characters at start of buffer
   while (isspace(*buffer) || iscntrl(*buffer)){
@@ -805,8 +817,8 @@ jsonc_sscanf(char *buffer, char *arg_keys, ...)
   va_start(ap, arg_keys);
 
   hashtable_st *hashtable = hashtable_init();
-  hashtable_build(hashtable, jsonc_sscanf_count_keys(arg_keys));
-  jsonc_sscanf_split_keys(arg_keys, hashtable, ap);
+  hashtable_build(hashtable, jsonc_scanf_count_keys(arg_keys));
+  jsonc_scanf_split_keys(arg_keys, hashtable, ap);
 
   while ('\0' != *utils.buffer){
     switch (*utils.buffer){
@@ -820,10 +832,10 @@ jsonc_sscanf(char *buffer, char *arg_keys, ...)
 
         /* check wether key found is wanted or not */
         if (NULL != hashtable_get(hashtable, utils.set_key)){
-          jsonc_sscanf_assign(&utils, hashtable);
+          jsonc_scanf_assign(&utils, hashtable);
           //fprintf(stderr, "ASSIGN: %s\n", utils.set_key);
         } else {
-          jsonc_sscanf_skip(&utils);
+          jsonc_scanf_skip(&utils);
           //fprintf(stderr, "SKIP: %s\n", utils.set_key);
         }
         break;

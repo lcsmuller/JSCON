@@ -16,10 +16,11 @@
 #define ALLOWED_KEY_CHAR(c) (isalnum(c) || ('_' == (c)) || ('-' == (c)))
 
 #define IS_OBJECT(i) ((i->type) & (JSONC_OBJECT|JSONC_ARRAY))
-#define IS_EMPTY_OBJECT(i) (0 == i->num_branch)
+#define IS_EMPTY_OBJECT(i) (0 == i->obj->num_branch)
 #define IS_PRIMITIVE(i) !IS_OBJECT(i)
 #define IS_PROPERTY(i) ((NULL != (i->key)) && jsonc_typecmp(i->parent, JSONC_OBJECT))
 #define IS_LEAF(i) (IS_PRIMITIVE(i) || IS_EMPTY_OBJECT(i))
+#define IS_ROOT(i) (NULL == i->parent)
 
 #endif
 

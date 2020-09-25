@@ -8,6 +8,7 @@
 #include "macros.h"
 #include "hashtable.h"
 
+/* TODO: set #ifndef __GNU__ */
 #define SCANF_LIKE(n,m) __attribute__((format(scanf,n,m)))
 
 /* All of the possible jsonc datatypes */
@@ -26,12 +27,40 @@ typedef enum {
   JSONC_ALL              = USHRT_MAX,
 } jsonc_type_et;
 
+/* JSONC PRIMITIVE TYPES */
 typedef char jsonc_char_kt;
 typedef double jsonc_double_kt;
 typedef long long jsonc_integer_kt;
 typedef _Bool jsonc_boolean_kt;
 
-/* members should not be accessed directly, they are only
+/* JSONC OBJECT TYPES
+
+  if jsonc_item type is of Object type (object or array) it will
+  include a jsonc_object_st struct with the following attributes:
+      branch: for sorting through object's properties/array elements
+
+      num_branch: amount of enumerable properties/elements contained
+
+      last_accessed_branch: simulate stack trace by storing the last accessed
+        branch address. this is used for movement functions that require state
+        to be preserved between calls, while also adhering to tree traversal
+        rules. (check public.c jsonc_next() for example)
+
+      htwrap: hashtable special wrapper for easily sorting through
+        branches by keys, and skipping primitives (check hashtable.h and
+        hashtable.c for more info, and public.c jsonc_next_object_r() to see
+        it in action)*/
+
+typedef struct {
+  struct jsonc_item_s **branch;
+  size_t num_branch;
+
+  size_t last_accessed_branch;
+
+  struct jsonc_htwrap_s htwrap;
+} jsonc_object_st;
+
+/* these attributes should not be accessed directly, they are only
     meant to be used internally by the lib, or accessed through
     public.h functions.
     
@@ -39,28 +68,19 @@ typedef _Bool jsonc_boolean_kt;
 
     parent: object or array that its part of (NULL if root)
 
-    num_branch: amount of enumerable properties (0 if not object or array type)
-
     type: item's jsonc datatype (check enum jsonc_type_e for flags)
 
-    union {string, d_number, i_number, boolean, hashtable}:
+    union {string, d_number, i_number, boolean, object}:
       string,d_number,i_number,boolean: item literal value, denoted by
         its type. 
-      htwrap: if item type is object or array, it will have a
-        hashtable for easily sorting through its branches by keys
-        (check hashtable.h and hashtable.c for more info)
+      object: if item type is object or array, it will contain a
+        jsonc_object_st struct datatype. 
 
-    last_accessed_branch: simulate stack trace by storing last accessed
-      branch value, this is used for movement functions that require state 
-      to be preserved between calls, while also adhering to recursivity
-      rules. (check public.c jsonc_next() for example)
 */
 typedef struct jsonc_item_s {
   char *key;
 
   struct jsonc_item_s *parent;
-  struct jsonc_item_s **branch;
-  size_t num_branch;
 
   jsonc_type_et type;
   union {
@@ -68,11 +88,8 @@ typedef struct jsonc_item_s {
     jsonc_double_kt d_number;
     jsonc_integer_kt i_number;
     jsonc_boolean_kt boolean;
-    struct jsonc_htwrap_s *htwrap;
+    jsonc_object_st *obj;
   };
-
-  size_t last_accessed_branch;
-
 } jsonc_item_st;
 
 //used for setting callbacks
@@ -85,7 +102,7 @@ jsonc_callbacks_ft* jsonc_parser_callback(jsonc_callbacks_ft *new_cb);
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
 /* only parse json values from given parameters */
-extern void jsonc_sscanf(char *buffer, char *arg_keys, ...) SCANF_LIKE(2,3);
+extern void jsonc_scanf(char *buffer, char *arg_keys, ...) SCANF_LIKE(2,3);
  
 /* JSON STRINGIFY */
 char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);

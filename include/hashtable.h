@@ -24,13 +24,12 @@ void *hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValu
 struct jsonc_item_s; //forward declaration
 
 typedef struct jsonc_htwrap_s {
-  hashtable_st hashtable;
+  hashtable_st *hashtable;
 
   struct jsonc_item_s *root; //points to root item (object or array)
   struct jsonc_htwrap_s *next; //points to linked hashtable
 } jsonc_htwrap_st;
 
-jsonc_htwrap_st* jsonc_hashtable_init();
 void jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap);
 void jsonc_hashtable_link_r(struct jsonc_item_s *item, jsonc_htwrap_st **last_accessed_htwrap);
 void jsonc_hashtable_build(struct jsonc_item_s *item);

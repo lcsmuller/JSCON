@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
   jsonc_item_st *map1 = NULL, *map2 = NULL;
   jsonc_char_kt map3[256] = {0};
 
-  jsonc_sscanf(buffer, "meta%p,data%p,string%s", (void**)&map1, (void**)&map2, map3);
+  jsonc_scanf(buffer, "meta%p,data%p,string%s", (void**)&map1, (void**)&map2, map3);
   
   if (NULL != map1){
     char *buffer1 = jsonc_stringify(map1, JSONC_ALL);

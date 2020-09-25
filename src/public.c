@@ -21,12 +21,13 @@ jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
   jsonc_htwrap_st *current_htwrap;
 
   if (NULL != item){
-    current_htwrap = item->htwrap;
+    assert(IS_OBJECT(item));
+    current_htwrap = &item->obj->htwrap;
     *p_current_item = current_htwrap->root;
     return *p_current_item;
   }
 
-  current_htwrap = (*p_current_item)->htwrap->next;
+  current_htwrap = (*p_current_item)->obj->htwrap.next;
   if (NULL == current_htwrap){
     *p_current_item = NULL;
     return NULL;
@@ -36,17 +37,20 @@ jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item)
   return *p_current_item;
 }
 
-/* return next (not yet accessed) item, by using item->last_accessed_branch as the branch index */
+/* return next (not yet accessed) item, by using item->obj->last_accessed_branch as the branch index */
 static inline jsonc_item_st*
 jsonc_push(jsonc_item_st* item)
 {
   assert(IS_OBJECT(item));//item has to be of Object type to fetch a branch
-  assert(item->last_accessed_branch < item->num_branch);//overflow assert
+  assert(item->obj->last_accessed_branch < item->obj->num_branch);//overflow assert
 
-  ++item->last_accessed_branch; //update last_accessed_branch to next
-  jsonc_item_st *next_item = item->branch[item->last_accessed_branch-1];
+  ++item->obj->last_accessed_branch; //update last_accessed_branch to next
+  jsonc_item_st *next_item = item->obj->branch[item->obj->last_accessed_branch-1];
 
-  next_item->last_accessed_branch = 0; //resets incase its already set
+  //resets incase its already set because of a different run
+  if (IS_OBJECT(next_item)){
+    next_item->obj->last_accessed_branch = 0;
+  }
 
   return next_item; //return item from next branch in line
 }
@@ -54,36 +58,37 @@ jsonc_push(jsonc_item_st* item)
 static inline jsonc_item_st*
 jsonc_pop(jsonc_item_st* item)
 {
-  assert(0 <= item->last_accessed_branch); //underflow assert
-
-  item->last_accessed_branch = 0; //resets item->last_accessed_branch
+  //resets object's last_accessed_branch
+  if (IS_OBJECT(item)){
+    item->obj->last_accessed_branch = 0;
+  }
 
   return item->parent; //return item's parent
 }
 
 /* this will simulate tree preorder traversal iteratively, by using 
-    item->last_accessed_branch like a stack trace. under no circumstance 
+    item->obj->last_accessed_branch like a stack trace. under no circumstance 
     should you modify last_accessed_branch value directly */
 jsonc_item_st*
 jsonc_next(jsonc_item_st* item)
 {
   if (NULL == item) return NULL;
 
-  /* TODO: not really sure what this do...? */
+  //resets root's last_accessed_branch in case its set from a different run
   if (IS_OBJECT(item)){
-    item->last_accessed_branch = 0; //resets root stack
+    item->obj->last_accessed_branch = 0;
   }
 
-  /* item is a leaf, fetch parent until found a item with any not yet 
-      accessed branch */
+  /* item is a leaf, fetch parent until found a item with any branch
+      left to be accessed */
   if (IS_LEAF(item)){
     /* fetch parent until a item with available branch is found */
     do {
       item = jsonc_pop(item);
-      if ((NULL == item) || (0 == item->last_accessed_branch)){
+      if ((NULL == item) || (0 == item->obj->last_accessed_branch)){
         return NULL; //return NULL if exceeded root
       }
-     } while (item->num_branch == item->last_accessed_branch);
+     } while (item->obj->num_branch == item->obj->last_accessed_branch);
   }
 
   item = jsonc_push(item);
@@ -246,14 +251,14 @@ jsonc_get_sibling(const jsonc_item_st* kOrigin, const size_t kRelative_index)
 
   //get parent's branch index of the kOrigin item
   size_t origin_index=0;
-  while (kOrigin != kParent->branch[origin_index]){
+  while (kOrigin != kParent->obj->branch[origin_index]){
     ++origin_index;
   }
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
-  if ((0 <= (origin_index + kRelative_index)) && (kParent->num_branch > (origin_index + kRelative_index))){
-    return kParent->branch[origin_index + kRelative_index];
+  if ((0 <= (origin_index + kRelative_index)) && (kParent->obj->num_branch > (origin_index + kRelative_index))){
+    return kParent->obj->branch[origin_index + kRelative_index];
   }
 
   return NULL;
@@ -269,14 +274,14 @@ jsonc_item_st*
 jsonc_get_byindex(const jsonc_item_st* kItem, const size_t index)
 {
   assert(IS_OBJECT(kItem));
-  return (index < kItem->num_branch) ? kItem->branch[index] : NULL;
+  return (index < kItem->obj->num_branch) ? kItem->obj->branch[index] : NULL;
 }
 
 size_t
 jsonc_get_num_branch(const jsonc_item_st* kItem)
 {
   assert(IS_OBJECT(kItem));
-  return kItem->num_branch;
+  return kItem->obj->num_branch;
 } 
 
 jsonc_type_et

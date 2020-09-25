@@ -134,9 +134,9 @@ jsonc_preorder_traversal(jsonc_item_st *item, jsonc_type_et type, struct utils_s
   /* 5th STEP: find first item's branch that matches the given type, and 
       calls the write function on it */
   size_t first_index=0;
-  while (first_index < item->num_branch){
-    if (jsonc_typecmp(item->branch[first_index], type) || IS_OBJECT(item->branch[first_index])){
-      jsonc_preorder_traversal(item->branch[first_index], type, utils);
+  while (first_index < item->obj->num_branch){
+    if (jsonc_typecmp(item->obj->branch[first_index], type) || IS_OBJECT(item->obj->branch[first_index])){
+      jsonc_preorder_traversal(item->obj->branch[first_index], type, utils);
       break;
     }
     ++first_index;
@@ -144,13 +144,13 @@ jsonc_preorder_traversal(jsonc_item_st *item, jsonc_type_et type, struct utils_s
 
   /* 6th STEP: calls the write function on every consecutive branch
       that matches the type criteria, with an added comma before it */
-  for (size_t j = first_index+1; j < item->num_branch; ++j){
+  for (size_t j = first_index+1; j < item->obj->num_branch; ++j){
     /* skips branch that don't fit the criteria */
     if (!jsonc_typecmp(item, type) && !IS_OBJECT(item)){
       continue;
     }
     (*utils->method)(',',utils);
-    jsonc_preorder_traversal(item->branch[j], type, utils);
+    jsonc_preorder_traversal(item->obj->branch[j], type, utils);
   }
 
   /* 7th STEP: write the Object's type item wrapper token */

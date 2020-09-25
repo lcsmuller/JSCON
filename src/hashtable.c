@@ -33,6 +33,7 @@ hashtable_destroy(hashtable_st *hashtable)
   }
   free(hashtable->bucket);
   hashtable->bucket = NULL;
+  
   free(hashtable);
   hashtable = NULL;
 }
@@ -77,8 +78,7 @@ hashtable_build(hashtable_st *hashtable, const size_t kNum_index)
 hashtable_entry_st*
 hashtable_get_entry(hashtable_st *hashtable, const char *kKey)
 {
-  if (0 == hashtable->num_bucket)
-    return NULL;
+  if (0 == hashtable->num_bucket) return NULL;
 
   size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
 
@@ -126,30 +126,23 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
   return (void*)kValue;
 }
 
-jsonc_htwrap_st*
-jsonc_hashtable_init()
-{
-  jsonc_htwrap_st *new_htwrap = calloc(1, sizeof *new_htwrap);
-  assert(NULL != new_htwrap);
-
-  return new_htwrap;
-}
-
 void
 jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap){
-  hashtable_destroy(&htwrap->hashtable);
+  hashtable_destroy(htwrap->hashtable);
 }
 
 //* reentrant hashtable linking function */
 void
 jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_htwrap)
 {
+  assert(IS_OBJECT(item));
+
   jsonc_htwrap_st *last_accessed_htwrap = *p_last_accessed_htwrap;
   if (NULL != last_accessed_htwrap){
-    last_accessed_htwrap->next = item->htwrap; //item is not root
+    last_accessed_htwrap->next = &item->obj->htwrap; //item is not root
   }
 
-  last_accessed_htwrap = item->htwrap;
+  last_accessed_htwrap = &item->obj->htwrap;
   last_accessed_htwrap->root = item;
 
   *p_last_accessed_htwrap = last_accessed_htwrap;
@@ -158,30 +151,29 @@ jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_ht
 void
 jsonc_hashtable_build(jsonc_item_st *item)
 {
-  assert(item->type & (JSONC_OBJECT|JSONC_ARRAY));
+  assert(IS_OBJECT(item));
 
-  hashtable_build(&item->htwrap->hashtable, item->num_branch * 1.3); //30% size increase to account for future expansions
+  hashtable_build(item->obj->htwrap.hashtable, item->obj->num_branch * 1.3); //30% size increase to account for future expansions
 
-  for (int i=0; i < item->num_branch; ++i){
-    jsonc_hashtable_set(item->branch[i]->key, item->branch[i]);
+  for (int i=0; i < item->obj->num_branch; ++i){
+    jsonc_hashtable_set(item->obj->branch[i]->key, item->obj->branch[i]);
   }
 }
 
 jsonc_item_st*
-jsonc_hashtable_get(const char *kKey, jsonc_item_st *root)
+jsonc_hashtable_get(const char *kKey, jsonc_item_st *item)
 {
-  if (!(root->type & (JSONC_OBJECT|JSONC_ARRAY)))
-    return NULL;
+  if (!IS_OBJECT(item)) return NULL;
 
-  jsonc_htwrap_st *htwrap = root->htwrap;
-  return hashtable_get(&htwrap->hashtable, kKey);
+  jsonc_htwrap_st *htwrap = &item->obj->htwrap;
+  return hashtable_get(htwrap->hashtable, kKey);
 }
 
 jsonc_item_st*
 jsonc_hashtable_set(const char *kKey, jsonc_item_st *item)
 {
-  assert((item->parent->type) & (JSONC_OBJECT|JSONC_ARRAY));
+  assert(!IS_ROOT(item));
 
-  jsonc_htwrap_st *htwrap = item->parent->htwrap;
-  return hashtable_set(&htwrap->hashtable, kKey, item);
+  jsonc_htwrap_st *htwrap = &item->parent->obj->htwrap;
+  return hashtable_set(htwrap->hashtable, kKey, item);
 }
