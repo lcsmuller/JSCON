@@ -33,10 +33,9 @@ typedef double jsonc_double_kt;
 typedef long long jsonc_integer_kt;
 typedef _Bool jsonc_boolean_kt;
 
-/* JSONC OBJECT TYPES
-
-  if jsonc_item type is of Object type (object or array) it will
-  include a jsonc_object_st struct with the following attributes:
+/* JSONC COMPOSITE TYPES
+  if jsonc_item type is of composite type (object or array) it will
+  include a jsonc_composite_st struct with the following attributes:
       branch: for sorting through object's properties/array elements
 
       num_branch: amount of enumerable properties/elements contained
@@ -48,7 +47,7 @@ typedef _Bool jsonc_boolean_kt;
 
       htwrap: hashtable special wrapper for easily sorting through
         branches by keys, and skipping primitives (check hashtable.h and
-        hashtable.c for more info, and public.c jsonc_next_object_r() to see
+        hashtable.c for more info, and public.c jsonc_next_composite_r() to see
         it in action)*/
 
 typedef struct {
@@ -58,7 +57,7 @@ typedef struct {
   size_t last_accessed_branch;
 
   struct jsonc_htwrap_s htwrap;
-} jsonc_object_st;
+} jsonc_composite_st;
 
 /* these attributes should not be accessed directly, they are only
     meant to be used internally by the lib, or accessed through
@@ -70,11 +69,11 @@ typedef struct {
 
     type: item's jsonc datatype (check enum jsonc_type_e for flags)
 
-    union {string, d_number, i_number, boolean, object}:
+    union {string, d_number, i_number, boolean, composite}:
       string,d_number,i_number,boolean: item literal value, denoted by
         its type. 
-      object: if item type is object or array, it will contain a
-        jsonc_object_st struct datatype. 
+      composite: if item type is object or array, it will contain a
+        jsonc_composite_st struct datatype. 
 
 */
 typedef struct jsonc_item_s {
@@ -88,7 +87,7 @@ typedef struct jsonc_item_s {
     jsonc_double_kt d_number;
     jsonc_integer_kt i_number;
     jsonc_boolean_kt boolean;
-    jsonc_object_st *obj;
+    jsonc_composite_st *comp;
   };
 } jsonc_item_st;
 
@@ -108,7 +107,7 @@ extern void jsonc_scanf(char *buffer, char *arg_keys, ...) SCANF_LIKE(2,3);
 char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
 
 /* JSONC UTILITIES */
-jsonc_item_st* jsonc_next_object_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
+jsonc_item_st* jsonc_next_composite_r(jsonc_item_st *item, jsonc_item_st **p_current_item);
 jsonc_item_st* jsonc_next(jsonc_item_st* item);
 jsonc_item_st* jsonc_clone(jsonc_item_st *item);
 jsonc_char_kt* jsonc_typeof(const jsonc_item_st* kItem);

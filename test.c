@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 
   jsonc_item_st *item, *current_item = NULL;
   char *test1_buffer;
-  jsonc_item_st *walk1 = jsonc_next_object_r(root, &current_item);
+  jsonc_item_st *walk1 = jsonc_next_composite_r(root, &current_item);
   do {
     item = jsonc_get_branch(walk1, "m");
     if (NULL != item){
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
       free(test1_buffer);
     }
 
-    walk1 = jsonc_next_object_r(NULL, &current_item);
+    walk1 = jsonc_next_composite_r(NULL, &current_item);
   } while (NULL != walk1);
 
   jsonc_item_st *walk2 = root;

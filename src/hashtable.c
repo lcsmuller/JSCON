@@ -135,14 +135,14 @@ jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap){
 void
 jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_htwrap)
 {
-  assert(IS_OBJECT(item));
+  assert(IS_COMPOSITE(item));
 
   jsonc_htwrap_st *last_accessed_htwrap = *p_last_accessed_htwrap;
   if (NULL != last_accessed_htwrap){
-    last_accessed_htwrap->next = &item->obj->htwrap; //item is not root
+    last_accessed_htwrap->next = &item->comp->htwrap; //item is not root
   }
 
-  last_accessed_htwrap = &item->obj->htwrap;
+  last_accessed_htwrap = &item->comp->htwrap;
   last_accessed_htwrap->root = item;
 
   *p_last_accessed_htwrap = last_accessed_htwrap;
@@ -151,21 +151,21 @@ jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_ht
 void
 jsonc_hashtable_build(jsonc_item_st *item)
 {
-  assert(IS_OBJECT(item));
+  assert(IS_COMPOSITE(item));
 
-  hashtable_build(item->obj->htwrap.hashtable, item->obj->num_branch * 1.3); //30% size increase to account for future expansions
+  hashtable_build(item->comp->htwrap.hashtable, item->comp->num_branch * 1.3); //30% size increase to account for future expansions
 
-  for (int i=0; i < item->obj->num_branch; ++i){
-    jsonc_hashtable_set(item->obj->branch[i]->key, item->obj->branch[i]);
+  for (int i=0; i < item->comp->num_branch; ++i){
+    jsonc_hashtable_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }
 
 jsonc_item_st*
 jsonc_hashtable_get(const char *kKey, jsonc_item_st *item)
 {
-  if (!IS_OBJECT(item)) return NULL;
+  if (!IS_COMPOSITE(item)) return NULL;
 
-  jsonc_htwrap_st *htwrap = &item->obj->htwrap;
+  jsonc_htwrap_st *htwrap = &item->comp->htwrap;
   return hashtable_get(htwrap->hashtable, kKey);
 }
 
@@ -174,6 +174,6 @@ jsonc_hashtable_set(const char *kKey, jsonc_item_st *item)
 {
   assert(!IS_ROOT(item));
 
-  jsonc_htwrap_st *htwrap = &item->parent->obj->htwrap;
+  jsonc_htwrap_st *htwrap = &item->parent->comp->htwrap;
   return hashtable_set(htwrap->hashtable, kKey, item);
 }

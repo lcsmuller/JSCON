@@ -10,13 +10,13 @@
 
 struct utils_s {
   char *buffer;
-  char set_key[KEY_LENGTH]; //holds key
+  char set_key[KEY_LENGTH]; //holds key temporarily
   jsonc_htwrap_st *last_accessed_htwrap; //holds last htwrap accessed
   jsonc_callbacks_ft* parser_cb; //parser callback
 };
 
 /* function pointers used while building json items, 
-  jsonc_create_value_ft points to functions prefixed by "jsonc_set_value_"
+  jsonc_create_value_ft points to functions prefixed by "jsonc_value_set_"
   jsonc_create_item_ft points to functions prefixed by "jsonc_set_item_" */
 typedef void (jsonc_create_value_ft)(jsonc_item_st *item, struct utils_s *utils);
 typedef jsonc_item_st* (jsonc_create_item_ft)(jsonc_item_st*, struct utils_s*, jsonc_create_value_ft*);
@@ -24,18 +24,18 @@ typedef jsonc_item_st* (jsonc_create_item_ft)(jsonc_item_st*, struct utils_s*, j
 /* create a new branch to current jsonc object item, and return
   the new branch address */
 static jsonc_item_st*
-jsonc_branch_create(jsonc_item_st *item)
+jsonc_new_branch(jsonc_item_st *item)
 {
-  ++item->obj->num_branch;
-  item->obj->branch = realloc(item->obj->branch, item->obj->num_branch * sizeof *item);
-  assert(NULL != item->obj->branch);
+  ++item->comp->num_branch;
+  item->comp->branch = realloc(item->comp->branch, item->comp->num_branch * sizeof *item);
+  assert(NULL != item->comp->branch);
 
-  item->obj->branch[item->obj->num_branch-1] = calloc(1, sizeof *item);
-  assert(NULL != item->obj->branch[item->obj->num_branch-1]);
+  item->comp->branch[item->comp->num_branch-1] = calloc(1, sizeof *item);
+  assert(NULL != item->comp->branch[item->comp->num_branch-1]);
 
-  item->obj->branch[item->obj->num_branch-1]->parent = item;
+  item->comp->branch[item->comp->num_branch-1]->parent = item;
 
-  return item->obj->branch[item->obj->num_branch-1];
+  return item->comp->branch[item->comp->num_branch-1];
 }
 
 /* destroy current item and all of its nested object/arrays */
@@ -45,14 +45,14 @@ jsonc_destroy(jsonc_item_st *item)
   switch (jsonc_get_type(item)){
   case JSONC_OBJECT:
   case JSONC_ARRAY:
-      for (size_t i=0; i < item->obj->num_branch; ++i){
-        jsonc_destroy(item->obj->branch[i]);
+      for (size_t i=0; i < item->comp->num_branch; ++i){
+        jsonc_destroy(item->comp->branch[i]);
       }
-      jsonc_hashtable_destroy(&item->obj->htwrap);
-      free(item->obj->branch);
-      item->obj->branch = NULL;
-      free(item->obj);
-      item->obj = NULL;
+      jsonc_hashtable_destroy(&item->comp->htwrap);
+      free(item->comp->branch);
+      item->comp->branch = NULL;
+      free(item->comp);
+      item->comp = NULL;
       break;
   case JSONC_STRING:
       free(item->string);
@@ -96,7 +96,7 @@ jsonc_set_key(struct utils_s *utils)
 }
 
 static jsonc_char_kt*
-utils_buffer_set_string(struct utils_s *utils)
+utils_eval_string(struct utils_s *utils)
 {
   char *start = utils->buffer;
   assert('\"' == *start); //makes sure a string is given
@@ -120,43 +120,50 @@ utils_buffer_set_string(struct utils_s *utils)
 /* fetch string type jsonc and return
   allocated string */
 static void
-jsonc_set_value_string(jsonc_item_st *item, struct utils_s *utils)
+jsonc_value_set_string(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->string = utils_buffer_set_string(utils);
   item->type = JSONC_STRING;
+  item->string = utils_eval_string(utils);
 }
 
 static jsonc_double_kt
-utils_buffer_set_double(struct utils_s *utils)
+utils_eval_double(struct utils_s *utils)
 {
   char *start = utils->buffer;
   char *end = start;
 
+  /* 1st STEP: check for a minus sign and skip it */
   if ('-' == *end){
     ++end; //skips minus sign
   }
 
+  /* 2nd STEP: skips until a non digit char found */
   assert(isdigit(*end)); //interrupt if char isn't digit
-
-  while (isdigit(*++end))
+  while (isdigit(*++end)){
     continue; //skips while char is digit
-
-  if ('.' == *end){
-    while (isdigit(*++end))
-      continue;
   }
 
-  //if exponent found skips its signal and numbers
+  /* 3rd STEP: if non-digit char is not a comma then it must be
+      an integer*/
+  if ('.' == *end){
+    while (isdigit(*++end)){
+      continue;
+    }
+  }
+
+  /* 4th STEP: if exponent found skips its tokens */
   if (('e' == *end) || ('E' == *end)){
     ++end;
     if (('+' == *end) || ('-' == *end)){ 
       ++end;
     }
     assert(isdigit(*end));
-    while (isdigit(*++end))
+    while (isdigit(*++end)){
       continue;
+    }
   }
 
+  /* 5th STEP: convert string to double and return its value */
   char get_numstr[MAX_DIGITS] = {0};
   strncpy(get_numstr, start, end-start);
 
@@ -171,20 +178,20 @@ utils_buffer_set_double(struct utils_s *utils)
 /* fetch number jsonc type by parsing string,
   find out whether its a integer or double and assign*/
 static void
-jsonc_set_value_number(jsonc_item_st *item, struct utils_s *utils)
+jsonc_value_set_number(jsonc_item_st *item, struct utils_s *utils)
 {
-  double set_double = utils_buffer_set_double(utils);
+  double set_double = utils_eval_double(utils);
   if (DOUBLE_IS_INTEGER(set_double)){
-    item->i_number = (jsonc_integer_kt)set_double;
     item->type = JSONC_NUMBER_INTEGER;
+    item->i_number = (jsonc_integer_kt)set_double;
   } else {
-    item->d_number = set_double;
     item->type = JSONC_NUMBER_DOUBLE;
+    item->d_number = set_double;
   }
 }
 
 static jsonc_boolean_kt
-utils_buffer_set_boolean(struct utils_s *utils)
+utils_eval_boolean(struct utils_s *utils)
 {
   if ('t' == *utils->buffer){
     utils->buffer += 4; //skips length of "true"
@@ -195,60 +202,60 @@ utils_buffer_set_boolean(struct utils_s *utils)
 }
 
 static void
-jsonc_set_value_boolean(jsonc_item_st *item, struct utils_s *utils)
+jsonc_value_set_boolean(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->boolean = utils_buffer_set_boolean(utils);
   item->type = JSONC_BOOLEAN;
+  item->boolean = utils_eval_boolean(utils);
 }
 
 static void
-utils_buffer_set_null(struct utils_s *utils){
+utils_eval_null(struct utils_s *utils){
   utils->buffer += 4; //skips length of "null"
 }
 
 static void
-jsonc_set_value_null(jsonc_item_st *item, struct utils_s *utils)
+jsonc_value_set_null(jsonc_item_st *item, struct utils_s *utils)
 {
-  utils_buffer_set_null(utils);
   item->type = JSONC_NULL;
+  utils_eval_null(utils);
 }
 
-//executed inside jsonc_set_value_object and jsonc_set_value_array routines
-inline static void
-jsonc_set_hashtable(jsonc_item_st *item, struct utils_s *utils)
+static jsonc_composite_st*
+utils_eval_composite(struct utils_s *utils){
+  jsonc_composite_st* new_comp = calloc(1, sizeof *new_comp);
+  assert(NULL != new_comp);
+
+  new_comp->htwrap.hashtable = hashtable_init();
+
+  utils->buffer += 1; //skips composite delim '{' '}' or '[' ']'
+
+  return new_comp;
+}
+
+static void
+jsonc_value_set_object(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->obj->htwrap.hashtable = hashtable_init();
+  item->type = JSONC_OBJECT;
+
+  item->comp = utils_eval_composite(utils);
   jsonc_hashtable_link_r(item, &utils->last_accessed_htwrap);
 }
 
 static void
-jsonc_set_value_object(jsonc_item_st *item, struct utils_s *utils)
+jsonc_value_set_array(jsonc_item_st *item, struct utils_s *utils)
 {
-  item->obj = calloc(1, sizeof *item->obj);
-  assert(NULL != item->obj);
-
-  ++utils->buffer; //skips '{' token
-  item->type = JSONC_OBJECT;
-  jsonc_set_hashtable(item, utils);
-}
-
-static void
-jsonc_set_value_array(jsonc_item_st *item, struct utils_s *utils)
-{
-  item->obj = calloc(1, sizeof *item->obj);
-  assert(NULL != item->obj);
-
-  ++utils->buffer; //skips '[' token
   item->type = JSONC_ARRAY;
-  jsonc_set_hashtable(item, utils);
+
+  item->comp = utils_eval_composite(utils);
+  jsonc_hashtable_link_r(item, &utils->last_accessed_htwrap);
 }
 
-/* Create nested object and return the nested object address. 
-  This is used for arrays and objects type jsonc */
+/* create nested composite type (object/array) and return 
+    the address. */
 static jsonc_item_st*
-jsonc_set_incomplete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
+jsonc_new_composite(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
 {
-  item = jsonc_branch_create(item);
+  item = jsonc_new_branch(item);
   item->key = strdup(utils->set_key);
   assert(NULL != item->key);
 
@@ -257,69 +264,73 @@ jsonc_set_incomplete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_crea
   return (utils->parser_cb)(item);
 }
 
-/* Wrap array or object type jsonc, which means
-  all of its properties have been created */
+/* wrap array or object type jsonc, which means
+    all of its branches have been created */
 static jsonc_item_st*
-jsonc_wrap_incomplete_item(jsonc_item_st *item, struct utils_s *utils)
+jsonc_wrap_composite(jsonc_item_st *item, struct utils_s *utils)
 {
   ++utils->buffer; //skips '}' or ']'
   jsonc_hashtable_build(item);
   return jsonc_get_parent(item);
 }
 
-/* Create a property. The "complete" means all
-  of its value is created at once, as opposite
-  of array or object type jsonc */
+/* create a primitive data type branch. */
 static jsonc_item_st*
-jsonc_set_complete_item(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
+jsonc_append_primitive(jsonc_item_st *item, struct utils_s *utils, jsonc_create_value_ft *value_setter)
 {
-  item = jsonc_set_incomplete_item(item, utils, value_setter);
+  item = jsonc_new_branch(item);
+  item->key = strdup(utils->set_key);
+  assert(NULL != item->key);
+
+  (*value_setter)(item, utils);
+  item = (utils->parser_cb)(item);
+
   return jsonc_get_parent(item);
 }
 
-/* this routine is called when setting a branch of a Object type
+/* this routine is called when setting a branch of a composite type
     (object and array) item. */
 static jsonc_item_st*
-jsonc_set_object_branch(jsonc_item_st *item, struct utils_s *utils)
+jsonc_build_branch(jsonc_item_st *item, struct utils_s *utils)
 {
   jsonc_create_item_ft *item_setter;
   jsonc_create_value_ft *value_setter;
 
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      item_setter = &jsonc_set_incomplete_item;
-      value_setter = &jsonc_set_value_object;
+      item_setter = &jsonc_new_composite;
+      value_setter = &jsonc_value_set_object;
       break;
   case '[':/*ARRAY DETECTED*/
-      item_setter = &jsonc_set_incomplete_item;
-      value_setter = &jsonc_set_value_array;
+      item_setter = &jsonc_new_composite;
+      value_setter = &jsonc_value_set_array;
       break;
   case '\"':/*STRING DETECTED*/
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_string;
+      item_setter = &jsonc_append_primitive;
+      value_setter = &jsonc_value_set_string;
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_boolean;
+      item_setter = &jsonc_append_primitive;
+      value_setter = &jsonc_value_set_boolean;
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error; 
       }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_null;
+      item_setter = &jsonc_append_primitive;
+      value_setter = &jsonc_value_set_null;
       break;
   default:
       /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
-      item_setter = &jsonc_set_complete_item;
-      value_setter = &jsonc_set_value_number;
+      item_setter = &jsonc_append_primitive;
+      value_setter = &jsonc_value_set_number;
       break;
   }
 
@@ -339,7 +350,7 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
 {
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      return jsonc_wrap_incomplete_item(item, utils);
+      return jsonc_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
       /* skips ',' and consecutive space and/or control characters */
       do {
@@ -349,11 +360,11 @@ jsonc_build_array(jsonc_item_st *item, struct utils_s *utils)
       return item;
   default:
       //creates numerical key for the array element
-      snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->obj->num_branch);
-      return jsonc_set_object_branch(item, utils);
+      snprintf(utils->set_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
+      return jsonc_build_branch(item, utils);
   }
 
-  //token error checking done inside jsonc_set_object_branch
+  //token error checking done inside jsonc_build_branch
 }
 
 /* this will be active if the current item is of object type jsonc,
@@ -364,7 +375,7 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
 {
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      return jsonc_wrap_incomplete_item(item, utils);
+      return jsonc_wrap_composite(item, utils);
   case '\"':/*KEY STRING DETECTED*/
       jsonc_set_key(utils);
       assert(':' == *utils->buffer); //check for key's assign token 
@@ -374,7 +385,7 @@ jsonc_build_object(jsonc_item_st *item, struct utils_s *utils)
         ++utils->buffer;
       } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
 
-      return jsonc_set_object_branch(item, utils);
+      return jsonc_build_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
       /* skips ',' and consecutive space and/or control characters */
       do {
@@ -405,26 +416,26 @@ jsonc_build_entity(jsonc_item_st *item, struct utils_s *utils)
 {
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      jsonc_set_value_object(item, utils);
+      jsonc_value_set_object(item, utils);
       break;
   case '[':/*ARRAY DETECTED*/
-      jsonc_set_value_array(item, utils);
+      jsonc_value_set_array(item, utils);
       break;
   case '\"':/*STRING DETECTED*/
-      jsonc_set_value_string(item, utils);
+      jsonc_value_set_string(item, utils);
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      jsonc_set_value_boolean(item, utils);
+      jsonc_value_set_boolean(item, utils);
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
-      jsonc_set_value_null(item, utils);
+      jsonc_value_set_null(item, utils);
       break;
   default:
       /*SKIPS IF CONTROL CHARACTER*/
@@ -436,7 +447,7 @@ jsonc_build_entity(jsonc_item_st *item, struct utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
-      jsonc_set_value_number(item, utils);
+      jsonc_value_set_number(item, utils);
       break;
   }
 
@@ -523,7 +534,7 @@ jsonc_scanf_skip_string(struct utils_s *utils)
 }
 
 inline static void
-jsonc_scanf_skip_item(int ldelim, int rdelim, struct utils_s *utils)
+jsonc_scanf_skip_composite(int ldelim, int rdelim, struct utils_s *utils)
 {
   /* skips the item and all of its nests, special care is taken for any
       inner string is found, as it might contain a delim character that
@@ -555,10 +566,10 @@ jsonc_scanf_skip(struct utils_s *utils)
 {
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      jsonc_scanf_skip_item('{', '}', utils);
+      jsonc_scanf_skip_composite('{', '}', utils);
       return;
   case '[':/*ARRAY DETECTED*/
-      jsonc_scanf_skip_item('[', ']', utils);
+      jsonc_scanf_skip_composite('[', ']', utils);
       return;
   case '\"':/*STRING DETECTED*/
       jsonc_scanf_skip_string(utils);
@@ -573,7 +584,7 @@ jsonc_scanf_skip(struct utils_s *utils)
 }
 
 static void
-jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
+jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
 {
   hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils->set_key);
   assert(NULL != entry);
@@ -589,7 +600,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
       jsonc_item_st **item = entry->value;
       *item = jsonc_parse(utils->buffer);
-      jsonc_scanf_skip_item('{', '}', utils);
+      jsonc_scanf_skip_composite('{', '}', utils);
       return;
    }
   case '[':/*ARRAY DETECTED*/
@@ -600,7 +611,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
       jsonc_item_st **item = entry->value;
       *item = jsonc_parse(utils->buffer);
-      jsonc_scanf_skip_item('[', ']', utils);
+      jsonc_scanf_skip_composite('[', ']', utils);
       return;
    }
   case '\"':/*STRING DETECTED*/
@@ -609,7 +620,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
         goto type_error;
       }
 
-      jsonc_char_kt *string = utils_buffer_set_string(utils);
+      jsonc_char_kt *string = utils_eval_string(utils);
       strcpy(entry->value, string);
       free(string);
 
@@ -626,7 +637,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
       }
 
       jsonc_boolean_kt *boolean = entry->value;
-      *boolean = utils_buffer_set_boolean(utils);
+      *boolean = utils_eval_boolean(utils);
       return;
    }
   case 'n':/*CHECK FOR NULL*/
@@ -634,7 +645,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
         goto token_error; 
       }
 
-      utils_buffer_set_null(utils);
+      utils_eval_null(utils);
       return;
   default:
    { /*CHECK FOR NUMBER*/
@@ -642,7 +653,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
         goto token_error;
       }
       
-      double tmp = utils_buffer_set_double(utils);
+      double tmp = utils_eval_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
         if (!STREQ(tmp_type, "lld")){
           goto type_error;
@@ -673,7 +684,7 @@ jsonc_scanf_assign(struct utils_s *utils, hashtable_st *hashtable)
 
 /* count amount of keys and check for formatting errors */
 static size_t
-jsonc_scanf_count_keys(char *arg_keys)
+jsonc_scanf_eval_keys(char *arg_keys)
 {
   /* count each "word" composed of allowed key characters */
   size_t num_keys = 0;
@@ -817,7 +828,7 @@ jsonc_scanf(char *buffer, char *arg_keys, ...)
   va_start(ap, arg_keys);
 
   hashtable_st *hashtable = hashtable_init();
-  hashtable_build(hashtable, jsonc_scanf_count_keys(arg_keys));
+  hashtable_build(hashtable, jsonc_scanf_eval_keys(arg_keys));
   jsonc_scanf_split_keys(arg_keys, hashtable, ap);
 
   while ('\0' != *utils.buffer){
@@ -832,7 +843,7 @@ jsonc_scanf(char *buffer, char *arg_keys, ...)
 
         /* check wether key found is wanted or not */
         if (NULL != hashtable_get(hashtable, utils.set_key)){
-          jsonc_scanf_assign(&utils, hashtable);
+          jsonc_scanf_apply(&utils, hashtable);
           //fprintf(stderr, "ASSIGN: %s\n", utils.set_key);
         } else {
           jsonc_scanf_skip(&utils);
