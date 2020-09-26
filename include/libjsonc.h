@@ -69,10 +69,10 @@ typedef struct {
 
     type: item's jsonc datatype (check enum jsonc_type_e for flags)
 
-    union {string, d_number, i_number, boolean, composite}:
+    union {string, d_number, i_number, boolean, comp}:
       string,d_number,i_number,boolean: item literal value, denoted by
         its type. 
-      composite: if item type is object or array, it will contain a
+      comp: if item type is object or array, it will contain a
         jsonc_composite_st struct datatype. 
 
 */

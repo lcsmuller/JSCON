@@ -10,6 +10,8 @@
 
 #define IN_RANGE(n,lo,hi) (((n) > (lo)) && ((n) < (hi)))
 
+#define JSONC_VERSION "0.0"
+
 #define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
 
 //allowed characters for key naming

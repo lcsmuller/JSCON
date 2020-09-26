@@ -2,6 +2,7 @@
 *
 # Except these files
 !.gitignore
+!README.md
 !JSON.h
 !test.c
 !Makefile
@@ -9,3 +10,6 @@
 !src/*
 !include
 !include/*
+!doc
+!doc/*
+!doc/api/*
