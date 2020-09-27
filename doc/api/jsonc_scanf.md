@@ -31,13 +31,15 @@ The `jsonc_scanf(buffer, format, ...);` function reads formatted input from a JS
 
 ### Example
 
-`jsonc_item_st *item;
- jsonc_char_kt *string;
- jsonc_boolean_kt boolean;
+```c
+jsonc_item_st *item;
+jsonc_char_kt *string;
+jsonc_boolean_kt boolean;
 
- char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
- /* order of arguments doesn't have to be the same as the json string */
- jsonc_scanf(buffer, "#beta%js #gamma%jb #alpha%ji", string, &boolean, &item);`
+char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
+/* order of arguments doesn't have to be the same as the json string */
+jsonc_scanf(buffer, "#beta%js #gamma%jb #alpha%ji", string, &boolean, &item);
+```
 
 ### See Also
 

@@ -19,7 +19,7 @@
 
 | Flags | Code | Description |
 | :--- | :--- | :--- |
-|**`JSONC_NUMBER`**|`JSONC_NUMBER_INTEGER | JSONC_NUMBER_DOUBLE`| This item datatype is a Number |
+|**`JSONC_NUMBER`**|`JSONC_NUMBER_INTEGER` | `JSONC_NUMBER_DOUBLE`| This item datatype is a Number |
 |**`JSONC_ALL`**|`USHRT_MAX`| This item datatype is defined |
 
 ### Description
