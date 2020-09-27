@@ -856,13 +856,13 @@ jsonc_scanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
   }
 }
 
-/* works like scanf, will parse stuff only for the keys specified to the arg_keys string parameter. the variables assigned to ... must be in
+/* works like sscanf, will parse stuff only for the keys specified to the arg_keys string parameter. the variables assigned to ... must be in
 the correct order, and type, as the requested keys.
 
   every key found that doesn't match any of the requested keys will be
   ignored along with all its contents. */
 void
-jsonc_scanf(char *buffer, char *arg_keys, ...)
+jsonc_scanf(char *buffer, char *format, ...)
 {
   //skip any space and control characters at start of buffer
   while (isspace(*buffer) || iscntrl(*buffer)){

@@ -13,7 +13,7 @@
 
 ### Description
 
-The structure `jsonc_item_st` is created by decoding JSON data when calling [`jsonc_parse(buffer);`](jsonc_parse.md). It can be manipulated via functions, such as [`jsonc_next(item);`](jsonc_next.md) or [`jsonc_get_branch(item, key);`](jsonc_get_branch.md), and encoded back to JSON data via [`jsonc_stringify(item, type);`](jsonc_stringify.md).
+The structure `jsonc_item_st` is created by decoding JSON data when calling [`jsonc_parse(buffer);`](jsonc_parse.md). It can be manipulated via functions, such as [`jsonc_next(item);`](jsonc_next.md) or [`jsonc_get_branch(item, key);`](jsonc_get_branch.md), and encoded back to JSON data via [`jsonc_stringify(item, type);`](jsonc_stringify.md). This call *MUST* have a corresponding call to [`jsonc_destroy(item);`](jsonc_destroy.md) when the operation is complete.
 
 ### See Also
 
@@ -21,3 +21,4 @@ The structure `jsonc_item_st` is created by decoding JSON data when calling [`js
 * [`jsonc_next(item);`](jsonc_next.md)
 * [`jsonc_get_branch(item, key);`](jsonc_get_branch.md)
 * [`jsonc_stringify(item, type);`](jsonc_stringify.md)
+* [`jsonc_destroy(item);`](jsonc_destroy.md)

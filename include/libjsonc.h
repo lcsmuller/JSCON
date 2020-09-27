@@ -91,17 +91,19 @@ typedef struct jsonc_item_s {
 //used for setting callbacks
 typedef jsonc_item_st* (jsonc_callbacks_ft)(jsonc_item_st*);
 
-/* JSON PARSER */
+/* JSONC DECODING */
 /* parse buffer and returns a jsonc item */
 jsonc_item_st* jsonc_parse(char *buffer);
 jsonc_callbacks_ft* jsonc_parser_callback(jsonc_callbacks_ft *new_cb);
+/* only parse json values from given parameters */
+void jsonc_scanf(char *buffer, char *format, ...);
+ 
+/* JSONC ENCODING */
+char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
+
+/* JSONC DESTRUCTORS */
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
-/* only parse json values from given parameters */
-void jsonc_scanf(char *buffer, char *arg_keys, ...);
- 
-/* JSON STRINGIFY */
-char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);
 
 /* JSONC UTILITIES */
 jsonc_item_st* jsonc_next_composite_r(jsonc_item_st *item, jsonc_item_st **p_current_item);

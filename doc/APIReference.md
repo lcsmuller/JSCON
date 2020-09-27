@@ -18,7 +18,11 @@ This document describes the public C API.
 * [`jsonc_composite_st;`](api/jsonc_composite_st.md)
 * [`jsonc_item_st;`](api/jsonc_item_st.md)
 
-### Callbacks Datatypes
+### Enum Datatype Flags
+
+* [`jsonc_type_et;`](api/jsonc_type_et.md)
+
+### Callbacks
 
 * [`jsonc_callbacks_ft;`](api/jsonc_callbacks_ft.md)
 
@@ -28,12 +32,15 @@ This document describes the public C API.
 
 * [`jsonc_parse(buffer);`](api/jsonc_parse.md)
 * [`jsonc_parser_callback(new_cb);`](api/jsonc_parser_callback.md)
-* [`jsonc_destroy(item);`](api/jsonc_destroy.md)
 * [`jsonc_scanf(buffer, format, ...);`](api/jsonc_scanf.md)
 
 ### Encoding Functions
 
 * [`jsonc_stringify(item, type);`](api/jsonc_stringify.md)
+
+### Destructor Functions
+
+* [`jsonc_destroy(item);`](api/jsonc_destroy.md)
 
 ### Manipulation Functions
 
