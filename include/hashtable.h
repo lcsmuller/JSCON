@@ -30,7 +30,6 @@ typedef struct jsonc_htwrap_s {
   struct jsonc_htwrap_s *next; //points to linked hashtable
 } jsonc_htwrap_st;
 
-void jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap);
 void jsonc_hashtable_link_r(struct jsonc_item_s *item, jsonc_htwrap_st **last_accessed_htwrap);
 void jsonc_hashtable_build(struct jsonc_item_s *item);
 struct jsonc_item_s* jsonc_hashtable_get(const char *kKey, struct jsonc_item_s *item);

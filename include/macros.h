@@ -14,8 +14,8 @@
 
 #define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
 
-//allowed characters for key naming
-#define ALLOWED_KEY_CHAR(c) (isalnum(c) || ('_' == (c)) || ('-' == (c)))
+//TODO: add escaped characters
+#define ALLOWED_JSON_CHAR(c) (isspace(c) || isalnum(c) || ('_' == (c)) || ('-' == (c)))
 
 #define IS_COMPOSITE(i) ((i->type) & (JSONC_OBJECT|JSONC_ARRAY))
 #define IS_EMPTY_COMPOSITE(i) (0 == i->comp->num_branch)

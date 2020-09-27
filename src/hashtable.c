@@ -126,11 +126,6 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
   return (void*)kValue;
 }
 
-void
-jsonc_hashtable_destroy(jsonc_htwrap_st *htwrap){
-  hashtable_destroy(htwrap->hashtable);
-}
-
 //* reentrant hashtable linking function */
 void
 jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_htwrap)

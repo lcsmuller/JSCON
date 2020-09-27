@@ -8,9 +8,6 @@
 #include "macros.h"
 #include "hashtable.h"
 
-/* TODO: set #ifndef __GNU__ */
-#define SCANF_LIKE(n,m) __attribute__((format(scanf,n,m)))
-
 /* All of the possible jsonc datatypes */
 typedef enum {
   /* DATATYPE FLAGS */
@@ -101,7 +98,7 @@ jsonc_callbacks_ft* jsonc_parser_callback(jsonc_callbacks_ft *new_cb);
 /* clean up jsonc item and global allocated keys */
 void jsonc_destroy(jsonc_item_st *item);
 /* only parse json values from given parameters */
-extern void jsonc_scanf(char *buffer, char *arg_keys, ...) SCANF_LIKE(2,3);
+void jsonc_scanf(char *buffer, char *arg_keys, ...);
  
 /* JSON STRINGIFY */
 char* jsonc_stringify(jsonc_item_st *root, jsonc_type_et type);

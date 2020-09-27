@@ -48,7 +48,7 @@ jsonc_destroy(jsonc_item_st *item)
       for (size_t i=0; i < item->comp->num_branch; ++i){
         jsonc_destroy(item->comp->branch[i]);
       }
-      jsonc_hashtable_destroy(&item->comp->htwrap);
+      hashtable_destroy(item->comp->htwrap.hashtable);
       free(item->comp->branch);
       item->comp->branch = NULL;
       free(item->comp);
@@ -583,18 +583,55 @@ jsonc_scanf_skip(struct utils_s *utils)
   }
 }
 
+static char*
+jsonc_format_eval(char *tmp_format, size_t *p_tmp)
+{
+  size_t *n_bytes;
+  size_t discard; //throw values here if p_tmp is NULL
+  if (NULL != p_tmp){
+    n_bytes = p_tmp;
+  } else {
+    n_bytes = &discard;
+  }
+
+  if (STREQ(tmp_format, "js")){
+    *n_bytes = sizeof(jsonc_char_kt*);
+    return "jsonc_char_kt*";
+  }
+  if (STREQ(tmp_format, "ji")){
+    *n_bytes = sizeof(jsonc_item_st*);
+    return "jsonc_item_st**";
+  }
+  if (STREQ(tmp_format, "jd")){
+    *n_bytes = sizeof(jsonc_integer_kt);
+    return "jsonc_integer_kt*";
+  }
+  if (STREQ(tmp_format, "jf")){
+    *n_bytes = sizeof(jsonc_double_kt);
+    return "jsonc_double_kt*";
+  }
+  if (STREQ(tmp_format, "jb")){
+    *n_bytes = sizeof(jsonc_boolean_kt);
+    return "jsonc_boolean_kt*";
+  }
+  *n_bytes = 0;
+  return "NaN";
+}
+
 static void
 jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
 {
   hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils->set_key);
   assert(NULL != entry);
 
-  char *tmp_type = &entry->key[strlen(entry->key)+1];
+  char *tmp_format = &entry->key[strlen(entry->key)+1];
 
+  char err_typeis[25];
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
    {
-      if (!STREQ(tmp_type, "p")){
+      if (!STREQ(tmp_format, "ji")){
+        strcpy(err_typeis, "jsonc_item_st**");
         goto type_error;
       }
 
@@ -605,7 +642,8 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
    }
   case '[':/*ARRAY DETECTED*/
    {
-      if (!STREQ(tmp_type, "p")){
+      if (!STREQ(tmp_format, "ji")){
+        strcpy(err_typeis, "jsonc_item_st**");
         goto type_error;
       }
 
@@ -616,7 +654,8 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
    }
   case '\"':/*STRING DETECTED*/
    {
-      if (!STREQ(tmp_type, "s")){
+      if (!STREQ(tmp_format, "js")){
+        strcpy(err_typeis, "jsonc_char_kt*");
         goto type_error;
       }
 
@@ -632,7 +671,8 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto token_error;
       }
-      if (!STREQ(tmp_type, "d")){
+      if (!STREQ(tmp_format, "jb")){
+        strcpy(err_typeis, "jsonc_boolean_kt*");
         goto type_error;
       }
 
@@ -641,12 +681,19 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
       return;
    }
   case 'n':/*CHECK FOR NULL*/
+   {
       if (!STRNEQ(utils->buffer,"null",4)){
         goto token_error; 
       }
 
       utils_eval_null(utils);
+
+      /* nullify pointer contents */
+      size_t n_bytes;
+      jsonc_format_eval(tmp_format, &n_bytes);
+      memset(entry->value, 0, n_bytes);
       return;
+   }
   default:
    { /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
@@ -655,13 +702,15 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
       
       double tmp = utils_eval_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
-        if (!STREQ(tmp_type, "lld")){
+        if (!STREQ(tmp_format, "jd")){
+          strcpy(err_typeis, "jsonc_double_kt*");
           goto type_error;
         }
         jsonc_integer_kt *number_i = entry->value;
         *number_i = (jsonc_integer_kt)tmp;
       } else {
-        if (!STREQ(tmp_type, "lf")){
+        if (!STREQ(tmp_format, "jf")){
+          strcpy(err_typeis, "jsonc_integer_kt*");
           goto type_error;
         }
         jsonc_double_kt *number_d = entry->value; 
@@ -672,13 +721,12 @@ jsonc_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
   }
 
 
+  type_error:
+    fprintf(stderr,"ERROR: type is: %s, expected: %s\n",err_typeis, jsonc_format_eval(tmp_format, NULL));
+    exit(EXIT_FAILURE);
+
   token_error:
     fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
-    exit(EXIT_FAILURE);
-  /* TODO: make specific errors relating to type, such as:
-      "ERROR: type is: String\nexpected: Object" */
-  type_error:
-    fprintf(stderr,"ERROR: invalid type %%%s\n",tmp_type);
     exit(EXIT_FAILURE);
 }
 
@@ -693,8 +741,21 @@ jsonc_scanf_eval_keys(char *arg_keys)
   {
     c = *arg_keys;
 
-    /*1st STEP: check if key matches a criteria for being a key */
-    if (!ALLOWED_KEY_CHAR(c)){
+    //consume any space or control characters sequence
+    while (isspace(c) || iscntrl(c)){
+      c = *++arg_keys;
+    }
+
+    /*1st STEP: check for key '#' prefix existence */
+    if ('#' != c){
+      fprintf(stderr, "\nERROR: missing key '#' prefix\n\n");
+      exit(EXIT_FAILURE);
+    }
+    c = *++arg_keys;
+
+    /* TODO: check for escaped characters */
+    /*2nd STEP: check if key matches a criteria for being a key */
+    if (!ALLOWED_JSON_CHAR(c)){
       fprintf(stderr, "\nERROR: key's char not allowed '%c'\n\n", c);
       exit(EXIT_FAILURE);
     }
@@ -702,32 +763,20 @@ jsonc_scanf_eval_keys(char *arg_keys)
     ++num_keys; //found key, increment num_keys
     do { //consume remaining key characters
       c = *++arg_keys;
-    } while (ALLOWED_KEY_CHAR(c));
+    } while (ALLOWED_JSON_CHAR(c));
 
-    /*2nd STEP: check if key's type is specified */
+    /*3rd STEP: check if key's type is specified */
     if ('%' != c){
       fprintf(stderr, "\nERROR: missing key datatype\n\n");
       exit(EXIT_FAILURE);
     }
 
-    /*TODO: check for available formatting characters */
-    c = *++arg_keys; //get datatype formatting character
-    if(!isalpha(c)){
-      fprintf(stderr, "\nERROR: invalid datatype format %c\n\n", c);
-      exit(EXIT_FAILURE);
-    }
-
+    /*TODO: error check for available unknown characters */
     do { /* consume type formatting characters */
       c = *++arg_keys;
     } while (isalpha(c));
 
     if ('\0' == c) return num_keys; //return if found end of string
-
-    /*3rd STEP: check if delimiter fits the criteria of being a comma */
-    if (',' != c){
-      fprintf(stderr, "\nERROR: invalid jsonc_scanf delimiter '%c'\n\n", c);
-      exit(EXIT_FAILURE);
-    }
 
     ++arg_keys; //start next key
   }
@@ -749,17 +798,26 @@ jsonc_scanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
   /* split individual keys from arg_keys and make
       each a key_array element */
   char c;
-  char key[KEY_LENGTH], *tmp, *tmp_type;
+  char key[KEY_LENGTH], *tmp, *tmp_format;
   size_t char_index = 0;
   while (true) //run until end of string found
   {
+    c = *arg_keys;
+
+    //consume any space or control characters sequence
+    while (isspace(c) || iscntrl(c)){
+      c = *++arg_keys;
+    }
+    assert('#' == c); //make sure key prefix is there
+    c = *++arg_keys; //skip '#'
+    
     /* 1st STEP: build key specific characters */
-    while ('%' != (c = *arg_keys)){
+    while ('%' != c){
       key[char_index] = c;
       ++char_index;
       assert(char_index <= KEY_LENGTH);
       
-      ++arg_keys;
+      c = *++arg_keys;
     }
     key[char_index] = '\0'; //key is formed
     ++char_index;
@@ -767,7 +825,7 @@ jsonc_scanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 
     /* 2nd STEP: key is formed, fetch its datatype */
     do { //isolate datatype characters
-      c = *++arg_keys; //skip %
+      c = *++arg_keys; //skips '%'
       key[char_index] = c;
       ++char_index;
       assert(char_index <= KEY_LENGTH);
@@ -775,28 +833,20 @@ jsonc_scanf_split_keys(char *arg_keys, hashtable_st *hashtable, va_list ap)
 
     key[char_index-1] = '\0';
 
+    /* 3rd STEP: store '#key\0%format\0' string and its variable
+        address (given at ... parameter) in hashtable */
     tmp = malloc(char_index);
     assert(NULL != tmp);
-    memcpy(tmp, key, char_index);
+    memcpy(tmp, key, char_index); //get the string in its entirety
 
-    tmp_type = &tmp[strlen(tmp)+1];
-
-    //fprintf(stderr, "SPLIT: %s TYPE: %s\n", tmp, tmp_type);
-    /* TODO: this is ugly fixit */
-    if (STREQ(tmp_type, "s")){
-      hashtable_set(hashtable, tmp, va_arg(ap, jsonc_char_kt*));
-    } else if (STREQ(tmp_type, "p")) {
-      hashtable_set(hashtable, tmp, va_arg(ap, jsonc_item_st**));
-    } else if (STREQ(tmp_type, "lld")) {
-      hashtable_set(hashtable, tmp, va_arg(ap, jsonc_integer_kt*));
-    } else if (STREQ(tmp_type, "lf")) {
-      hashtable_set(hashtable, tmp, va_arg(ap, jsonc_double_kt*));
-    } else if (STREQ(tmp_type, "d")) {
-      hashtable_set(hashtable, tmp, va_arg(ap, jsonc_boolean_kt*));
-    } else {
-      fprintf(stderr, "\n\nERROR: invalid type %%%s\n", tmp_type);
+    tmp_format = &tmp[strlen(tmp)+1]; //get format specific string
+    
+    //fprintf(stderr, "SPLIT: %s TYPE: %s\n", tmp, tmp_format);
+    if ( STREQ("NaN", jsonc_format_eval(tmp_format, NULL)) ){
+      fprintf(stderr, "\n\nERROR: unknown type format %%%s\n", tmp_format);
       exit(EXIT_FAILURE);
     }
+    hashtable_set(hashtable, tmp, va_arg(ap, void*));
 
     if ('\0' == c) return; //end of string, return
 
