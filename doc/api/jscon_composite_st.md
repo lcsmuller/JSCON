@@ -11,10 +11,12 @@
 |**`last_accessed_branch`**|`size_t`| The last branch accessed from this object/array, see [`jscon_next(item);`](jscon_next.md) |
 |**`htwrap`**|`jscon_htwrap_st`| The hashtable the object/array contains |
 
+These fields should **NOT** be written to directly, use the library public functions for that purpose.
+
 ### Description
 
 The structure `jscon_composite_st` is the active value in the structure [`jscon_item_st`](jscon_item_st.md) of `JSCON_OBJECT` and `JSCON_ARRAY`
-[`type`](jscon_type_et.md). These fields should **NOT** be written to directly, use the library public functions for that purpose.
+[`type`](jscon_type_et.md).
 
 ### See Also
 
