@@ -12,7 +12,7 @@
 
 | Type | Description |
 | :--- | :--- |
-|`jscon_callbacks_ft *`| The custom callback pointer, will be set to NULL if not defined |
+|`jscon_callbacks_ft *`| The custom callback pointer. If not defined will return NULL and a default callback will be used instead |
 
 ### Description
 

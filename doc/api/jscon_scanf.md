@@ -24,11 +24,11 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 |**`jf`**|`jscon_double_kt *`| Floating point: Decimal number containing a decimal point. |`0.0`|
 |**`js`**|`jscon_char_kt *`| String of characters. |`first char set to '\0'`|
 |**`jb`**|`jscon_boolean_kt *`| True or false. |`false`|
-|**`ji`**|`jscon_item_st **`| A [`jscon_item_st`](jscon_item_st.md) structure. |`item with its type set to `[`JSCON_NULL`](jscon_type_et.md)``|
+|**`ji`**|`jscon_item_st **`| A [`jscon_item_st`](jscon_item_st.md) structure. |`item with type set to `[`JSCON_NULL`](jscon_type_et.md)|
 
 ### Description
 
-The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JSON string, and have the matched input be parsed directly to its aligned argument. In opposite to C library's scanf, this implementation doesn't require that the given arguments are in the same order as of the keys from the string, the only requirement is that the arguments are aligned with the format specifiers. This function ignore nests, if a key assigned to a object/array, it will have all of its inner members skipped. Essentially, it only considers keys of members from the same root element level.
+The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JSON string, and have the matched input be parsed directly to its aligned argument. In opposite to C library's scanf, this implementation doesn't require that the given arguments are in the same order as of the keys from the string, the only requirement is that the arguments are aligned with the format specifiers. This function ignore nests, it only considers keys which are members of the same root element. In other words, only keys exactly one level below root are searched for.
 
 ### Example
 
