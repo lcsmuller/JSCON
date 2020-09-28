@@ -49,6 +49,7 @@ hashtable_destroy(hashtable_st *hashtable)
 
       free(entry_prev->key);
       entry_prev->key = NULL;
+
       free(entry_prev);
       entry_prev = NULL;
     }

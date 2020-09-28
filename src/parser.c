@@ -60,15 +60,14 @@ jscon_new_branch(jscon_item_st *item)
   return item->comp->branch[item->comp->num_branch-1];
 }
 
-/* destroy current item and all of its nested object/arrays */
-void
-jscon_destroy(jscon_item_st *item)
+static void
+jscon_destroy_preorder(jscon_item_st *item)
 {
   switch (jscon_get_type(item)){
   case JSCON_OBJECT:
   case JSCON_ARRAY:
       for (size_t i=0; i < item->comp->num_branch; ++i){
-        jscon_destroy(item->comp->branch[i]);
+        jscon_destroy_preorder(item->comp->branch[i]);
       }
       hashtable_destroy(item->comp->htwrap.hashtable);
       free(item->comp->branch);
@@ -86,6 +85,21 @@ jscon_destroy(jscon_item_st *item)
 
   free(item);
   item = NULL;
+}
+
+/* destroy current item and all of its nested object/arrays */
+void
+jscon_destroy(jscon_item_st *item)
+{
+  /* root need to have its key free'd separately,
+      because root key can't be freed inside hashtable_destroy(),
+      as root is not a hashtable entry */
+  if (IS_ROOT(item) && (NULL != item->key)){
+    free(item->key);
+    item->key = NULL;
+  }
+
+  jscon_destroy_preorder(item);
 }
 
 /* fetch string type jscon and parse into static string */
@@ -523,6 +537,10 @@ jscon_parse(char *buffer)
         break;
     case JSCON_UNDEFINED://this should be true only at the first call
         item = jscon_build_entity(item, &utils);
+
+        /* primitives can't have branches, skip the rest  */
+        if (IS_PRIMITIVE(item)) return item;
+
         break;
     default: //nothing else to build, check buffer for potential error
         if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
@@ -552,7 +570,7 @@ jscon_scanf_skip_string(struct utils_s *utils)
     }
   } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
   assert('\"' == *utils->buffer);
-  ++utils->buffer; //skips last comma
+  ++utils->buffer; //skip double quotes
 }
 
 inline static void
@@ -620,10 +638,6 @@ jscon_format_eval(char *tmp_format, size_t *p_tmp)
     *n_bytes = sizeof(jscon_char_kt*);
     return "jscon_char_kt*";
   }
-  if (STREQ(tmp_format, "ji")){
-    *n_bytes = sizeof(jscon_item_st*);
-    return "jscon_item_st**";
-  }
   if (STREQ(tmp_format, "jd")){
     *n_bytes = sizeof(jscon_integer_kt);
     return "jscon_integer_kt*";
@@ -635,6 +649,12 @@ jscon_format_eval(char *tmp_format, size_t *p_tmp)
   if (STREQ(tmp_format, "jb")){
     *n_bytes = sizeof(jscon_boolean_kt);
     return "jscon_boolean_kt*";
+  }
+  if (STREQ(tmp_format, "ji")){
+    /* this will never get validated at jscon_scanf_apply(),
+        but it doesn't matter, a JSCON_NULL item is created either way */
+    *n_bytes = sizeof(jscon_item_st*);
+    return "jscon_item_st**";
   }
   *n_bytes = 0;
   return "NaN";
@@ -648,43 +668,31 @@ jscon_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
 
   char *tmp_format = &entry->key[strlen(entry->key)+1];
 
-  char err_typeis[25];
+  /* if specifier is item, simply call jscon_parse at current buffer token */
+  if (STREQ(tmp_format, "ji")){
+    jscon_item_st **item = entry->value;
+    *item = jscon_parse(utils->buffer);
+    jscon_scanf_skip(utils); //skip characters parsed by jscon_parse
+
+    /* get key, but keep in mind that this item is an "entity". The key will
+        be ignored when serializing with jscon_stringify(); */
+    (*item)->key = strdup(entry->key);
+    return;
+  }
+
+  /* specifier must be a primitive */
+  char err_typeis[50];
   switch (*utils->buffer){
-  case '{':/*OBJECT DETECTED*/
-   {
-      if (!STREQ(tmp_format, "ji")){
-        strcpy(err_typeis, "jscon_item_st**");
-        goto type_error;
-      }
-
-      jscon_item_st **item = entry->value;
-      *item = jscon_parse(utils->buffer);
-      jscon_scanf_skip_composite('{', '}', utils);
-      return;
-   }
-  case '[':/*ARRAY DETECTED*/
-   {
-      if (!STREQ(tmp_format, "ji")){
-        strcpy(err_typeis, "jscon_item_st**");
-        goto type_error;
-      }
-
-      jscon_item_st **item = entry->value;
-      *item = jscon_parse(utils->buffer);
-      jscon_scanf_skip_composite('[', ']', utils);
-      return;
-   }
   case '\"':/*STRING DETECTED*/
    {
       if (!STREQ(tmp_format, "js")){
-        strcpy(err_typeis, "jscon_char_kt*");
+        strcpy(err_typeis, "jscon_char_kt* or jscon_item_st**");
         goto type_error;
       }
-
+      
       jscon_char_kt *string = utils_eval_string(utils);
       strcpy(entry->value, string);
       free(string);
-
       return;
    }
   case 't':/*CHECK FOR*/
@@ -694,7 +702,7 @@ jscon_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
         goto token_error;
       }
       if (!STREQ(tmp_format, "jb")){
-        strcpy(err_typeis, "jscon_boolean_kt*");
+        strcpy(err_typeis, "jscon_boolean_kt* or jscon_item_st**");
         goto type_error;
       }
 
@@ -710,12 +718,16 @@ jscon_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
 
       utils_eval_null(utils);
 
-      /* nullify pointer contents */
-      size_t n_bytes;
+      /* null conversion */
+      size_t n_bytes; //get amount of bytes that should be set to 0
       jscon_format_eval(tmp_format, &n_bytes);
       memset(entry->value, 0, n_bytes);
       return;
    }
+  case '{':/*OBJECT DETECTED*/
+  case '[':/*ARRAY DETECTED*/
+      strcpy(err_typeis, "jscon_item_st**");
+      goto type_error;
   default:
    { /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
@@ -725,14 +737,14 @@ jscon_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
       double tmp = utils_eval_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
         if (!STREQ(tmp_format, "jd")){
-          strcpy(err_typeis, "jscon_double_kt*");
+          strcpy(err_typeis, "jscon_integer_kt* or jscon_item_st**");
           goto type_error;
         }
         jscon_integer_kt *number_i = entry->value;
         *number_i = (jscon_integer_kt)tmp;
       } else {
         if (!STREQ(tmp_format, "jf")){
-          strcpy(err_typeis, "jscon_integer_kt*");
+          strcpy(err_typeis, "jscon_double_kt* or jscon_item_st**");
           goto type_error;
         }
         jscon_double_kt *number_d = entry->value; 
@@ -744,7 +756,7 @@ jscon_scanf_apply(struct utils_s *utils, hashtable_st *hashtable)
 
 
   type_error:
-    fprintf(stderr,"ERROR: type is: %s, expected: %s\n",err_typeis, jscon_format_eval(tmp_format, NULL));
+    fprintf(stderr,"ERROR: expected specifier %s, specifier is %s\n",err_typeis, jscon_format_eval(tmp_format, NULL));
     exit(EXIT_FAILURE);
 
   token_error:
@@ -890,7 +902,11 @@ jscon_scanf(char *buffer, char *format, ...)
   while (isspace(*buffer) || iscntrl(*buffer)){
     ++buffer;
   }
-  assert('{' == *buffer); //must be a json object
+
+  if ('{' != *buffer){
+    fprintf(stderr, "\n\nERROR: json string root element must be a object\n");
+    exit(EXIT_FAILURE);
+  }
 
   struct utils_s utils = {
     .buffer = buffer,

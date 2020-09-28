@@ -41,25 +41,30 @@ int main(int argc, char *argv[])
   char *buffer = get_buffer(argv[1]);
 
   jscon_item_st *map1 = NULL, *map2 = NULL;
-  jscon_char_kt* map3 = NULL;
+  jscon_item_st *map3 = NULL;
 
-  jscon_scanf(buffer, "#meta%ji,#data%ji,#string%js", &map1, &map2, &map3);
+  jscon_scanf(buffer, "#meta%ji,#data%ji,#string%ji", &map1, &map2, &map3);
   
   if (NULL != map1){
     char *buffer1 = jscon_stringify(map1, JSCON_ANY);
-    fprintf(stdout, "map1: %s\n", buffer1);
+    fprintf(stdout, "%s: %s\n", jscon_get_key(map1), buffer1);
     free(buffer1);
     jscon_destroy(map1);
   }
 
   if (NULL != map2){
     char *buffer2 = jscon_stringify(map2, JSCON_ANY);
-    fprintf(stdout, "map2: %s\n", buffer2);
+    fprintf(stdout, "%s: %s\n", jscon_get_key(map2), buffer2);
     free(buffer2);
     jscon_destroy(map2);
   }
 
-  fprintf(stdout, "map3: %s\n", map3);
+  if (NULL != map3){
+    char *buffer3 = jscon_stringify(map3, JSCON_ANY);
+    fprintf(stdout, "%s: %s\n", jscon_get_key(map3), buffer3);
+    free(buffer3);
+    jscon_destroy(map3);
+  }
 
   jscon_parser_callback(&callback_test);
   

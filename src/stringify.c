@@ -87,7 +87,7 @@ utils_apply_integer(jscon_integer_kt i_number, struct utils_s *utils)
 /* walk jscon item, by traversing its branches recursively,
     and perform buffer_method callback on each branch */
 static void
-jscon_preorder_traversal(jscon_item_st *item, jscon_type_et type, struct utils_s *utils)
+jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct utils_s *utils)
 {
   /* 1st STEP: stringify jscon item only if it match the type
       given as parameter or is a composite type item */
@@ -157,7 +157,7 @@ jscon_preorder_traversal(jscon_item_st *item, jscon_type_et type, struct utils_s
   size_t first_index=0;
   while (first_index < item->comp->num_branch){
     if (jscon_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
-      jscon_preorder_traversal(item->comp->branch[first_index], type, utils);
+      jscon_stringify_preorder(item->comp->branch[first_index], type, utils);
       break;
     }
     ++first_index;
@@ -171,7 +171,7 @@ jscon_preorder_traversal(jscon_item_st *item, jscon_type_et type, struct utils_s
       continue;
     }
     (*utils->method)(',',utils);
-    jscon_preorder_traversal(item->comp->branch[j], type, utils);
+    jscon_stringify_preorder(item->comp->branch[j], type, utils);
   }
 
   /* 7th STEP: write the composite's type item wrapper token */
@@ -208,7 +208,7 @@ jscon_stringify(jscon_item_st *root, jscon_type_et type)
   /* 2nd STEP: count how many chars will fill the buffer with
       utils_method_eval, then allocate the buffer to that amount */
   utils.method = &utils_method_eval;
-  jscon_preorder_traversal(root, type, &utils);
+  jscon_stringify_preorder(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
   assert(NULL != utils.buffer_base);
 
@@ -216,7 +216,7 @@ jscon_stringify(jscon_item_st *root, jscon_type_et type)
       utils_method_exec to fill allocated buffer */
   utils.buffer_offset = 0;
   utils.method = &utils_method_exec;
-  jscon_preorder_traversal(root, type, &utils);
+  jscon_stringify_preorder(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
 
   /* 4th STEP: reattach key and parents from step 1 */
