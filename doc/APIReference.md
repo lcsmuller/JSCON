@@ -8,7 +8,7 @@ This document describes the public C API.
 
 | Primitive | Alias | Macro |
 | :--- | :--- | :--- |
-|**`jscon_char_kt`**|`char`|`JSCON_STRING`|
+|**`jscon_char_kt *`**|`char *`|`JSCON_STRING`|
 |**`jscon_double_kt`**|`double`|`JSCON_NUMBER_DOUBLE`|
 |**`jscon_integer_kt`**|`long long`|`JSCON_NUMBER_INTEGER`|
 |**`jscon_boolean_kt`**|`bool`|`JSCON_BOOLEAN`|
