@@ -14,7 +14,7 @@
 ### Description
 
 The structure `jscon_composite_st` is the active value in the structure [`jscon_item_st`](jscon_item_st.md) of `JSCON_OBJECT` and `JSCON_ARRAY`
-[`type`](jscon_type_et.md).
+[`type`](jscon_type_et.md). These fields should **NOT** be written to directly, use the library public functions for that purpose.
 
 ### See Also
 
