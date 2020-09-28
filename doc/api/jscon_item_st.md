@@ -15,7 +15,7 @@ These fields should **NOT** be written to directly, use the library public funct
 
 ### Description
 
-The structure `jscon_item_st` is created by decoding JSON data when calling [`jscon_parse(buffer);`](jscon_parse.md). It can be manipulated via functions, such as [`jscon_next(item);`](jscon_next.md) or [`jscon_get_branch(item, key);`](jscon_get_branch.md), and encoded back to JSON data by [`jscon_stringify(item, type);`](jscon_stringify.md). This structure **MUST** have a corresponding call to [`jscon_destroy(item);`](jscon_destroy.md) once its no longer needed.
+The structure `jscon_item_st` is created by decoding JSON data when calling [`jscon_parse()`](jscon_parse.md). It can be manipulated via functions, such as [`jscon_next()`](jscon_next.md) or [`jscon_get_branch()`](jscon_get_branch.md), and encoded back to JSON data by [`jscon_stringify()`](jscon_stringify.md). This structure **MUST** have a corresponding call to [`jscon_destroy()`](jscon_destroy.md) once its no longer needed.
 
 ### See Also
 

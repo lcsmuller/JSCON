@@ -16,7 +16,7 @@
 
 ### Description
 
-The function `jscon_parse(buffer);` returns the [`jscon_item_st;`](jscon_item_st.md) root element obtained from the parsed JSON string. This call **MUST** have a corresponding call to [`jscon_destroy(item);`](jscon_destroy.md).
+The function `jscon_parse()` returns the [`jscon_item_st`](jscon_item_st.md) root element obtained by decoding the JSON data. This call **MUST** have a corresponding call to [`jscon_destroy()`](jscon_destroy.md).
 
 ### See Also
 

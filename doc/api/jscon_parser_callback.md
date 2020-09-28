@@ -16,7 +16,7 @@
 
 ### Description
 
-The function `jscon_parser_callback(new_cb);` is called everytime a item is created inside [`jscon_parse(buffer);`](jscon_parse.md), for more information read [`jscon_callbacks_ft;`](jscon_callbacks_ft.md).
+The function `jscon_parser_callback()` is called everytime a new item is created inside [`jscon_parse()`](jscon_parse.md), for more information read [`jscon_callbacks_ft`](jscon_callbacks_ft.md).
 
 ### See Also
 

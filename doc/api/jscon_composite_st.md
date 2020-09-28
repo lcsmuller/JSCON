@@ -8,7 +8,7 @@
 | :--- | :--- | :--- |
 |**`branch`**|`jscon_item_st **`| The properties/elements of the object/array |
 |**`num_branch`**|`size_t`| The amount of properties/elements the object/array contains |
-|**`last_accessed_branch`**|`size_t`| The last branch accessed from this object/array, see [`jscon_next(item);`](jscon_next.md) |
+|**`last_accessed_branch`**|`size_t`| The last branch accessed from this object/array, see [`jscon_next()`](jscon_next.md) |
 |**`htwrap`**|`jscon_htwrap_st`| The hashtable the object/array contains |
 
 These fields should **NOT** be written to directly, use the library public functions for that purpose.
