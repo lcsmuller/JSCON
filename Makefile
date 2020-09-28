@@ -7,8 +7,8 @@ SRCDIR = src
 OBJDIR = obj
 INCLUDEDIR = include
 LIBDIR = lib
-LIB = $(LIBDIR)/libjsonc.a
-TEST1 = test_jsonc
+LIB = $(LIBDIR)/libjscon.a
+TEST1 = test_jscon
 
 OBJS = $(OBJDIR)/public.o
 OBJS += $(OBJDIR)/stringify.o

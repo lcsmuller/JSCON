@@ -1,7 +1,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "libjsonc.h"
+#include "libjscon.h"
 
 hashtable_st*
 hashtable_init()
@@ -128,11 +128,11 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
 
 //* reentrant hashtable linking function */
 void
-jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_htwrap)
+jscon_hashtable_link_r(jscon_item_st *item, jscon_htwrap_st **p_last_accessed_htwrap)
 {
   assert(IS_COMPOSITE(item));
 
-  jsonc_htwrap_st *last_accessed_htwrap = *p_last_accessed_htwrap;
+  jscon_htwrap_st *last_accessed_htwrap = *p_last_accessed_htwrap;
   if (NULL != last_accessed_htwrap){
     last_accessed_htwrap->next = &item->comp->htwrap; //item is not root
   }
@@ -144,31 +144,31 @@ jsonc_hashtable_link_r(jsonc_item_st *item, jsonc_htwrap_st **p_last_accessed_ht
 }
 
 void
-jsonc_hashtable_build(jsonc_item_st *item)
+jscon_hashtable_build(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
   hashtable_build(item->comp->htwrap.hashtable, item->comp->num_branch * 1.3); //30% size increase to account for future expansions
 
   for (int i=0; i < item->comp->num_branch; ++i){
-    jsonc_hashtable_set(item->comp->branch[i]->key, item->comp->branch[i]);
+    jscon_hashtable_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }
 
-jsonc_item_st*
-jsonc_hashtable_get(const char *kKey, jsonc_item_st *item)
+jscon_item_st*
+jscon_hashtable_get(const char *kKey, jscon_item_st *item)
 {
   if (!IS_COMPOSITE(item)) return NULL;
 
-  jsonc_htwrap_st *htwrap = &item->comp->htwrap;
+  jscon_htwrap_st *htwrap = &item->comp->htwrap;
   return hashtable_get(htwrap->hashtable, kKey);
 }
 
-jsonc_item_st*
-jsonc_hashtable_set(const char *kKey, jsonc_item_st *item)
+jscon_item_st*
+jscon_hashtable_set(const char *kKey, jscon_item_st *item)
 {
   assert(!IS_ROOT(item));
 
-  jsonc_htwrap_st *htwrap = &item->parent->comp->htwrap;
+  jscon_htwrap_st *htwrap = &item->parent->comp->htwrap;
   return hashtable_set(htwrap->hashtable, kKey, item);
 }

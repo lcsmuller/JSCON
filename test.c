@@ -4,11 +4,11 @@
 #include <string.h>
 #include <locale.h>
 
-#include "libjsonc.h"
+#include "libjscon.h"
 
 FILE *select_output(int argc, char *argv[]);
 char *get_buffer(char filename[]);
-jsonc_item_st *callback_test(jsonc_item_st *item);
+jscon_item_st *callback_test(jscon_item_st *item);
 
 int main(int argc, char *argv[])
 {
@@ -18,62 +18,62 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  jsonc_item_st *map1 = NULL, *map2 = NULL;
-  jsonc_char_kt* map3 = NULL;
+  jscon_item_st *map1 = NULL, *map2 = NULL;
+  jscon_char_kt* map3 = NULL;
 
-  jsonc_scanf(buffer, "#meta%ji,#data%ji,#string%js", &map1, &map2, &map3);
+  jscon_scanf(buffer, "#meta%ji,#data%ji,#string%js", &map1, &map2, &map3);
   
   if (NULL != map1){
-    char *buffer1 = jsonc_stringify(map1, JSONC_ALL);
+    char *buffer1 = jscon_stringify(map1, JSCON_ANY);
     fprintf(stdout, "map1: %s\n", buffer1);
     free(buffer1);
-    jsonc_destroy(map1);
+    jscon_destroy(map1);
   }
 
   if (NULL != map2){
-    char *buffer2 = jsonc_stringify(map2, JSONC_ALL);
+    char *buffer2 = jscon_stringify(map2, JSCON_ANY);
     fprintf(stdout, "map2: %s\n", buffer2);
     free(buffer2);
-    jsonc_destroy(map2);
+    jscon_destroy(map2);
   }
 
   fprintf(stdout, "map3: %s\n", map3);
 
-  jsonc_parser_callback(&callback_test);
+  jscon_parser_callback(&callback_test);
   
-  jsonc_item_st *root = jsonc_parse(buffer);
+  jscon_item_st *root = jscon_parse(buffer);
 
-  jsonc_item_st *item, *current_item = NULL;
+  jscon_item_st *item, *current_item = NULL;
   char *test1_buffer;
-  jsonc_item_st *walk1 = jsonc_next_composite_r(root, &current_item);
+  jscon_item_st *walk1 = jscon_next_composite_r(root, &current_item);
   do {
-    item = jsonc_get_branch(walk1, "m");
+    item = jscon_get_branch(walk1, "m");
     if (NULL != item){
-      test1_buffer = jsonc_stringify(item, JSONC_ALL);
+      test1_buffer = jscon_stringify(item, JSCON_ANY);
       fwrite(test1_buffer, 1, strlen(test1_buffer), stderr);
       fputc('\n', stderr);
       free(test1_buffer);
     }
 
-    walk1 = jsonc_next_composite_r(NULL, &current_item);
+    walk1 = jscon_next_composite_r(NULL, &current_item);
   } while (NULL != walk1);
 
-  jsonc_item_st *walk2 = root;
+  jscon_item_st *walk2 = root;
   for (int i=0; i < 5 && walk2; ++i){
     fprintf(stderr, "%s\n", walk2->key);
-    walk2 = jsonc_next(walk2);
+    walk2 = jscon_next(walk2);
   }
 
   walk2 = root;
   do {
     fprintf(stderr, "%s\n", walk2->key);
-    walk2 = jsonc_next(walk2);
+    walk2 = jscon_next(walk2);
   } while (NULL != walk2);
 
-  char *test2_buffer = jsonc_stringify(root, JSONC_ALL);
+  char *test2_buffer = jscon_stringify(root, JSCON_ANY);
   fwrite(test2_buffer, 1, strlen(test2_buffer), f_out);
   free(test2_buffer);
-  jsonc_destroy(root);
+  jscon_destroy(root);
 
   free(buffer);
   fclose(f_out);
@@ -140,10 +140,10 @@ get_buffer(char filename[])
   return buffer;
 }
 
-jsonc_item_st *callback_test(jsonc_item_st *item)
+jscon_item_st *callback_test(jscon_item_st *item)
 {
-  if (NULL != item && jsonc_keycmp(item, "m")){
-    fprintf(stdout, "%s\n", jsonc_get_string(item));
+  if (NULL != item && jscon_keycmp(item, "m")){
+    fprintf(stdout, "%s\n", jscon_get_string(item));
   }
     
   return item;
