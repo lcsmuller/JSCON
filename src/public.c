@@ -40,22 +40,27 @@
 jscon_item_st*
 jscon_next_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 {
-  jscon_htwrap_st *current_htwrap;
-
+  /* if item is not NULL, set p_current_item to item, otherwise
+      fetch next iteration */ 
   if (NULL != item){
     assert(IS_COMPOSITE(item));
-    current_htwrap = &item->comp->htwrap;
-    *p_current_item = current_htwrap->root;
-    return *p_current_item;
+    *p_current_item = item;
+    return item;
   }
 
-  current_htwrap = (*p_current_item)->comp->htwrap.next;
-  if (NULL == current_htwrap){
+  /* if p_current_item is NULL, it needs to be set back with item parameter */
+  if (NULL == *p_current_item) return NULL;
+
+  /* get next htwrap in line, if NULL it means there are no more
+      composite datatype items to iterate through */
+  jscon_htwrap_st *next_htwrap = (*p_current_item)->comp->htwrap.next;
+  if (NULL == next_htwrap){
     *p_current_item = NULL;
     return NULL;
   }
 
-  *p_current_item = current_htwrap->root;
+  *p_current_item = next_htwrap->root;
+
   return *p_current_item;
 }
 
@@ -239,11 +244,9 @@ jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt *p_str, const in
 jscon_item_st*
 jscon_get_root(jscon_item_st* item)
 {
-  jscon_item_st *tmp = item;
-  do {
-    item = tmp;
-    tmp = jscon_get_parent(item);
-  } while (NULL != tmp);
+  while (!IS_ROOT(item)){
+    item = jscon_get_parent(item);
+  }
 
   return item;
 }
@@ -254,7 +257,7 @@ jscon_get_root(jscon_item_st* item)
 jscon_item_st*
 jscon_get_branch(jscon_item_st *item, const char *kKey)
 {
-  //return NULL if item is not of Object type
+  //return NULL if item is not of composite datatype
   if (!IS_COMPOSITE(item)) return NULL;
 
   /* search for entry with given key at item's htwrap,
@@ -266,16 +269,12 @@ jscon_get_branch(jscon_item_st *item, const char *kKey)
 jscon_item_st*
 jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
 {
+  assert(!IS_ROOT(kOrigin));
+
   const jscon_item_st* kParent = jscon_get_parent(kOrigin);
 
-  //if NULL kOrigin is a root, not a member of any Object
-  if (NULL == kParent) return NULL; 
-
   //get parent's branch index of the kOrigin item
-  size_t origin_index=0;
-  while (kOrigin != kParent->comp->branch[origin_index]){
-    ++origin_index;
-  }
+  size_t origin_index= jscon_get_key_index(kParent, kOrigin->key);
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
@@ -286,7 +285,7 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
   return NULL;
 }
 
-/* return parent safely */
+/* return parent */
 jscon_item_st*
 jscon_get_parent(const jscon_item_st* kItem){
   return jscon_pop((jscon_item_st*)kItem);
@@ -297,6 +296,25 @@ jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
 {
   assert(IS_COMPOSITE(kItem));
   return (index < kItem->comp->num_branch) ? kItem->comp->branch[index] : NULL;
+}
+
+size_t
+jscon_get_key_index(const jscon_item_st* kItem, const char *kKey)
+{
+  assert(IS_COMPOSITE(kItem));
+
+  jscon_item_st *search_item = jscon_hashtable_get(kKey, (jscon_item_st*)kItem);
+  if (NULL == search_item) return -1;
+
+  /* TODO: can this be done differently? */
+  for (size_t i=0; i < kItem->comp->num_branch; ++i){
+    if (search_item == kItem->comp->branch[i]){
+      return i;
+    }
+  }
+
+  fprintf(stderr, "\n\nERROR: item exists in hashtable but is not referenced by the parent\n");
+  exit(EXIT_FAILURE);
 }
 
 size_t

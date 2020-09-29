@@ -69,6 +69,7 @@ This document describes the public C API.
 * [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)
 * [`jscon_get_parent(item);`](api/jscon_get_parent.md)
 * [`jscon_get_byindex(item, index);`](api/jscon_get_byindex.md)
+* [`jscon_get_key_index(item, key);`](api/jscon_get_key_index.md)
 * [`jscon_get_num_branch(item);`](api/jscon_get_num_branch.md)
 * [`jscon_get_type(item);`](api/jscon_get_type.md)
 * [`jscon_get_boolean(item);`](api/jscon_get_boolean.md)

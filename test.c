@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
   if (NULL != map3){
     char *buffer3 = jscon_stringify(map3, JSCON_ANY);
     fprintf(stdout, "%s: %s\n", jscon_get_key(map3), buffer3);
+    jscon_get_parent(map3);
     free(buffer3);
     jscon_destroy(map3);
   }
@@ -69,6 +70,10 @@ int main(int argc, char *argv[])
   jscon_parser_callback(&callback_test);
   
   jscon_item_st *root = jscon_parse(buffer);
+
+  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "meta"));
+  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "data"));
+  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "string"));
 
   jscon_item_st *item, *current_item = NULL;
   char *test1_buffer;

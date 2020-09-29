@@ -41,6 +41,7 @@ void hashtable_build(hashtable_st *hashtable, const size_t kNum_index);
 hashtable_entry_st *hashtable_get_entry(hashtable_st *hashtable, const char *kKey);
 void *hashtable_get(hashtable_st *hashtable, const char *kKey);
 void *hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue);
+void hashtable_remove(hashtable_st *hashtable, const char *kKey);
 
 /* JSCON SPECIFIC IMPLEMENTATIONS */
 struct jscon_item_s; //forward declaration

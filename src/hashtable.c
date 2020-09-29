@@ -129,7 +129,6 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
   size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
 
   hashtable_entry_st *entry = hashtable->bucket[slot];
-
   if (NULL == entry){
     hashtable->bucket[slot] = hashtable_pair(kKey, kValue);
     return hashtable->bucket[slot]->value;
@@ -147,6 +146,34 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
   entry_prev->next = hashtable_pair(kKey, kValue);
 
   return (void*)kValue;
+}
+
+void
+hashtable_remove(hashtable_st *hashtable, const char *kKey)
+{
+  if (0 == hashtable->num_bucket) return;
+
+  size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
+
+  hashtable_entry_st *entry = hashtable->bucket[slot];
+  hashtable_entry_st *entry_prev = NULL;
+  while (NULL != entry){
+    if (STREQ(entry->key, kKey)){
+      if (NULL != entry_prev){
+        entry_prev->next = entry->next; 
+      } else {
+        hashtable->bucket[slot] = entry->next; 
+      }
+      free(entry->key);
+      entry->key = NULL;
+
+      free(entry);
+      entry = NULL;
+      return;
+    }
+    entry_prev = entry;
+    entry = entry->next;
+  }
 }
 
 //* reentrant hashtable linking function */
