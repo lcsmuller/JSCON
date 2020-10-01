@@ -50,6 +50,7 @@ This document describes the public C API.
 
 #### Utility Functions
 
+* [`jscon_dettach(item);`](api/jscon_dettach.md)
 * [`jscon_next_composite_r(item, p_current_item);`](api/jscon_next_composite_r.md)
 * [`jscon_next(item);`](api/jscon_next.md)
 * [`jscon_clone(item);`](api/jscon_clone.md)
@@ -64,6 +65,7 @@ This document describes the public C API.
 
 #### Getter Functions
 
+* [`jscon_get_depth(item);`](api/jscon_get_depth.md)
 * [`jscon_get_root(item);`](api/jscon_get_root.md)
 * [`jscon_get_branch(item, key);`](api/jscon_get_branch.md)
 * [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)

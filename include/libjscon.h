@@ -142,12 +142,13 @@ int jscon_intcmp(const jscon_item_st* kItem, const jscon_integer_kt kInteger);
 void jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt* p_str, const int kDigits);
 
 /* JSCON GETTERS */
+size_t jscon_get_depth(jscon_item_st *item);
 jscon_item_st* jscon_get_root(jscon_item_st* item);
 jscon_item_st* jscon_get_branch(jscon_item_st *item, const char *kKey);
 jscon_item_st* jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index);
 jscon_item_st* jscon_get_parent(const jscon_item_st* kItem);
 jscon_item_st* jscon_get_byindex(const jscon_item_st* kItem, const size_t kIndex);
-size_t jscon_get_key_index(const jscon_item_st* kItem, const char *kKey);
+long jscon_get_key_index(const jscon_item_st* kItem, const char *kKey);
 size_t jscon_get_num_branch(const jscon_item_st* kItem);
 jscon_type_et jscon_get_type(const jscon_item_st* kItem);
 jscon_char_kt* jscon_get_key(const jscon_item_st* kItem);
