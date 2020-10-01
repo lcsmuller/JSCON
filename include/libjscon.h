@@ -128,6 +128,7 @@ char* jscon_stringify(jscon_item_st *root, jscon_type_et type);
 void jscon_destroy(jscon_item_st *item);
 
 /* JSCON UTILITIES */
+jscon_item_st* jscon_dettach(jscon_item_st *item);
 jscon_item_st* jscon_next_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
 jscon_item_st* jscon_next(jscon_item_st* item);
 jscon_item_st* jscon_clone(jscon_item_st *item);

@@ -83,6 +83,9 @@ jscon_destroy_preorder(jscon_item_st *item)
       break;
   }
 
+  free(item->key);
+  item->key = NULL;
+
   free(item);
   item = NULL;
 }
@@ -95,9 +98,7 @@ jscon_destroy(jscon_item_st *item)
       because root key can't be freed inside hashtable_destroy(),
       as root is not any hashtable entry */
 
-  if (!IS_ROOT(item)){ //unreference this item from its parent
-    //TODO: make this a public branch removal function
-  } else if (NULL != item->key) {
+  if (IS_ROOT(item) && NULL != item->key){
     free(item->key);
     item->key = NULL;
   } 
@@ -237,7 +238,7 @@ jscon_utils_decode_composite(struct jscon_utils_s *utils){
 
   new_comp->htwrap.hashtable = hashtable_init();
 
-  utils->buffer += 1; //skips composite's '{' or '[' delim
+  ++utils->buffer; //skips composite's '{' or '[' delim
 
   return new_comp;
 }
@@ -270,8 +271,9 @@ jscon_new_composite(jscon_item_st *item, struct jscon_utils_s *utils, jscon_crea
   utils->key = NULL;
 
   (*value_setter)(item, utils);
+  item = (utils->parser_cb)(item);
 
-  return (utils->parser_cb)(item);
+  return item;
 }
 
 /* wrap array or object type jscon, which means
@@ -308,14 +310,17 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
 
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
+      fprintf(stderr, "NEW OBJECT\n");
       item_setter = &jscon_new_composite;
       value_setter = &jscon_value_set_object;
       break;
   case '[':/*ARRAY DETECTED*/
+      fprintf(stderr, "NEW ARRAY\n");
       item_setter = &jscon_new_composite;
       value_setter = &jscon_value_set_array;
       break;
   case '\"':/*STRING DETECTED*/
+      fprintf(stderr, "NEW STRING\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_string;
       break;
@@ -324,6 +329,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
+      fprintf(stderr, "NEW BOOL\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_boolean;
       break;
@@ -331,6 +337,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error; 
       }
+      fprintf(stderr, "NEW NULL\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_null;
       break;
@@ -339,6 +346,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
+      fprintf(stderr, "NEW NUMBER\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_number;
       break;
@@ -358,10 +366,17 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
 {
+  while (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+    ++utils->buffer;
+  }
+  
+  fprintf(stderr, "arr{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
+      fprintf(stderr, "WRAP {%s}\n", item->key);
       return jscon_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
+      fprintf(stderr, "NEXT ELEMENT\n");
       /* skips ',' and consecutive space and/or control characters */
       do {
         ++utils->buffer;
@@ -376,6 +391,9 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
       assert(NULL == utils->key);
       utils->key = strdup(numerical_key);
 
+      fprintf(stderr, "ARRTOKEN: \'%c\' ", *utils->buffer);
+      fprintf(stderr, "CREATE {%s} ", utils->key);
+
       return jscon_build_branch(item, utils);
    }
   }
@@ -389,8 +407,14 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 {
+  while (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
+    ++utils->buffer;
+  }
+
+  fprintf(stderr, "obj{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
+      fprintf(stderr, "WRAP {%s}\n", item->key);
       return jscon_wrap_composite(item, utils);
   case '\"':/*KEY STRING DETECTED*/
       assert(NULL == utils->key);
@@ -402,8 +426,11 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
         ++utils->buffer;
       } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
 
+      fprintf(stderr, "OBJTOKEN: \'%c\' ", *utils->buffer);
+      fprintf(stderr, "CREATE {%s} ", utils->key);
       return jscon_build_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
+      fprintf(stderr, "NEXT PROPERTY\n");
       /* skips ',' and consecutive space and/or control characters */
       do {
         ++utils->buffer;
@@ -415,7 +442,6 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
         goto error;
       }
-      ++utils->buffer;
       return item;
   }
 
@@ -431,14 +457,18 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
 {
+  fprintf(stderr, "ent{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
+      fprintf(stderr, "SET OBJECT\n");
       jscon_value_set_object(item, utils);
       break;
   case '[':/*ARRAY DETECTED*/
+      fprintf(stderr, "SET ARRAY\n");
       jscon_value_set_array(item, utils);
       break;
   case '\"':/*STRING DETECTED*/
+      fprintf(stderr, "SET STRING\n");
       jscon_value_set_string(item, utils);
       break;
   case 't':/*CHECK FOR*/
@@ -446,12 +476,14 @@ jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
+      fprintf(stderr, "SET BOOL\n");
       jscon_value_set_boolean(item, utils);
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
+      fprintf(stderr, "SET NULL\n");
       jscon_value_set_null(item, utils);
       break;
   default:
@@ -464,6 +496,7 @@ jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
+      fprintf(stderr, "SET NUMBER\n");
       jscon_value_set_number(item, utils);
       break;
   }
@@ -528,6 +561,7 @@ jscon_parse(char *buffer)
           goto error;
         }
         ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
+        fprintf(stderr, "UNDEFINED \'%c\'\n", *utils.buffer);
         break;
     }
   }
@@ -607,7 +641,7 @@ jscon_scanf_skip(struct jscon_utils_s *utils)
 }
 
 static char*
-jscon_format_eval(char *specifier, size_t *p_tmp)
+jscon_scanf_format_info(char *specifier, size_t *p_tmp)
 {
   size_t *n_bytes;
   size_t discard; //throw values here if p_tmp is NULL
@@ -700,7 +734,7 @@ jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
 
       /* null conversion */
       size_t n_bytes; //get amount of bytes that should be set to 0
-      jscon_format_eval(specifier, &n_bytes);
+      jscon_scanf_format_info(specifier, &n_bytes);
       memset(entry->value, 0, n_bytes);
       return;
    }
@@ -736,7 +770,7 @@ jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
 
 
   type_error:
-    fprintf(stderr,"ERROR: expected specifier %s but specifier is %s\n",err_typeis, jscon_format_eval(specifier, NULL));
+    fprintf(stderr,"ERROR: expected specifier %s but specifier is %s\n",err_typeis, jscon_scanf_format_info(specifier, NULL));
     exit(EXIT_FAILURE);
 
   token_error:
@@ -746,7 +780,7 @@ jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
 
 /* count amount of keys and check for formatting errors */
 static size_t
-jscon_scanf_eval_keys(char *format)
+jscon_scanf_format_analyze(char *format)
 {
   /* count each "word" composed of allowed key characters */
   size_t num_keys = 0;
@@ -804,19 +838,21 @@ jscon_scanf_eval_keys(char *format)
     an approximate resulting format:
       input:    '#key%specifier\0'
       output:   '#key\0specifier\0'   */
-static void
-jscon_scanf_split_keys(char *format, hashtable_st *hashtable, va_list ap)
+static char**
+jscon_scanf_format_parse(const size_t kNum_keys, char *format, hashtable_st *hashtable, va_list ap)
 {
   assert('\0' != *format); //can't be empty string
 
   const size_t STR_LEN = 256;
-  char str[STR_LEN]; //max key length plus specifier length
-  char *key, *specifier;
+  char str[STR_LEN];
+  char **keys = malloc(kNum_keys * sizeof *keys);
+  assert(NULL != keys);
+  char *specifier;
 
   /* split individual keys from specifiers and set them
       to a hashtable */
   char c;
-  size_t i = 0;
+  size_t i = 0, j = 0; //str and keys index respectively
   while (true) //run until end of string found
   {
     c = *format;
@@ -853,23 +889,24 @@ jscon_scanf_split_keys(char *format, hashtable_st *hashtable, va_list ap)
 
     /* 3rd STEP: store '#key\0specifier\0' string and its variable
         address (given at ... parameter) in hashtable */
-    key = malloc(i);
-    assert(NULL != key);
-    memcpy(key, str, i); //get the string in its entirety
+    keys[j] = malloc(i);
+    assert(NULL != keys[j]);
+    memcpy(keys[j], str, i); //get the string in its entirety
 
-    specifier = &key[strlen(key)+1]; //get format specific string
+    specifier = &keys[j][strlen(keys[j])+1]; //get specifier string
     
-    if ( STREQ("NaN", jscon_format_eval(specifier, NULL)) ){
+    if ( STREQ("NaN", jscon_scanf_format_info(specifier, NULL)) ){
       fprintf(stderr, "\n\nERROR: unknown type specifier %%%s\n", specifier);
       exit(EXIT_FAILURE);
     }
-    hashtable_set(hashtable, key, va_arg(ap, void*));
+    hashtable_set(hashtable, keys[j], va_arg(ap, void*));
 
-    if ('\0' == c) return; //end of string, return
-
-    ++format; //start next key
+    if ('\0' == c) return keys; //end of string, return
 
     i = 0; //resets i to start next key from scratch
+    ++format; //start of next key
+    ++j; //next key index
+    assert(j < kNum_keys);
   }
 }
 
@@ -898,9 +935,12 @@ jscon_scanf(char *buffer, char *format, ...)
   va_list ap;
   va_start(ap, format);
 
+  const size_t kNum_keys = jscon_scanf_format_analyze(format);
+
   hashtable_st *hashtable = hashtable_init();
-  hashtable_build(hashtable, jscon_scanf_eval_keys(format));
-  jscon_scanf_split_keys(format, hashtable, ap);
+  hashtable_build(hashtable, kNum_keys);
+
+  char **keys = jscon_scanf_format_parse(kNum_keys, format, hashtable, ap);
 
   while ('\0' != *utils.buffer){
     switch (*utils.buffer){
@@ -928,6 +968,10 @@ jscon_scanf(char *buffer, char *format, ...)
   }
 
   hashtable_destroy(hashtable);
+  for (size_t i=0; i < kNum_keys; ++i){
+    free(keys[i]);
+  }
+  free(keys);
 
   va_end(ap);
 }

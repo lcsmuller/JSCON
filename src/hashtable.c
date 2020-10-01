@@ -47,8 +47,8 @@ hashtable_destroy(hashtable_st *hashtable)
       entry_prev = entry;
       entry = entry->next;
 
-      free(entry_prev->key);
-      entry_prev->key = NULL;
+      //free(entry_prev->key);
+      //entry_prev->key = NULL;
 
       free(entry_prev);
       entry_prev = NULL;
@@ -164,7 +164,7 @@ hashtable_remove(hashtable_st *hashtable, const char *kKey)
       } else {
         hashtable->bucket[slot] = entry->next; 
       }
-      free(entry->key);
+      //free(entry->key);
       entry->key = NULL;
 
       free(entry);

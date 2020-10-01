@@ -29,26 +29,26 @@
 
 #include "libjscon.h"
 
-struct utils_s {
+struct jscon_utils_s {
   char *buffer_base; //buffer's base (first position)
   size_t buffer_offset; //current distance to buffer's base (aka length)
-  /*a setter method that can be either utils_method_eval or
-     utils_method_exec*/
-  void (*method)(char get_char, struct utils_s* utils);
+  /*a setter method that can be either jscon_utils_analyze or
+     jscon_utils_encode*/
+  void (*method)(char get_char, struct jscon_utils_s* utils);
 };
 
 /* every time its called, it adds one position to buffer_offset,
     so that it can be used for counting how many position to be expected
     for buffer */ 
 static void
-utils_method_eval(char get_char, struct utils_s *utils){
+jscon_utils_analyze(char get_char, struct jscon_utils_s *utils){
   ++utils->buffer_offset;
 }
 
 /* fills allocated buffer (with its length calculated by
-    utils_method_eval) with string converted jscon items */
+    jscon_utils_analyze) with string converted jscon items */
 static void
-utils_method_exec(char get_char, struct utils_s *utils)
+jscon_utils_encode(char get_char, struct jscon_utils_s *utils)
 {
   utils->buffer_base[utils->buffer_offset] = get_char;
   ++utils->buffer_offset;
@@ -56,7 +56,7 @@ utils_method_exec(char get_char, struct utils_s *utils)
 
 /* get string value to perform buffer method calls */
 static void
-utils_apply_string(jscon_char_kt* string, struct utils_s *utils)
+jscon_utils_apply_string(jscon_char_kt* string, struct jscon_utils_s *utils)
 {
   while ('\0' != *string){
     (*utils->method)(*string,utils);
@@ -66,28 +66,28 @@ utils_apply_string(jscon_char_kt* string, struct utils_s *utils)
 
 /* get double converted to string and then perform buffer method calls */
 static void
-utils_apply_double(jscon_double_kt d_number, struct utils_s *utils)
+jscon_utils_apply_double(jscon_double_kt d_number, struct jscon_utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   jscon_double_tostr(d_number, get_strnum, MAX_DIGITS);
 
-  utils_apply_string(get_strnum,utils); //store value in utils
+  jscon_utils_apply_string(get_strnum,utils); //store value in utils
 }
 
 /* get int converted to string and then perform buffer method calls */
 static void
-utils_apply_integer(jscon_integer_kt i_number, struct utils_s *utils)
+jscon_utils_apply_integer(jscon_integer_kt i_number, struct jscon_utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
 
-  utils_apply_string(get_strnum,utils); //store value in utils
+  jscon_utils_apply_string(get_strnum,utils); //store value in utils
 }
 
 /* walk jscon item, by traversing its branches recursively,
     and perform buffer_method callback on each branch */
 static void
-jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct utils_s *utils)
+jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct jscon_utils_s *utils)
 {
   /* 1st STEP: stringify jscon item only if it match the type
       given as parameter or is a composite type item */
@@ -98,7 +98,7 @@ jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct utils_s
       (array's numerical keys printing doesn't conform to standard)*/
   if (!IS_ROOT(item) && IS_PROPERTY(item)){
     (*utils->method)('\"', utils);
-    utils_apply_string(item->key, utils);
+    jscon_utils_apply_string(item->key, utils);
     (*utils->method)('\"', utils);
     (*utils->method)(':', utils);
   }
@@ -106,24 +106,24 @@ jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct utils_s
   /* 3rd STEP: converts item to its string format and append to buffer */
   switch (item->type){
   case JSCON_NULL:
-      utils_apply_string("null", utils);
+      jscon_utils_apply_string("null", utils);
       break;
   case JSCON_BOOLEAN:
       if (true == item->boolean){
-        utils_apply_string("true", utils);
+        jscon_utils_apply_string("true", utils);
         break;
       }
-      utils_apply_string("false", utils);
+      jscon_utils_apply_string("false", utils);
       break;
   case JSCON_NUMBER_DOUBLE:
-      utils_apply_double(item->d_number, utils);
+      jscon_utils_apply_double(item->d_number, utils);
       break;
   case JSCON_NUMBER_INTEGER:
-      utils_apply_integer(item->i_number, utils);
+      jscon_utils_apply_integer(item->i_number, utils);
       break;
   case JSCON_STRING:
       (*utils->method)('\"', utils);
-      utils_apply_string(item->string, utils);
+      jscon_utils_apply_string(item->string, utils);
       (*utils->method)('\"', utils);
       break;
   case JSCON_OBJECT:
@@ -194,7 +194,7 @@ jscon_stringify(jscon_item_st *root, jscon_type_et type)
 {
   assert(NULL != root);
 
-  struct utils_s utils = {0};
+  struct jscon_utils_s utils = {0};
 
   /* 1st STEP: remove root->key and root->parent temporarily to make
       sure the given item is treated as a root when printing, in the
@@ -206,16 +206,16 @@ jscon_stringify(jscon_item_st *root, jscon_type_et type)
   root->parent = NULL;
 
   /* 2nd STEP: count how many chars will fill the buffer with
-      utils_method_eval, then allocate the buffer to that amount */
-  utils.method = &utils_method_eval;
+      jscon_utils_analyze, then allocate the buffer to that amount */
+  utils.method = &jscon_utils_analyze;
   jscon_stringify_preorder(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
   assert(NULL != utils.buffer_base);
 
   /* 3rd STEP: reset buffer_offset and proceed with
-      utils_method_exec to fill allocated buffer */
+      jscon_utils_encode to fill allocated buffer */
   utils.buffer_offset = 0;
-  utils.method = &utils_method_exec;
+  utils.method = &jscon_utils_encode;
   jscon_stringify_preorder(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
 

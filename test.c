@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
-
+/*
   jscon_item_st *map1 = NULL, *map2 = NULL;
   jscon_item_st *map3 = NULL;
 
@@ -47,14 +47,14 @@ int main(int argc, char *argv[])
   
   if (NULL != map1){
     char *buffer1 = jscon_stringify(map1, JSCON_ANY);
-    fprintf(stdout, "%s: %s\n", jscon_get_key(map1), buffer1);
+    //fprintf(stdout, "%s: %s\n", jscon_get_key(map1), buffer1);
     free(buffer1);
     jscon_destroy(map1);
   }
 
   if (NULL != map2){
     char *buffer2 = jscon_stringify(map2, JSCON_ANY);
-    fprintf(stdout, "%s: %s\n", jscon_get_key(map2), buffer2);
+    //fprintf(stdout, "%s: %s\n", jscon_get_key(map2), buffer2);
     free(buffer2);
     jscon_destroy(map2);
   }
@@ -62,18 +62,25 @@ int main(int argc, char *argv[])
   if (NULL != map3){
     char *buffer3 = jscon_stringify(map3, JSCON_ANY);
     fprintf(stdout, "%s: %s\n", jscon_get_key(map3), buffer3);
-    jscon_get_parent(map3);
     free(buffer3);
     jscon_destroy(map3);
   }
-
+*/
   jscon_parser_callback(&callback_test);
   
   jscon_item_st *root = jscon_parse(buffer);
 
-  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "meta"));
-  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "data"));
-  fprintf(stdout, "index: %ld\n", jscon_get_key_index(root, "string"));
+  jscon_item_st *property1 = jscon_dettach(root->comp->branch[0]);
+  if (NULL != property1){
+    char *buffer = jscon_stringify(property1, JSCON_ANY);
+    fprintf(stdout, "%s: %s\n", jscon_get_key(property1), buffer);
+    free(buffer);
+    //jscon_destroy(property1);
+  }
+
+  fprintf(stdout, "key: meta, index: %ld\n", jscon_get_key_index(root, "meta"));
+  fprintf(stdout, "key: data, index: %ld\n", jscon_get_key_index(root, "data"));
+  fprintf(stdout, "key: string, index: %ld\n", jscon_get_key_index(root, "string"));
 
   jscon_item_st *item, *current_item = NULL;
   char *test1_buffer;

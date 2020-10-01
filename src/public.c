@@ -30,6 +30,54 @@
 
 /* TODO: define some of these functions as a libjscon.h #define */
 
+/* NOT FINISHED */
+jscon_item_st*
+jscon_dettach(jscon_item_st *item)
+{
+  assert(!IS_ROOT(item));
+
+  /*get parent of the item and the parent hashtable */
+  jscon_item_st *parent = jscon_get_parent(item);
+
+  /* get reference index from parent to the item */
+  size_t index = jscon_get_key_index(parent, item->key);
+  /* get previous and next composite items relative to the item index */
+  jscon_item_st *prev;
+  for (long i = index-1; i >= 0; --i){
+    prev = jscon_get_byindex(parent, i);
+    if (NULL != prev && jscon_typecmp(prev, JSCON_OBJECT)){
+      fprintf(stderr, "PREV: %s TYPE: %s\n", prev->key, jscon_typeof(prev));
+      break;
+    }
+    prev = NULL;
+  }
+
+  fprintf(stderr, "\nPARENT: %s TYPE: %s\n", parent->key, jscon_typeof(parent));
+  fprintf(stderr, "MID: %s TYPE: %s\n", item->key, jscon_typeof(item));
+
+  jscon_item_st *next;
+  for (long i = index+1; i < parent->comp->num_branch; ++i){
+    next = jscon_get_byindex(parent, i);
+    if (NULL != next && jscon_typecmp(next, JSCON_OBJECT)){
+      fprintf(stderr, "NEXT: %s TYPE: %s\n", next->key, jscon_typeof(next));
+      break;
+    }
+    next = NULL;
+  }
+
+  item->comp->htwrap.next = NULL; 
+
+  if (NULL != prev){
+    if (NULL != next){
+      prev->comp->htwrap.next = &next->comp->htwrap;
+    } else {
+      prev->comp->htwrap.next = NULL;
+    }
+  }
+
+  return item;
+}
+
 /* reentrant function, works similar to strtok. the starting point is set
     by doing the function call before the main iteration loop, then
     consecutive function calls inside the loop will continue the iteration
@@ -118,9 +166,7 @@ jscon_next(jscon_item_st* item)
      } while (item->comp->num_branch == item->comp->last_accessed_branch);
   }
 
-  item = jscon_push(item);
-
-  return item;
+  return jscon_push(item);
 }
 
 /* This is not the most effective way to clone a item, but it is
