@@ -50,8 +50,6 @@ static jscon_item_st*
 jscon_new_branch(jscon_item_st *item)
 {
   ++item->comp->num_branch;
-  item->comp->branch = realloc(item->comp->branch, item->comp->num_branch * sizeof(jscon_item_st*));
-  assert(NULL != item->comp->branch);
 
   item->comp->branch[item->comp->num_branch-1] = calloc(1, sizeof(jscon_item_st));
   assert(NULL != item->comp->branch[item->comp->num_branch-1]);
@@ -242,15 +240,60 @@ jscon_value_set_null(jscon_item_st *item, struct jscon_utils_s *utils)
 }
 
 static jscon_composite_st*
-jscon_utils_decode_composite(struct jscon_utils_s *utils){
+jscon_utils_decode_composite(struct jscon_utils_s *utils, size_t n_branch){
   jscon_composite_st *new_comp = calloc(1, sizeof *new_comp);
   assert(NULL != new_comp);
 
   jscon_htwrap_init(&new_comp->htwrap);
 
+  new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_st*));
+  assert(NULL != new_comp->branch);
+
   ++utils->buffer; //skips composite's '{' or '[' delim
 
   return new_comp;
+}
+
+inline static size_t
+jscon_count_property(char *buffer)
+{
+  /* skips the item and all of its nests, special care is taken for any
+      inner string is found, as it might contain a delim character that
+      if not treated as a string will incorrectly trigger 
+      depth action*/
+  size_t depth = 0;
+  size_t num_branch = 0;
+  do {
+    switch (*buffer){
+    case ':':
+        num_branch += (depth == 1);
+        break;
+    case '{':
+        ++depth;
+        break;
+    case '}':
+        --depth;
+        break;
+    case '\"':
+        /* loops until null terminator or end of string are found */
+        do {
+          /* skips escaped characters */
+          if ('\\' == *buffer++){
+            ++buffer;
+          }
+        } while ('\0' != *buffer && '\"' != *buffer);
+        assert('\"' == *buffer);
+        break;
+    }
+
+    ++buffer; //skips whatever char
+
+    if (0 == depth) return num_branch; //entire item has been skipped, return
+
+  } while ('\0' != *buffer);
+
+  fprintf(stderr, "\n\nERROR: bad formatting\n");
+  exit(EXIT_FAILURE);
 }
 
 static void
@@ -258,8 +301,50 @@ jscon_value_set_object(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   item->type = JSCON_OBJECT;
 
-  item->comp = jscon_utils_decode_composite(utils);
+  item->comp = jscon_utils_decode_composite(utils, jscon_count_property(utils->buffer));
   jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
+}
+
+inline static size_t
+jscon_count_element(char *buffer)
+{
+  /* skips the item and all of its nests, special care is taken for any
+      inner string is found, as it might contain a delim character that
+      if not treated as a string will incorrectly trigger 
+      depth action*/
+  size_t depth = 0;
+  size_t num_branch = 0;
+  do {
+    switch (*buffer){
+    case ',':
+        num_branch += (depth == 1);
+        break;
+    case '[':
+        ++depth;
+        break;
+    case ']':
+        --depth;
+        break;
+    case '\"':
+        /* loops until null terminator or end of string are found */
+        do {
+          /* skips escaped characters */
+          if ('\\' == *buffer++){
+            ++buffer;
+          }
+        } while ('\0' != *buffer && '\"' != *buffer);
+        assert('\"' == *buffer);
+        break;
+    }
+
+    ++buffer; //skips whatever char
+
+    if (0 == depth) return num_branch; //entire item has been skipped, return
+
+  } while ('\0' != *buffer);
+
+  fprintf(stderr, "\n\nERROR: bad formatting\n");
+  exit(EXIT_FAILURE);
 }
 
 static void
@@ -267,7 +352,7 @@ jscon_value_set_array(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   item->type = JSCON_ARRAY;
 
-  item->comp = jscon_utils_decode_composite(utils);
+  item->comp = jscon_utils_decode_composite(utils, jscon_count_element(utils->buffer));
   jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
 }
 
@@ -604,14 +689,14 @@ jscon_scanf_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
   /* skips the item and all of its nests, special care is taken for any
       inner string is found, as it might contain a delim character that
       if not treated as a string will incorrectly trigger 
-      num_nest action*/
-  size_t num_nest = 0;
+      depth action*/
+  size_t depth = 0;
   do {
     if (ldelim == *utils->buffer){
-      ++num_nest;
+      ++depth;
       ++utils->buffer; //skips ldelim char
     } else if (rdelim == *utils->buffer) {
-      --num_nest;
+      --depth;
       ++utils->buffer; //skips rdelim char
     } else if ('\"' == *utils->buffer) { //treat string separetely
       jscon_scanf_skip_string(utils);
@@ -620,7 +705,7 @@ jscon_scanf_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
     }
 
 
-    if (0 == num_nest) return; //entire item has been skipped, return
+    if (0 == depth) return; //entire item has been skipped, return
 
   } while ('\0' != *utils->buffer);
 }
