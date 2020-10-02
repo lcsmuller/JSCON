@@ -102,10 +102,6 @@ jscon_destroy_preorder(jscon_item_st *item)
 void
 jscon_destroy(jscon_item_st *item)
 {
-  /* root need to have its key free'd separately,
-      because root key can't be freed inside hashtable_destroy(),
-      as root is not any hashtable entry */
-
   if (IS_ROOT(item) && NULL != item->key){
     free(item->key);
     item->key = NULL;
@@ -461,10 +457,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
 {
-  while (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-    ++utils->buffer;
-  }
-  
+  CONSUME_BLANK_CHARS(utils->buffer);
   //DEV fprintf(stderr, "arr{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
@@ -472,10 +465,8 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
       return jscon_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
       //DEV fprintf(stderr, "NEXT ELEMENT\n");
-      /* skips ',' and consecutive space and/or control characters */
-      do {
-        ++utils->buffer;
-      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+      ++utils->buffer; //skips ','
+      CONSUME_BLANK_CHARS(utils->buffer);
 
       return item;
   default:
@@ -502,10 +493,7 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 {
-  while (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-    ++utils->buffer;
-  }
-
+  CONSUME_BLANK_CHARS(utils->buffer);
   //DEV fprintf(stderr, "obj{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
@@ -515,21 +503,15 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
       assert(NULL == utils->key);
       utils->key = jscon_utils_decode_string(utils);
       assert(':' == *utils->buffer); //check for key's assign token 
-
-      /* skips ':' and consecutive space and/or control characters */
-      do {
-        ++utils->buffer;
-      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
-
+      ++utils->buffer; //skips ':'
+      CONSUME_BLANK_CHARS(utils->buffer);
       //DEV fprintf(stderr, "OBJTOKEN: \'%c\' ", *utils->buffer);
       //DEV fprintf(stderr, "CREATE {%s} ", utils->key);
       return jscon_build_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
       //DEV fprintf(stderr, "NEXT PROPERTY\n");
-      /* skips ',' and consecutive space and/or control characters */
-      do {
-        ++utils->buffer;
-      } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
+      ++utils->buffer; //skips ','
+      CONSUME_BLANK_CHARS(utils->buffer);
 
       return item;
   default:
@@ -582,11 +564,7 @@ jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
       jscon_value_set_null(item, utils);
       break;
   default:
-      /*SKIPS IF CONTROL CHARACTER*/
-      if (isspace(*utils->buffer) || iscntrl(*utils->buffer)){
-        ++utils->buffer;
-        break;
-      }
+      CONSUME_BLANK_CHARS(utils->buffer);
       /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
@@ -885,9 +863,8 @@ jscon_scanf_format_analyze(char *format)
     c = *format;
 
     //consume any space or control characters sequence
-    while (isspace(c) || iscntrl(c)){
-      c = *++format;
-    }
+    CONSUME_BLANK_CHARS(format);
+    c = *format;
 
     /*1st STEP: check for key '#' prefix existence */
     if ('#' != c){
@@ -952,10 +929,9 @@ jscon_scanf_format_parse(const size_t kNum_keys, char *format, hashtable_st *has
   {
     c = *format;
 
-    //consume any space or control characters sequence
-    while (isspace(c) || iscntrl(c)){
-      c = *++format;
-    }
+    CONSUME_BLANK_CHARS(format);
+    c = *format;
+
     assert('#' == c); //make sure key prefix is there
     c = *++format; //skip '#'
     
@@ -1013,10 +989,7 @@ the correct order, and type, as the requested keys.
 void
 jscon_scanf(char *buffer, char *format, ...)
 {
-  //skip any space and control characters at start of buffer
-  while (isspace(*buffer) || iscntrl(*buffer)){
-    ++buffer;
-  }
+  CONSUME_BLANK_CHARS(buffer);
 
   if ('{' != *buffer){
     fprintf(stderr, "\n\nERROR: json string root element must be of JSONC_OBJECT type\n");
@@ -1037,28 +1010,25 @@ jscon_scanf(char *buffer, char *format, ...)
 
   char **keys = jscon_scanf_format_parse(kNum_keys, format, hashtable, ap);
 
-  while ('\0' != *utils.buffer){
-    switch (*utils.buffer){
-    case '\"':
-        assert(NULL == utils.key);
-        utils.key = jscon_utils_decode_string(&utils);
-        assert(':' == *utils.buffer);
-        /* consume ':' and consecutive space and any control characters */
-        do {
-          ++utils.buffer;
-        } while (isspace(*utils.buffer) || iscntrl(*utils.buffer));
+  while ('\0' != *utils.buffer)
+  {
+    if ('\"' == *utils.buffer){
+      assert(NULL == utils.key);
+      utils.key = jscon_utils_decode_string(&utils);
+      assert(':' == *utils.buffer);
 
-        /* check wether key found is specified */
-        hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils.key);
-        if (NULL != entry){
-          jscon_scanf_apply(&utils, entry);
-        } else {
-          jscon_scanf_skip(&utils);
-        }
-        break;
-    default:
-        ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
-        break;
+      ++utils.buffer; //consume ':'
+      CONSUME_BLANK_CHARS(utils.buffer);
+
+      /* check wether key found is specified */
+      hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils.key);
+      if (NULL != entry){
+        jscon_scanf_apply(&utils, entry);
+      } else {
+        jscon_scanf_skip(&utils);
+      }
+    } else {
+      ++utils.buffer;
     }
   }
 

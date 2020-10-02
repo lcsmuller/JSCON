@@ -23,6 +23,8 @@
 #ifndef JSCON_COMMON_H_
 #define JSCON_COMMON_H_
 
+#define JSCON_VERSION "0.0"
+
 #define MAX_DIGITS 17
 
 #define STRLT(s,t) (strcmp(s,t) < 0)
@@ -31,17 +33,17 @@
 
 #define IN_RANGE(n,lo,hi) (((n) > (lo)) && ((n) < (hi)))
 
-#define JSCON_VERSION "0.0"
-
-#define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
+#define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN||(d) >= LLONG_MAX||(d) == (long long)(d))
 
 //TODO: add escaped characters
-#define ALLOWED_JSON_CHAR(c) (isspace(c) || isalnum(c) || ('_' == (c)) || ('-' == (c)))
+#define ALLOWED_JSON_CHAR(c) (isspace(c)||isalnum(c)||'_' == (c)||'-' == (c))
+#define CONSUME_BLANK_CHARS(str) for(;(isspace(*str)||iscntrl(*str)); ++str)
 
-#define IS_COMPOSITE(i) ((i) && ((i->type) & (JSCON_OBJECT|JSCON_ARRAY)))
-#define IS_EMPTY_COMPOSITE(i) (IS_COMPOSITE(i) && (0 == i->comp->num_branch))
-#define IS_PRIMITIVE(i) !IS_COMPOSITE(i)
+#define IS_COMPOSITE(i) ((i) && jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
+#define IS_EMPTY_COMPOSITE(i) (0 == jscon_get_num_branch(i))
+#define IS_PRIMITIVE(i) ((i) && !jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
 #define IS_PROPERTY(i) (jscon_typecmp(i->parent, JSCON_OBJECT))
+#define IS_ELEMENT(i) (jscon_typecmp(i->parent, JSCON_ARRAY))
 #define IS_LEAF(i) (IS_PRIMITIVE(i) || IS_EMPTY_COMPOSITE(i))
 #define IS_ROOT(i) (NULL == i->parent)
 

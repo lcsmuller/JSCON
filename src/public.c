@@ -41,13 +41,12 @@ jscon_dettach(jscon_item_st *item)
   /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
 
+  /* pretend dettached item never existed ... */
   size_t i = jscon_get_key_index(item_parent, item->key);
   while (i < item_parent->comp->num_branch-1){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
     ++i;
   }
- 
-  /* pretend dettached item never existed ... */
   item_parent->comp->branch[i] = NULL;
   --item_parent->comp->num_branch;
 
@@ -216,13 +215,13 @@ jscon_strdup(const jscon_item_st* kItem)
 }
 
 jscon_char_kt*
-jscon_strncpy(char *dest, const jscon_item_st* kItem, size_t n)
+jscon_strcpy(char *dest, const jscon_item_st* kItem)
 {
   jscon_char_kt *tmp = jscon_get_string(kItem);
 
   if (NULL == tmp) return NULL;
 
-  strncpy(dest, tmp, n);
+  strcpy(dest, tmp);
 
   return dest;
 }
@@ -330,9 +329,7 @@ jscon_get_root(jscon_item_st* item)
 jscon_item_st*
 jscon_get_branch(jscon_item_st *item, const char *kKey)
 {
-  //return NULL if item is not of composite datatype
-  if (!IS_COMPOSITE(item)) return NULL;
-
+  assert(IS_COMPOSITE(item));
   /* search for entry with given key at item's htwrap,
     and retrieve found or not found(NULL) item */
   return jscon_htwrap_get(kKey, item);
@@ -351,8 +348,8 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
-  if ((0 <= (origin_index + kRelative_index)) && (kParent->comp->num_branch > (origin_index + kRelative_index))){
-    return kParent->comp->branch[origin_index + kRelative_index];
+  if ((0 <= (origin_index + kRelative_index)) && jscon_get_num_branch(kParent) > (origin_index + kRelative_index)){
+    return jscon_get_byindex(kParent, origin_index + kRelative_index);
   }
 
   return NULL;
@@ -371,17 +368,18 @@ jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
   return (index < kItem->comp->num_branch) ? kItem->comp->branch[index] : NULL;
 }
 
+/* returns -1 if item not found */
 size_t
 jscon_get_key_index(const jscon_item_st* kItem, const char *kKey)
 {
   assert(IS_COMPOSITE(kItem));
 
-  jscon_item_st *search_item = jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
-  if (NULL == search_item) return -1;
+  jscon_item_st *lookup_item = jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
+  if (NULL == lookup_item) return -1;
 
   /* TODO: can this be done differently? */
   for (size_t i=0; i < kItem->comp->num_branch; ++i){
-    if (search_item == kItem->comp->branch[i]){
+    if (lookup_item == kItem->comp->branch[i]){
       return i;
     }
   }

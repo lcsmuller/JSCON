@@ -132,7 +132,7 @@ jscon_item_st* jscon_next(jscon_item_st* item);
 jscon_item_st* jscon_clone(jscon_item_st *item);
 jscon_char_kt* jscon_typeof(const jscon_item_st* kItem);
 jscon_char_kt* jscon_strdup(const jscon_item_st* kItem);
-jscon_char_kt* jscon_strncpy(char *dest, const jscon_item_st* kItem, size_t n);
+jscon_char_kt* jscon_strcpy(char *dest, const jscon_item_st* kItem);
 int jscon_typecmp(const jscon_item_st* kItem, const jscon_type_et kType);
 int jscon_keycmp(const jscon_item_st* kItem, const char *kKey);
 int jscon_doublecmp(const jscon_item_st* kItem, const jscon_double_kt kDouble);
