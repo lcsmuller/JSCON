@@ -50,12 +50,15 @@ typedef struct jscon_htwrap_s {
   hashtable_st *hashtable;
 
   struct jscon_item_s *root; //points to root item (object or array)
-  struct jscon_htwrap_s *next; //points to linked hashtable
+  struct jscon_htwrap_s *next; //points to next composite item's htwrap
+  struct jscon_htwrap_s *prev; //points to prev composite item's htwrap
 } jscon_htwrap_st;
 
-void jscon_hashtable_link_r(struct jscon_item_s *item, jscon_htwrap_st **last_accessed_htwrap);
-void jscon_hashtable_build(struct jscon_item_s *item);
-struct jscon_item_s* jscon_hashtable_get(const char *kKey, struct jscon_item_s *item);
-struct jscon_item_s* jscon_hashtable_set(const char *kKey, struct jscon_item_s *item);
+void jscon_htwrap_init(jscon_htwrap_st *htwrap);
+void jscon_htwrap_destroy(jscon_htwrap_st *htwrap);
+void jscon_htwrap_link_r(struct jscon_item_s *item, jscon_htwrap_st **last_accessed_htwrap);
+void jscon_htwrap_build(struct jscon_item_s *item);
+struct jscon_item_s* jscon_htwrap_get(const char *kKey, struct jscon_item_s *item);
+struct jscon_item_s* jscon_htwrap_set(const char *kKey, struct jscon_item_s *item);
 
 #endif

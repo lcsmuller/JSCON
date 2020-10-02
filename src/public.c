@@ -38,26 +38,10 @@ jscon_dettach(jscon_item_st *item)
   /* TODO: make sure this works with any datatype and not just composite */
   assert(IS_COMPOSITE(item) && !IS_ROOT(item));
 
+  /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
 
-  /* get the immediate previous htwrap relative to the item */
-  jscon_htwrap_st *prev_htwrap = &item_parent->comp->htwrap;
-  while (prev_htwrap->next != &item->comp->htwrap){
-    prev_htwrap = prev_htwrap->next;
-  }
-
-  /* get item tree depth */
-  size_t item_depth = jscon_get_depth(item);
-
-
-  /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *deepst_htwrap = &item->comp->htwrap;
-  while(NULL != deepst_htwrap->next && item_depth < jscon_get_depth(deepst_htwrap->next->root)){
-    deepst_htwrap = deepst_htwrap->next;
-  }
-
-  /* get the item index reference from its parent */
-  long i = jscon_get_key_index(item_parent, item->key);
+  size_t i = jscon_get_key_index(item_parent, item->key);
   while (i < item_parent->comp->num_branch-1){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
     ++i;
@@ -71,15 +55,24 @@ jscon_dettach(jscon_item_st *item)
   item_parent->comp->branch = realloc(item_parent->comp->branch, item_parent->comp->num_branch * sizeof(jscon_item_st*));
   assert(NULL != item_parent->comp->branch);
 
-  /* remake parent hashtable, taking the new size into consideration */
+  /* parent hashtable has to be remade, because its
+      number of branches has been altered */
   hashtable_destroy(item_parent->comp->htwrap.hashtable);
   item_parent->comp->htwrap.hashtable = hashtable_init();
-  jscon_hashtable_build(item_parent);
+  jscon_htwrap_build(item_parent);
+
+  /* get the immediate previous htwrap relative to the item */
+  jscon_htwrap_st *htwrap_prev = item->comp->htwrap.prev;
+  /* get the deepest nested composite relative to item */
+  jscon_item_st *item_deepst = jscon_get_deepest(item);
+  jscon_htwrap_st *htwrap_deepst = &item_deepst->comp->htwrap;
+
+  htwrap_prev->next = htwrap_deepst->next;
 
   /* remove item references to the old tree */
   item->parent = NULL;
-  prev_htwrap->next = deepst_htwrap->next;
-  deepst_htwrap->next = NULL;
+  htwrap_deepst->next = NULL;
+  item->comp->htwrap.prev = NULL;
 
   return item;
 }
@@ -305,6 +298,23 @@ jscon_get_depth(jscon_item_st *item)
   return depth;
 }
 
+/* get the last item relative to the composite item */
+jscon_item_st*
+jscon_get_deepest(jscon_item_st *item)
+{
+  assert(IS_COMPOSITE(item));
+
+  size_t item_depth = jscon_get_depth(item);
+
+  /* get the deepest nested composite relative to item */
+  jscon_htwrap_st *deepst_htwrap = &item->comp->htwrap;
+  while(NULL != deepst_htwrap->next && item_depth < jscon_get_depth(deepst_htwrap->next->root)){
+    deepst_htwrap = deepst_htwrap->next;
+  }
+
+  return deepst_htwrap->root;
+}
+
 jscon_item_st*
 jscon_get_root(jscon_item_st* item)
 {
@@ -315,6 +325,7 @@ jscon_get_root(jscon_item_st* item)
   return item;
 }
 
+
 /* get item branch with given key */
 jscon_item_st*
 jscon_get_branch(jscon_item_st *item, const char *kKey)
@@ -324,7 +335,7 @@ jscon_get_branch(jscon_item_st *item, const char *kKey)
 
   /* search for entry with given key at item's htwrap,
     and retrieve found or not found(NULL) item */
-  return jscon_hashtable_get(kKey, item);
+  return jscon_htwrap_get(kKey, item);
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
@@ -336,7 +347,7 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
   const jscon_item_st* kParent = jscon_get_parent(kOrigin);
 
   //get parent's branch index of the kOrigin item
-  long origin_index= jscon_get_key_index(kParent, kOrigin->key);
+  size_t origin_index= jscon_get_key_index(kParent, kOrigin->key);
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
@@ -360,12 +371,12 @@ jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
   return (index < kItem->comp->num_branch) ? kItem->comp->branch[index] : NULL;
 }
 
-long
+size_t
 jscon_get_key_index(const jscon_item_st* kItem, const char *kKey)
 {
   assert(IS_COMPOSITE(kItem));
 
-  jscon_item_st *search_item = jscon_hashtable_get(kKey, (jscon_item_st*)kItem);
+  jscon_item_st *search_item = jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
   if (NULL == search_item) return -1;
 
   /* TODO: can this be done differently? */

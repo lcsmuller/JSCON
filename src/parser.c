@@ -30,6 +30,7 @@
 
 #include "libjscon.h"
 
+
 struct jscon_utils_s {
   char *buffer;
   char *key; //holds key ptr to be received by item
@@ -49,15 +50,28 @@ static jscon_item_st*
 jscon_new_branch(jscon_item_st *item)
 {
   ++item->comp->num_branch;
-  item->comp->branch = realloc(item->comp->branch, item->comp->num_branch * sizeof *item);
+  item->comp->branch = realloc(item->comp->branch, item->comp->num_branch * sizeof(jscon_item_st*));
   assert(NULL != item->comp->branch);
 
-  item->comp->branch[item->comp->num_branch-1] = calloc(1, sizeof *item);
+  item->comp->branch[item->comp->num_branch-1] = calloc(1, sizeof(jscon_item_st));
   assert(NULL != item->comp->branch[item->comp->num_branch-1]);
 
   item->comp->branch[item->comp->num_branch-1]->parent = item;
 
   return item->comp->branch[item->comp->num_branch-1];
+}
+
+/* TODO: make this public */
+static void
+jscon_destroy_composite(jscon_item_st *item)
+{
+  jscon_htwrap_destroy(&item->comp->htwrap);
+
+  free(item->comp->branch);
+  item->comp->branch = NULL;
+
+  free(item->comp);
+  item->comp = NULL;
 }
 
 static void
@@ -69,11 +83,7 @@ jscon_destroy_preorder(jscon_item_st *item)
       for (size_t i=0; i < item->comp->num_branch; ++i){
         jscon_destroy_preorder(item->comp->branch[i]);
       }
-      hashtable_destroy(item->comp->htwrap.hashtable);
-      free(item->comp->branch);
-      item->comp->branch = NULL;
-      free(item->comp);
-      item->comp = NULL;
+      jscon_destroy_composite(item);
       break;
   case JSCON_STRING:
       free(item->string);
@@ -233,10 +243,10 @@ jscon_value_set_null(jscon_item_st *item, struct jscon_utils_s *utils)
 
 static jscon_composite_st*
 jscon_utils_decode_composite(struct jscon_utils_s *utils){
-  jscon_composite_st* new_comp = calloc(1, sizeof *new_comp);
+  jscon_composite_st *new_comp = calloc(1, sizeof *new_comp);
   assert(NULL != new_comp);
 
-  new_comp->htwrap.hashtable = hashtable_init();
+  jscon_htwrap_init(&new_comp->htwrap);
 
   ++utils->buffer; //skips composite's '{' or '[' delim
 
@@ -249,7 +259,7 @@ jscon_value_set_object(jscon_item_st *item, struct jscon_utils_s *utils)
   item->type = JSCON_OBJECT;
 
   item->comp = jscon_utils_decode_composite(utils);
-  jscon_hashtable_link_r(item, &utils->last_accessed_htwrap);
+  jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
 }
 
 static void
@@ -258,7 +268,7 @@ jscon_value_set_array(jscon_item_st *item, struct jscon_utils_s *utils)
   item->type = JSCON_ARRAY;
 
   item->comp = jscon_utils_decode_composite(utils);
-  jscon_hashtable_link_r(item, &utils->last_accessed_htwrap);
+  jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
 }
 
 /* create nested composite type (object/array) and return 
@@ -282,7 +292,7 @@ static jscon_item_st*
 jscon_wrap_composite(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   ++utils->buffer; //skips '}' or ']'
-  jscon_hashtable_build(item);
+  jscon_htwrap_build(item);
   return jscon_get_parent(item);
 }
 
@@ -310,17 +320,17 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
 
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      fprintf(stderr, "NEW OBJECT\n");
+      //DEV fprintf(stderr, "NEW OBJECT\n");
       item_setter = &jscon_new_composite;
       value_setter = &jscon_value_set_object;
       break;
   case '[':/*ARRAY DETECTED*/
-      fprintf(stderr, "NEW ARRAY\n");
+      //DEV fprintf(stderr, "NEW ARRAY\n");
       item_setter = &jscon_new_composite;
       value_setter = &jscon_value_set_array;
       break;
   case '\"':/*STRING DETECTED*/
-      fprintf(stderr, "NEW STRING\n");
+      //DEV fprintf(stderr, "NEW STRING\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_string;
       break;
@@ -329,7 +339,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      fprintf(stderr, "NEW BOOL\n");
+      //DEV fprintf(stderr, "NEW BOOL\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_boolean;
       break;
@@ -337,7 +347,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error; 
       }
-      fprintf(stderr, "NEW NULL\n");
+      //DEV fprintf(stderr, "NEW NULL\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_null;
       break;
@@ -346,7 +356,7 @@ jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
-      fprintf(stderr, "NEW NUMBER\n");
+      //DEV fprintf(stderr, "NEW NUMBER\n");
       item_setter = &jscon_append_primitive;
       value_setter = &jscon_value_set_number;
       break;
@@ -370,13 +380,13 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
     ++utils->buffer;
   }
   
-  fprintf(stderr, "arr{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEV fprintf(stderr, "arr{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      fprintf(stderr, "WRAP {%s}\n", item->key);
+      //DEV fprintf(stderr, "WRAP {%s}\n", item->key);
       return jscon_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
-      fprintf(stderr, "NEXT ELEMENT\n");
+      //DEV fprintf(stderr, "NEXT ELEMENT\n");
       /* skips ',' and consecutive space and/or control characters */
       do {
         ++utils->buffer;
@@ -391,8 +401,8 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
       assert(NULL == utils->key);
       utils->key = strdup(numerical_key);
 
-      fprintf(stderr, "ARRTOKEN: \'%c\' ", *utils->buffer);
-      fprintf(stderr, "CREATE {%s} ", utils->key);
+      //DEV fprintf(stderr, "ARRTOKEN: \'%c\' ", *utils->buffer);
+      //DEV fprintf(stderr, "CREATE {%s} ", utils->key);
 
       return jscon_build_branch(item, utils);
    }
@@ -411,10 +421,10 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
     ++utils->buffer;
   }
 
-  fprintf(stderr, "obj{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEV fprintf(stderr, "obj{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      fprintf(stderr, "WRAP {%s}\n", item->key);
+      //DEV fprintf(stderr, "WRAP {%s}\n", item->key);
       return jscon_wrap_composite(item, utils);
   case '\"':/*KEY STRING DETECTED*/
       assert(NULL == utils->key);
@@ -426,11 +436,11 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
         ++utils->buffer;
       } while (isspace(*utils->buffer) || iscntrl(*utils->buffer));
 
-      fprintf(stderr, "OBJTOKEN: \'%c\' ", *utils->buffer);
-      fprintf(stderr, "CREATE {%s} ", utils->key);
+      //DEV fprintf(stderr, "OBJTOKEN: \'%c\' ", *utils->buffer);
+      //DEV fprintf(stderr, "CREATE {%s} ", utils->key);
       return jscon_build_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
-      fprintf(stderr, "NEXT PROPERTY\n");
+      //DEV fprintf(stderr, "NEXT PROPERTY\n");
       /* skips ',' and consecutive space and/or control characters */
       do {
         ++utils->buffer;
@@ -457,18 +467,18 @@ jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
 {
-  fprintf(stderr, "ent{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEV fprintf(stderr, "ent{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      fprintf(stderr, "SET OBJECT\n");
+      //DEV fprintf(stderr, "SET OBJECT\n");
       jscon_value_set_object(item, utils);
       break;
   case '[':/*ARRAY DETECTED*/
-      fprintf(stderr, "SET ARRAY\n");
+      //DEV fprintf(stderr, "SET ARRAY\n");
       jscon_value_set_array(item, utils);
       break;
   case '\"':/*STRING DETECTED*/
-      fprintf(stderr, "SET STRING\n");
+      //DEV fprintf(stderr, "SET STRING\n");
       jscon_value_set_string(item, utils);
       break;
   case 't':/*CHECK FOR*/
@@ -476,14 +486,14 @@ jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
         goto error;
       }
-      fprintf(stderr, "SET BOOL\n");
+      //DEV fprintf(stderr, "SET BOOL\n");
       jscon_value_set_boolean(item, utils);
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
         goto error;
       }
-      fprintf(stderr, "SET NULL\n");
+      //DEV fprintf(stderr, "SET NULL\n");
       jscon_value_set_null(item, utils);
       break;
   default:
@@ -496,7 +506,7 @@ jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
         goto error;
       }
-      fprintf(stderr, "SET NUMBER\n");
+      //DEV fprintf(stderr, "SET NUMBER\n");
       jscon_value_set_number(item, utils);
       break;
   }
@@ -538,7 +548,7 @@ jscon_parse(char *buffer)
     .buffer = buffer,
     .parser_cb = jscon_parser_callback(NULL),
   };
-
+  
   //build while item and buffer aren't nulled
   jscon_item_st *item = root;
   while ((NULL != item) && ('\0' != *utils.buffer)){
@@ -561,7 +571,7 @@ jscon_parse(char *buffer)
           goto error;
         }
         ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
-        fprintf(stderr, "UNDEFINED \'%c\'\n", *utils.buffer);
+        //DEV fprintf(stderr, "UNDEFINED \'%c\'\n", *utils.buffer);
         break;
     }
   }
@@ -618,7 +628,7 @@ jscon_scanf_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
 static void
 jscon_scanf_skip(struct jscon_utils_s *utils)
 {
-  free (utils->key);
+  free(utils->key);
   utils->key = NULL;
 
   switch (*utils->buffer){

@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
+
 /*
   jscon_item_st *map1 = NULL, *map2 = NULL;
   jscon_item_st *map3 = NULL;
@@ -66,16 +67,15 @@ int main(int argc, char *argv[])
     jscon_destroy(map3);
   }
 */
-  jscon_parser_callback(&callback_test);
-  
+  //jscon_parser_callback(&callback_test);
   jscon_item_st *root = jscon_parse(buffer);
 
-  jscon_item_st *property1 = jscon_dettach(root->comp->branch[0]);
+  jscon_item_st *property1 = jscon_dettach(root->comp->branch[0]->comp->branch[2]);
   if (NULL != property1){
     char *buffer = jscon_stringify(property1, JSCON_ANY);
     fprintf(stdout, "%s: %s\n", jscon_get_key(property1), buffer);
     free(buffer);
-    //jscon_destroy(property1);
+    jscon_destroy(property1);
   }
 
   fprintf(stdout, "key: meta, index: %ld\n", jscon_get_key_index(root, "meta"));

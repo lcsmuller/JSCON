@@ -161,7 +161,7 @@ hashtable_remove(hashtable_st *hashtable, const char *kKey)
       } else {
         hashtable->bucket[slot] = entry->next; 
       }
-      //free(entry->key);
+
       entry->key = NULL;
 
       free(entry);
@@ -173,15 +173,28 @@ hashtable_remove(hashtable_st *hashtable, const char *kKey)
   }
 }
 
+void
+jscon_htwrap_init(jscon_htwrap_st *htwrap)
+{
+  htwrap->hashtable = hashtable_init();
+}
+
+void
+jscon_htwrap_destroy(jscon_htwrap_st *htwrap)
+{
+  hashtable_destroy(htwrap->hashtable);
+}
+
 //* reentrant hashtable linking function */
 void
-jscon_hashtable_link_r(jscon_item_st *item, jscon_htwrap_st **p_last_accessed_htwrap)
+jscon_htwrap_link_r(jscon_item_st *item, jscon_htwrap_st **p_last_accessed_htwrap)
 {
   assert(IS_COMPOSITE(item));
 
   jscon_htwrap_st *last_accessed_htwrap = *p_last_accessed_htwrap;
   if (NULL != last_accessed_htwrap){
     last_accessed_htwrap->next = &item->comp->htwrap; //item is not root
+    item->comp->htwrap.prev = last_accessed_htwrap;
   }
 
   last_accessed_htwrap = &item->comp->htwrap;
@@ -191,19 +204,19 @@ jscon_hashtable_link_r(jscon_item_st *item, jscon_htwrap_st **p_last_accessed_ht
 }
 
 void
-jscon_hashtable_build(jscon_item_st *item)
+jscon_htwrap_build(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
   hashtable_build(item->comp->htwrap.hashtable, item->comp->num_branch * 1.3); //30% size increase to account for future expansions
 
   for (int i=0; i < item->comp->num_branch; ++i){
-    jscon_hashtable_set(item->comp->branch[i]->key, item->comp->branch[i]);
+    jscon_htwrap_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }
 
 jscon_item_st*
-jscon_hashtable_get(const char *kKey, jscon_item_st *item)
+jscon_htwrap_get(const char *kKey, jscon_item_st *item)
 {
   if (!IS_COMPOSITE(item)) return NULL;
 
@@ -212,7 +225,7 @@ jscon_hashtable_get(const char *kKey, jscon_item_st *item)
 }
 
 jscon_item_st*
-jscon_hashtable_set(const char *kKey, jscon_item_st *item)
+jscon_htwrap_set(const char *kKey, jscon_item_st *item)
 {
   assert(!IS_ROOT(item));
 
