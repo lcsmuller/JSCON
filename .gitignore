@@ -3,6 +3,7 @@
 # Except these files
 !.gitignore
 !README.md
+!TODO.md
 !LICENSE.md
 !JSON.h
 !test.c
