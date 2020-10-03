@@ -16,6 +16,7 @@ This document describes features to be incorporated in the future.
 ## MEDIUM
 
 - Add Unicode support
+- Add example codes
 
 ## LOW
 
