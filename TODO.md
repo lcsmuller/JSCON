@@ -4,6 +4,7 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
+- Organize APIReference.md in a more intuitive manner.
 - Add a hashtable bucket size check when doing functions that increase the total number of branches.
   - If number of branches is equal to hashtable bucket size, then remake hashtable with current branch size in consideration.
 

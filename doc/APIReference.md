@@ -21,6 +21,7 @@ This document describes the public C API.
 | :--- | :--- |
 |[**`jscon_composite_st`**](api/jscon_composite_st.md)|`JSCON_OBJECT or JSCON_ARRAY`|
 |[**`jscon_item_st;`**](api/jscon_item_st.md)|`---`|
+|[**`jscon_list_st;`**](api/jscon_list_st.md)|`---`|
 
 ### Enums
 
@@ -42,14 +43,28 @@ This document describes the public C API.
 
 * [`jscon_stringify(item, type);`](api/jscon_stringify.md)
 
+### Initialization Functions
+
+* [`jscon_null(key);`](api/jscon_null.md)
+* [`jscon_boolean(boolean, key);`](api/jscon_boolean.md)
+* [`jscon_integer(i_number, key);`](api/jscon_integer.md)
+* [`jscon_double(d_number, key);`](api/jscon_double.md)
+* [`jscon_number(d_number, key);`](api/jscon_number.md)
+* [`jscon_string(string, key);`](api/jscon_string.md)
+* [`jscon_list_init();`](api/jscon_list_init.md)
+* [`jscon_object(list, key);`](api/jscon_object.md)
+
 ### Destructor Functions
 
 * [`jscon_destroy(item);`](api/jscon_destroy.md)
+* [`jscon_list_destroy(list);`](api/jscon_list_destroy.md)
 
 ### Manipulation Functions
 
 #### Utility Functions
 
+* [`jscon_list_append(list, item);`](api/jscon_list_append.md)
+* [`jscon_size(item);`](api/jscon_size.md)
 * [`jscon_dettach(item);`](api/jscon_dettach.md)
 * [`jscon_next_composite_r(item, p_current_item);`](api/jscon_next_composite_r.md)
 * [`jscon_next(item);`](api/jscon_next.md)
@@ -65,14 +80,12 @@ This document describes the public C API.
 
 #### Getter Functions
 
-* [`jscon_get_depth(item);`](api/jscon_get_depth.md)
 * [`jscon_get_root(item);`](api/jscon_get_root.md)
 * [`jscon_get_branch(item, key);`](api/jscon_get_branch.md)
 * [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)
 * [`jscon_get_parent(item);`](api/jscon_get_parent.md)
 * [`jscon_get_byindex(item, index);`](api/jscon_get_byindex.md)
 * [`jscon_get_index(item, key);`](api/jscon_get_key_index.md)
-* [`jscon_get_num_branch(item);`](api/jscon_get_num_branch.md)
 * [`jscon_get_type(item);`](api/jscon_get_type.md)
 * [`jscon_get_boolean(item);`](api/jscon_get_boolean.md)
 * [`jscon_get_string(item);`](api/jscon_get_string.md)
