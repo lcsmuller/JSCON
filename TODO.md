@@ -20,7 +20,7 @@ This document describes features to be incorporated in the future.
 ## LOW
 
 - Create a function that fetches all items with a given key, and then returns a `jscon_item_st` root containing references (branches) to every value found with matching keys.
-  - The following json string: [`{"obj1": {"n": 1}, "obj2": {"n": 3}, "obj3: {"n": 5}}`] after giving "n" key as parameter would then be reorganized as such: [`{"obj1": 1, "obj2": 3, "obj3": 5}`], whereas "n" becomes the root key (which is ommited), and the parent becomes the new key identifier to each matching result (to guarantee uniqueness among keys).
+  - The following json string: `{"obj1": {"n": 1}, "obj2": {"n": 3}, "obj3: {"n": 5}}` after giving "n" key as parameter would then be reorganized as such: `{"obj1": 1, "obj2": 3, "obj3": 5}`, whereas "n" becomes the root key (which is ommited), and the parent becomes the new key identifier to each matching result (to guarantee uniqueness among keys).
 
   
 
