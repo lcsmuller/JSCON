@@ -20,32 +20,36 @@
  * SOFTWARE.
  */
 
-#ifndef JSCON_COMMON_H_
-#define JSCON_COMMON_H_
+#include <assert.h>
+#include <stdio.h>
+#include <unistd.h> //for access()
+#include <string.h>
+#include <stdbool.h>
+#include <locale.h>
 
-#define JSCON_VERSION "0.0"
+#include "libjscon.h"
 
-#define MAX_DIGITS 17
+int main(int argc, char *argv[])
+{
+  char *locale = setlocale(LC_CTYPE, "");
+  assert(locale);
 
-#define STRLT(s,t) (strcmp(s,t) < 0)
-#define STREQ(s,t) (strcmp(s,t) == 0)
-#define STRNEQ(s,t,n) (strncmp(s,t,n) == 0)
+  jscon_list_st *item_list = jscon_list_init();
+  jscon_list_append(item_list, jscon_number(14, "num"));
+  jscon_list_append(item_list, jscon_boolean(true, "bool"));
+  jscon_list_append(item_list, jscon_boolean(false, "bubu"));
+  jscon_list_append(item_list, jscon_string(NULL, "huh"));
+  jscon_list_append(item_list, jscon_object(item_list, "obj1"));
+  jscon_list_append(item_list, jscon_object(item_list, "obj2"));
+  jscon_item_st *root = jscon_object(item_list, NULL);
 
-#define IN_RANGE(n,lo,hi) (((n) > (lo)) && ((n) < (hi)))
+  char *buffer = jscon_stringify(root, JSCON_ANY);
+  fprintf(stderr, "%s\n", buffer);
 
-#define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN||(d) >= LLONG_MAX||(d) == (long long)(d))
+  free(buffer);
+  jscon_list_destroy(item_list);
+  jscon_destroy(root);
 
-//TODO: add escaped characters
-#define ALLOWED_JSON_CHAR(c) (isspace(c)||isalnum(c)||'_' == (c)||'-' == (c))
-#define CONSUME_BLANK_CHARS(str) for(;(isspace(*str)||iscntrl(*str)); ++str)
-
-#define IS_COMPOSITE(i) ((i) && jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
-#define IS_EMPTY_COMPOSITE(i) (IS_COMPOSITE(i) && 0 == jscon_size(i))
-#define IS_PRIMITIVE(i) ((i) && !jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
-#define IS_PROPERTY(i) (jscon_typecmp(i->parent, JSCON_OBJECT))
-#define IS_ELEMENT(i) (jscon_typecmp(i->parent, JSCON_ARRAY))
-#define IS_LEAF(i) (IS_PRIMITIVE(i) || IS_EMPTY_COMPOSITE(i))
-#define IS_ROOT(i) (NULL == i->parent)
-
-#endif
+  return EXIT_SUCCESS;
+}
 

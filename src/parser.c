@@ -197,10 +197,10 @@ jscon_value_set_number(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   double set_double = jscon_utils_decode_double(utils);
   if (DOUBLE_IS_INTEGER(set_double)){
-    item->type = JSCON_NUMBER_INTEGER;
+    item->type = JSCON_INTEGER;
     item->i_number = (jscon_integer_kt)set_double;
   } else {
-    item->type = JSCON_NUMBER_DOUBLE;
+    item->type = JSCON_DOUBLE;
     item->d_number = set_double;
   }
 }
@@ -860,8 +860,6 @@ jscon_scanf_format_analyze(char *format)
   char c;
   while (true) //run until end of string found
   {
-    c = *format;
-
     //consume any space or control characters sequence
     CONSUME_BLANK_CHARS(format);
     c = *format;
@@ -909,14 +907,15 @@ jscon_scanf_format_analyze(char *format)
     
     an approximate resulting format:
       input:    '#key%specifier\0'
-      output:   '#key\0specifier\0'   */
+      output:   'key\0specifier\0'   */
 static char**
-jscon_scanf_format_parse(const size_t kNum_keys, char *format, hashtable_st *hashtable, va_list ap)
+jscon_scanf_format_decode(const size_t kNum_keys, char *format, hashtable_st *hashtable, va_list ap)
 {
   assert('\0' != *format); //can't be empty string
 
   const size_t STR_LEN = 256;
   char str[STR_LEN];
+
   char **keys = malloc(kNum_keys * sizeof *keys);
   assert(NULL != keys);
   char *specifier;
@@ -927,8 +926,6 @@ jscon_scanf_format_parse(const size_t kNum_keys, char *format, hashtable_st *has
   size_t i = 0, j = 0; //str and keys index respectively
   while (true) //run until end of string found
   {
-    c = *format;
-
     CONSUME_BLANK_CHARS(format);
     c = *format;
 
@@ -992,7 +989,7 @@ jscon_scanf(char *buffer, char *format, ...)
   CONSUME_BLANK_CHARS(buffer);
 
   if ('{' != *buffer){
-    fprintf(stderr, "\n\nERROR: json string root element must be of JSONC_OBJECT type\n");
+    fprintf(stderr, "\n\nERROR: json root item must be a JSONC_OBJECT\n");
     exit(EXIT_FAILURE);
   }
 
@@ -1008,7 +1005,8 @@ jscon_scanf(char *buffer, char *format, ...)
   hashtable_st *hashtable = hashtable_init();
   hashtable_build(hashtable, kNum_keys);
 
-  char **keys = jscon_scanf_format_parse(kNum_keys, format, hashtable, ap);
+  //return keys for freeing later
+  char **keys = jscon_scanf_format_decode(kNum_keys, format, hashtable, ap);
 
   while ('\0' != *utils.buffer)
   {

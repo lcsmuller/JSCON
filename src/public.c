@@ -28,47 +28,303 @@
 
 #include "libjscon.h"
 
-/* TODO: define some of these functions as a libjscon.h #define */
+/* TODO: change some of these functions to macros */
 
-/* NOT FINISHED */
-/* TODO: consider adding a prev attribute to htwrap */
+jscon_item_st*
+jscon_null(const char *kKey)
+{
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_NULL;
+
+  return new_item;
+}
+
+jscon_item_st*
+jscon_boolean(jscon_boolean_kt boolean, const char *kKey)
+{
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_BOOLEAN;
+  new_item->boolean = boolean;
+
+  return new_item;
+}
+
+jscon_item_st*
+jscon_integer(jscon_integer_kt i_number, const char *kKey)
+{
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_INTEGER;
+  new_item->i_number = i_number;
+
+  return new_item;
+}
+
+jscon_item_st*
+jscon_double(jscon_double_kt d_number, const char *kKey)
+{
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_DOUBLE;
+  new_item->d_number = d_number;
+
+  return new_item;
+}
+
+jscon_item_st*
+jscon_number(jscon_double_kt d_number, const char *kKey)
+{
+  return DOUBLE_IS_INTEGER(d_number)
+          ? jscon_integer((jscon_integer_kt)d_number, kKey)
+          : jscon_double(d_number, kKey);
+}
+
+/* TODO: strdup makes this unsafe */
+jscon_item_st*
+jscon_string(jscon_char_kt *string, const char *kKey)
+{
+  if (NULL == string) return jscon_null(kKey);
+
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_STRING;
+
+  new_item->string = strdup(string);
+  assert(NULL != new_item->string);
+
+  return new_item;
+}
+
+static struct jscon_node_s*
+jscon_new_node(jscon_item_st *item)
+{
+  struct jscon_node_s *new_node = malloc(sizeof *new_node);
+  assert(NULL != new_node);
+
+  new_node->item = item;
+
+  return new_node;
+}
+
+jscon_list_st*
+jscon_list_init()
+{
+  jscon_list_st *new_list = malloc(sizeof *new_list);
+  assert(NULL != new_list);
+
+  new_list->first = malloc(sizeof *new_list->first);
+  assert(NULL != new_list->first);
+
+  new_list->last = malloc(sizeof *new_list->last);
+  assert(NULL != new_list->last);
+
+  new_list->first->next = new_list->last;
+  new_list->first->prev = NULL;
+
+  new_list->last->prev = new_list->first;
+  new_list->last->next = NULL;
+
+  new_list->num_node = 0;
+
+  return new_list;
+}
+
+void
+jscon_list_destroy(jscon_list_st *list)
+{
+  struct jscon_node_s *node = list->first->next;
+
+  for (size_t i=0; i < list->num_node; ++i){
+    node = node->next;
+
+    free(node->prev);
+    node->prev = NULL;
+  }
+  free(list->first);
+  list->first = NULL;
+
+  free(list->last);
+  list->last = NULL;
+
+  free(list);
+  list = NULL;
+}
+
+void
+jscon_list_append(jscon_list_st *list, jscon_item_st *item)
+{
+  assert(NULL != item);
+
+  struct jscon_node_s *new_node = jscon_new_node(item);
+  ++list->num_node;
+
+  new_node->next = list->last;
+  new_node->prev = list->last->prev;
+
+  list->last->prev->next = new_node;
+  list->last->prev = new_node;
+}
+
+/* TODO: make empty object option */
+jscon_item_st*
+jscon_object(jscon_list_st *list, const char *kKey)
+{
+  jscon_item_st *new_item = malloc(sizeof *new_item);
+  assert(NULL != new_item);
+
+  if (NULL != kKey){
+    new_item->key = strdup(kKey);
+    assert(NULL != new_item->key);
+  } else {
+    new_item->key = NULL;
+  }
+
+  new_item->parent = NULL;
+  new_item->type = JSCON_OBJECT;
+  new_item->comp = calloc(1, sizeof *new_item->comp);
+  assert(NULL != new_item->comp);
+
+  jscon_htwrap_init(&new_item->comp->htwrap);
+
+  new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_st*));
+  assert(NULL != new_item->comp->branch);
+
+  new_item->comp->num_branch = list->num_node;
+
+  struct jscon_node_s *node = list->first->next;
+  for (size_t i=0; i < list->num_node; ++i){
+    new_item->comp->branch[i] = node->item;
+    new_item->comp->branch[i]->parent = new_item;
+    node = node->next;
+
+    free(node->prev);
+    node->prev = NULL;
+  }
+
+  list->num_node = 0;
+
+  list->first->next = list->last;
+  list->first->prev = NULL;
+
+  list->last->prev = list->first;
+  list->last->next = NULL;
+
+  jscon_htwrap_build(new_item);
+
+  return new_item;
+}
+
+/* total branches the item possess, returns -1 if primitive*/
+size_t
+jscon_size(const jscon_item_st* kItem){
+  return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : -1;
+} 
+
+/* get the most nested htwrap relative to the item */
+static jscon_htwrap_st*
+jscon_get_deepest_htwrap(jscon_item_st *item)
+{
+  assert(IS_COMPOSITE(item));
+
+  size_t item_depth = jscon_get_depth(item);
+
+  /* get the deepest nested composite relative to item */
+  jscon_htwrap_st *deepst_htwrap = &item->comp->htwrap;
+  while(NULL != deepst_htwrap->next && item_depth < jscon_get_depth(deepst_htwrap->next->root)){
+    deepst_htwrap = deepst_htwrap->next;
+  }
+
+  return deepst_htwrap;
+}
+
+/* remake hashtable on functions that deal with increasing branches */
+static void
+jscon_hashtable_remake(jscon_item_st *item)
+{
+  hashtable_destroy(item->comp->htwrap.hashtable);
+  item->comp->htwrap.hashtable = hashtable_init();
+  jscon_htwrap_build(item);
+}
+
 jscon_item_st*
 jscon_dettach(jscon_item_st *item)
 {
-  /* TODO: make sure this works with any datatype and not just composite */
-  assert(IS_COMPOSITE(item) && !IS_ROOT(item));
+  //can't dettach root from itself
+  if (IS_ROOT(item)) return item;
 
   /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
 
-  /* pretend dettached item never existed ... */
-  size_t i = jscon_get_key_index(item_parent, item->key);
-  while (i < item_parent->comp->num_branch-1){
+  /* dettach the item from its parent */
+  for (size_t i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent); ++i){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
-    ++i;
   }
-  item_parent->comp->branch[i] = NULL;
+  item_parent->comp->branch[jscon_size(item_parent)-1] = NULL;
   --item_parent->comp->num_branch;
 
-  /* realloc parent references to new proper size */
+  /* realloc parent references to match new size */
   item_parent->comp->branch = realloc(item_parent->comp->branch, item_parent->comp->num_branch * sizeof(jscon_item_st*));
   assert(NULL != item_parent->comp->branch);
 
-  /* parent hashtable has to be remade, because its
-      number of branches has been altered */
-  hashtable_destroy(item_parent->comp->htwrap.hashtable);
-  item_parent->comp->htwrap.hashtable = hashtable_init();
-  jscon_htwrap_build(item_parent);
+  /* parent hashtable has to be remade, to match altered branch size */
+  jscon_hashtable_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
   jscon_htwrap_st *htwrap_prev = item->comp->htwrap.prev;
-  /* get the deepest nested composite relative to item */
-  jscon_item_st *item_deepst = jscon_get_deepest(item);
-  jscon_htwrap_st *htwrap_deepst = &item_deepst->comp->htwrap;
+  /* get the deepest htwrap relative to item */
+  jscon_htwrap_st *htwrap_deepst = jscon_get_deepest_htwrap(item);
 
+  /* remove tree references to the item */
   htwrap_prev->next = htwrap_deepst->next;
 
-  /* remove item references to the old tree */
+  /* remove item references to the tree */
   item->parent = NULL;
   htwrap_deepst->next = NULL;
   item->comp->htwrap.prev = NULL;
@@ -147,7 +403,7 @@ jscon_next(jscon_item_st* item)
 {
   if (NULL == item) return NULL;
 
-  //resets root's last_accessed_branch in case its set from a different run
+  /* resets root's last_accessed_branch in case its set from a different run */
   if (IS_COMPOSITE(item)){
     item->comp->last_accessed_branch = 0;
   }
@@ -189,8 +445,8 @@ jscon_char_kt*
 jscon_typeof(const jscon_item_st *kItem)
 {
   switch (kItem->type){
-    case JSCON_NUMBER_DOUBLE: return "Double";
-    case JSCON_NUMBER_INTEGER: return "Integer";
+    case JSCON_DOUBLE: return "Double";
+    case JSCON_INTEGER: return "Integer";
     case JSCON_STRING: return "String";
     case JSCON_NULL: return "Null";
     case JSCON_BOOLEAN: return "Boolean";
@@ -204,26 +460,24 @@ jscon_typeof(const jscon_item_st *kItem)
 jscon_char_kt*
 jscon_strdup(const jscon_item_st* kItem)
 {
-  jscon_char_kt *tmp = jscon_get_string(kItem);
+  jscon_char_kt *src = jscon_get_string(kItem);
 
-  if (NULL == tmp) return NULL;
+  if (NULL == src) return NULL;
 
-  jscon_char_kt *new_string = strdup(tmp);
-  assert(NULL != new_string);
+  jscon_char_kt *dest = strdup(src);
+  assert(NULL != dest);
 
-  return new_string;
+  return dest;
 }
 
 jscon_char_kt*
 jscon_strcpy(char *dest, const jscon_item_st* kItem)
 {
-  jscon_char_kt *tmp = jscon_get_string(kItem);
+  jscon_char_kt *src = jscon_get_string(kItem);
 
-  if (NULL == tmp) return NULL;
+  if (NULL == src) return NULL;
 
-  strcpy(dest, tmp);
-
-  return dest;
+  return strcpy(dest, src);
 }
 
 int
@@ -238,13 +492,13 @@ jscon_keycmp(const jscon_item_st* kItem, const char *kKey){
 
 int
 jscon_doublecmp(const jscon_item_st* kItem, const jscon_double_kt kDouble){
-  assert(JSCON_NUMBER_DOUBLE == kItem->type); //check if given item is double
+  assert(JSCON_DOUBLE == kItem->type); //check if given item is double
   return kItem->d_number == kDouble;
 }
 
 int
 jscon_intcmp(const jscon_item_st* kItem, const jscon_integer_kt kInteger){
-  assert(JSCON_NUMBER_INTEGER == kItem->type); //check if given item is integer
+  assert(JSCON_INTEGER == kItem->type); //check if given item is integer
   return kItem->i_number == kInteger;
 }
 
@@ -297,23 +551,6 @@ jscon_get_depth(jscon_item_st *item)
   return depth;
 }
 
-/* get the last item relative to the composite item */
-jscon_item_st*
-jscon_get_deepest(jscon_item_st *item)
-{
-  assert(IS_COMPOSITE(item));
-
-  size_t item_depth = jscon_get_depth(item);
-
-  /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *deepst_htwrap = &item->comp->htwrap;
-  while(NULL != deepst_htwrap->next && item_depth < jscon_get_depth(deepst_htwrap->next->root)){
-    deepst_htwrap = deepst_htwrap->next;
-  }
-
-  return deepst_htwrap->root;
-}
-
 jscon_item_st*
 jscon_get_root(jscon_item_st* item)
 {
@@ -344,11 +581,11 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
   const jscon_item_st* kParent = jscon_get_parent(kOrigin);
 
   //get parent's branch index of the kOrigin item
-  size_t origin_index= jscon_get_key_index(kParent, kOrigin->key);
+  size_t origin_index= jscon_get_index(kParent, kOrigin->key);
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
-  if ((0 <= (origin_index + kRelative_index)) && jscon_get_num_branch(kParent) > (origin_index + kRelative_index)){
+  if ((0 <= (origin_index + kRelative_index)) && jscon_size(kParent) > (origin_index + kRelative_index)){
     return jscon_get_byindex(kParent, origin_index + kRelative_index);
   }
 
@@ -370,7 +607,7 @@ jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
 
 /* returns -1 if item not found */
 size_t
-jscon_get_key_index(const jscon_item_st* kItem, const char *kKey)
+jscon_get_index(const jscon_item_st* kItem, const char *kKey)
 {
   assert(IS_COMPOSITE(kItem));
 
@@ -387,13 +624,6 @@ jscon_get_key_index(const jscon_item_st* kItem, const char *kKey)
   fprintf(stderr, "\n\nERROR: item exists in hashtable but is not referenced by the parent\n");
   exit(EXIT_FAILURE);
 }
-
-size_t
-jscon_get_num_branch(const jscon_item_st* kItem)
-{
-  assert(IS_COMPOSITE(kItem));
-  return kItem->comp->num_branch;
-} 
 
 jscon_type_et
 jscon_get_type(const jscon_item_st* kItem){
@@ -428,7 +658,7 @@ jscon_get_double(const jscon_item_st* kItem){
   if (NULL == kItem || JSCON_NULL == kItem->type)
     return 0.0;
 
-  assert(JSCON_NUMBER_DOUBLE == kItem->type);
+  assert(JSCON_DOUBLE == kItem->type);
   return kItem->d_number;
 }
 
@@ -437,6 +667,6 @@ jscon_get_integer(const jscon_item_st* kItem){
   if (NULL == kItem || JSCON_NULL == kItem->type)
     return 0;
 
-  assert(JSCON_NUMBER_INTEGER == kItem->type);
+  assert(JSCON_INTEGER == kItem->type);
   return kItem->i_number;
 }

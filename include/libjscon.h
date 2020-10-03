@@ -36,13 +36,13 @@ typedef enum {
   JSCON_UNDEFINED        = 0,
   JSCON_NULL             = 1 << 0,
   JSCON_BOOLEAN          = 1 << 1,
-  JSCON_NUMBER_INTEGER   = 1 << 2,
-  JSCON_NUMBER_DOUBLE    = 1 << 3,
+  JSCON_INTEGER          = 1 << 2,
+  JSCON_DOUBLE           = 1 << 3,
   JSCON_STRING           = 1 << 4,
   JSCON_OBJECT           = 1 << 5,
   JSCON_ARRAY            = 1 << 6,
   /* SUPERSET FLAGS */
-  JSCON_NUMBER           = JSCON_NUMBER_INTEGER | JSCON_NUMBER_DOUBLE,
+  JSCON_NUMBER           = JSCON_INTEGER | JSCON_DOUBLE,
   JSCON_ANY              = USHRT_MAX,
 } jscon_type_et;
 
@@ -108,8 +108,38 @@ typedef struct jscon_item_s {
   };
 } jscon_item_st;
 
+/* linked list used for linking items to be assigned to a
+    object or array via jscon_object() or jscon_array() */
+struct jscon_node_s {
+  jscon_item_st *item;
+  struct jscon_node_s *next;
+  struct jscon_node_s *prev;
+};
+
+typedef struct jscon_list_s {
+  struct jscon_node_s *first;
+  struct jscon_node_s *last;
+  size_t num_node;
+} jscon_list_st;
+
 //used for setting callbacks
 typedef jscon_item_st* (jscon_callbacks_ft)(jscon_item_st*);
+
+/* JSCON INIT */
+jscon_item_st *jscon_null(const char *kKey);
+jscon_item_st *jscon_boolean(jscon_boolean_kt boolean, const char *kKey);
+jscon_item_st *jscon_integer(jscon_integer_kt i_number, const char *kKey);
+jscon_item_st *jscon_double(jscon_double_kt d_number, const char *kKey);
+jscon_item_st *jscon_number(jscon_double_kt d_number, const char *kKey);
+jscon_item_st *jscon_string(jscon_char_kt *string, const char *kKey);
+
+jscon_list_st *jscon_list_init();
+jscon_item_st *jscon_object(jscon_list_st *list, const char *kKey);
+
+/* JSCON DESTRUCTORS */
+/* clean up jscon item and global allocated keys */
+void jscon_destroy(jscon_item_st *item);
+void jscon_list_destroy(jscon_list_st *list);
 
 /* JSCON DECODING */
 /* parse buffer and returns a jscon item */
@@ -121,11 +151,11 @@ void jscon_scanf(char *buffer, char *format, ...);
 /* JSCON ENCODING */
 char* jscon_stringify(jscon_item_st *root, jscon_type_et type);
 
-/* JSCON DESTRUCTORS */
-/* clean up jscon item and global allocated keys */
-void jscon_destroy(jscon_item_st *item);
+/* JSCON LIST MANIPULATION */
+void jscon_list_append(jscon_list_st *list, jscon_item_st *item);
 
 /* JSCON UTILITIES */
+size_t jscon_size(const jscon_item_st* kItem);
 jscon_item_st* jscon_dettach(jscon_item_st *item);
 jscon_item_st* jscon_next_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
 jscon_item_st* jscon_next(jscon_item_st* item);
@@ -141,14 +171,12 @@ void jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt* p_str, con
 
 /* JSCON GETTERS */
 size_t jscon_get_depth(jscon_item_st *item);
-jscon_item_st* jscon_get_deepest(jscon_item_st *item);
 jscon_item_st* jscon_get_root(jscon_item_st* item);
 jscon_item_st* jscon_get_branch(jscon_item_st *item, const char *kKey);
 jscon_item_st* jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index);
 jscon_item_st* jscon_get_parent(const jscon_item_st* kItem);
 jscon_item_st* jscon_get_byindex(const jscon_item_st* kItem, const size_t kIndex);
-size_t jscon_get_key_index(const jscon_item_st* kItem, const char *kKey);
-size_t jscon_get_num_branch(const jscon_item_st* kItem);
+size_t jscon_get_index(const jscon_item_st* kItem, const char *kKey);
 jscon_type_et jscon_get_type(const jscon_item_st* kItem);
 jscon_char_kt* jscon_get_key(const jscon_item_st* kItem);
 jscon_boolean_kt jscon_get_boolean(const jscon_item_st* kItem);

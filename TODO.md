@@ -12,11 +12,13 @@ This document describes features to be incorporated in the future.
     - For dynamically creating `jscon_item_st` a jscon entity without depending solely on parsing a json string via `jscon_parse()`.
   - Add item appending function.
     - For dynamically creating a `jscon_item_st` tree that can be later encoded via `jscon_stringify()`
+  - Makefile should allow for different keywords to activate each test
 
 ## MEDIUM
 
 - Add Unicode support
 - Add example codes
+- Add stringify formatting options
 
 ## LOW
 

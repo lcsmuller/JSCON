@@ -32,14 +32,14 @@ LIBDIR = lib
 LIB = $(LIBDIR)/libjscon.a
 TEST1 = test_jscon
 
-OBJS = $(OBJDIR)/public.o
-OBJS += $(OBJDIR)/stringify.o
-OBJS += $(OBJDIR)/parser.o
-OBJS += $(OBJDIR)/hashtable.o
-OBJS += $(OBJDIR)/test.o
+OBJS = $(OBJDIR)/public.o \
+       $(OBJDIR)/stringify.o \
+       $(OBJDIR)/parser.o \
+       $(OBJDIR)/hashtable.o \
+       $(OBJDIR)/test2.o
 
-MAIN = test.c
-MAIN_O = $(OBJDIR)/test.o
+MAIN = test2.c
+MAIN_O = $(OBJDIR)/test2.o
 
 .PHONY : clean all debug purge test
 

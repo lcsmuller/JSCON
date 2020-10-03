@@ -115,10 +115,10 @@ jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct jscon_u
       }
       jscon_utils_apply_string("false", utils);
       break;
-  case JSCON_NUMBER_DOUBLE:
+  case JSCON_DOUBLE:
       jscon_utils_apply_double(item->d_number, utils);
       break;
-  case JSCON_NUMBER_INTEGER:
+  case JSCON_INTEGER:
       jscon_utils_apply_integer(item->i_number, utils);
       break;
   case JSCON_STRING:
