@@ -51,12 +51,12 @@ jscon_new_branch(jscon_item_st *item)
 {
   ++item->comp->num_branch;
 
-  item->comp->branch[item->comp->num_branch-1] = calloc(1, sizeof(jscon_item_st));
-  assert(NULL != item->comp->branch[item->comp->num_branch-1]);
+  item->comp->branch[jscon_size(item)-1] = calloc(1, sizeof(jscon_item_st));
+  assert(NULL != item->comp->branch[jscon_size(item)-1]);
 
-  item->comp->branch[item->comp->num_branch-1]->parent = item;
+  item->comp->branch[jscon_size(item)-1]->parent = item;
 
-  return item->comp->branch[item->comp->num_branch-1];
+  return item->comp->branch[jscon_size(item)-1];
 }
 
 static void
@@ -77,7 +77,7 @@ jscon_destroy_preorder(jscon_item_st *item)
   switch (jscon_get_type(item)){
   case JSCON_OBJECT:
   case JSCON_ARRAY:
-      for (size_t i=0; i < item->comp->num_branch; ++i){
+      for (size_t i=0; i < jscon_size(item); ++i){
         jscon_destroy_preorder(item->comp->branch[i]);
       }
       jscon_destroy_composite(item);
@@ -472,7 +472,7 @@ jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
    {
       //creates numerical key for the array element
       char numerical_key[MAX_DIGITS];
-      snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
+      snprintf(numerical_key, MAX_DIGITS-1, "%ld", jscon_size(item));
       assert(NULL == utils->key);
       utils->key = strdup(numerical_key);
 

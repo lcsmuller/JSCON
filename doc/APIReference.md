@@ -72,6 +72,7 @@ This document describes the public C API.
 
 * [`jscon_list_append(list, item);`](api/jscon_list_append.md)
 * [`jscon_size(item);`](api/jscon_size.md)
+* [`jscon_attach(item, new_branch);`](api/jscon_attach.md)
 * [`jscon_dettach(item);`](api/jscon_dettach.md)
 * [`jscon_clone(item);`](api/jscon_clone.md)
 * [`jscon_typeof(item);`](api/jscon_typeof.md)

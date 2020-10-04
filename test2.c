@@ -34,23 +34,20 @@ int main(int argc, char *argv[])
   char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
 
-  jscon_list_st *item_list = jscon_list_init();
-  jscon_list_st *main_list = jscon_list_init();
-  jscon_list_append(item_list, jscon_number(14, "num"));
-  jscon_list_append(item_list, jscon_boolean(true, "bool"));
-  jscon_list_append(item_list, jscon_boolean(false, "bubu"));
-  jscon_list_append(item_list, jscon_string(NULL, "huh"));
-  jscon_list_append(main_list, jscon_object(item_list, "obj1"));
+  jscon_item_st *root = jscon_object(NULL, "root");
+  jscon_list_st *list = jscon_list_init();
 
-  jscon_list_append(item_list, jscon_number(24, "num2"));
-  jscon_list_append(main_list, jscon_object(item_list, "obj2"));
+  jscon_list_append(list, jscon_string("Mario", "name"));
+  jscon_list_append(list, jscon_number(28, "age"));
+  jscon_list_append(list, jscon_boolean(false, "retired"));
+  jscon_list_append(list, jscon_boolean(true, "married"));
+  jscon_attach(root, jscon_object(list, "person1"));
 
-  jscon_list_append(item_list, jscon_string("que loucura..", "kek"));
-  jscon_list_append(item_list, jscon_object(item_list, "obj3"));
-  jscon_list_append(main_list, jscon_array(item_list, "arr1"));
-  jscon_list_append(main_list, jscon_object(item_list, "blank_obj"));
-  jscon_list_append(main_list, jscon_array(item_list, "blank_arr"));
-  jscon_item_st *root = jscon_object(main_list, NULL);
+  jscon_list_append(list, jscon_string("Joana", "name"));
+  jscon_list_append(list, jscon_number(58, "age"));
+  jscon_list_append(list, jscon_boolean(true, "retired"));
+  jscon_list_append(list, jscon_boolean(false, "married"));
+  jscon_attach(root, jscon_object(list, "person2"));
 
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
@@ -62,8 +59,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "%s\n", buffer);
 
   free(buffer);
-  jscon_list_destroy(item_list);
-  jscon_list_destroy(main_list);
+  jscon_list_destroy(list);
   jscon_destroy(root);
 
   return EXIT_SUCCESS;
