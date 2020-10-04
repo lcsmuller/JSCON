@@ -59,7 +59,6 @@ jscon_new_branch(jscon_item_st *item)
   return item->comp->branch[item->comp->num_branch-1];
 }
 
-/* TODO: make this public */
 static void
 jscon_destroy_composite(jscon_item_st *item)
 {
@@ -183,7 +182,7 @@ jscon_utils_decode_double(struct jscon_utils_s *utils)
   numerical_string[end-start] = '\0';
 
   jscon_double_kt set_double;
-  sscanf(numerical_string,"%lf",&set_double); //TODO: replace sscanf?
+  sscanf(numerical_string,"%lf",&set_double);
 
   utils->buffer = end; //skips entire length of number
 

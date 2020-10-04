@@ -51,8 +51,10 @@ This document describes the public C API.
 * [`jscon_double(d_number, key);`](api/jscon_double.md)
 * [`jscon_number(d_number, key);`](api/jscon_number.md)
 * [`jscon_string(string, key);`](api/jscon_string.md)
+
 * [`jscon_list_init();`](api/jscon_list_init.md)
 * [`jscon_object(list, key);`](api/jscon_object.md)
+* [`jscon_array(list, key);`](api/jscon_array.md)
 
 ### Destructor Functions
 
@@ -61,25 +63,31 @@ This document describes the public C API.
 
 ### Manipulation Functions
 
+#### Movement Functions
+
+* [`jscon_iter_next(item);`](api/jscon_iter_next.md)
+* [`jscon_iter_composite_r(item, p_current_item);`](api/jscon_iter_composite_r.md)
+
 #### Utility Functions
 
 * [`jscon_list_append(list, item);`](api/jscon_list_append.md)
 * [`jscon_size(item);`](api/jscon_size.md)
 * [`jscon_dettach(item);`](api/jscon_dettach.md)
-* [`jscon_next_composite_r(item, p_current_item);`](api/jscon_next_composite_r.md)
-* [`jscon_next(item);`](api/jscon_next.md)
 * [`jscon_clone(item);`](api/jscon_clone.md)
 * [`jscon_typeof(item);`](api/jscon_typeof.md)
 * [`jscon_strdup(item);`](api/jscon_strdup.md)
-* [`jscon_strncpy(dest, item, n);`](api/jscon_strncpy.md)
+* [`jscon_strcpy(dest, item);`](api/jscon_strcpy.md)
+
+#### Comparison Functions
+
 * [`jscon_typecmp(item, type);`](api/jscon_typecmp.md)
 * [`jscon_keycmp(item, key);`](api/jscon_keycmp.md)
 * [`jscon_doublecmp(item, double);`](api/jscon_doublecmp.md)
 * [`jscon_intcmp(item, int);`](api/jscon_intcmp.md)
-* [`jscon_double_tostr(double, p_str, n_digits);`](api/jscon_double_tostr.md)
 
 #### Getter Functions
 
+* [`jscon_get_depth(item);`](api/jscon_get_depth.md)
 * [`jscon_get_root(item);`](api/jscon_get_root.md)
 * [`jscon_get_branch(item, key);`](api/jscon_get_branch.md)
 * [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)

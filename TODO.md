@@ -17,6 +17,7 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Replace memory allocation asserts to a simple return NULL so that the user may decide himself how to deal with the error.
 - Add Unicode support
 - Add example codes
 - Add stringify formatting options

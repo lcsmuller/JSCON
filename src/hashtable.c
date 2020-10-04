@@ -64,7 +64,7 @@ hashtable_genhash(const char *kKey, const size_t kNum_bucket)
   size_t slot = 0;
   size_t key_len = strlen(kKey);
 
-  //TODO: look for different algorithms, learn if there are any improvements
+  //TODO: learn different implementations and improvements
   for (size_t i=0; i < key_len; ++i){
     slot = slot * 37 + kKey[i];
   }
@@ -198,7 +198,6 @@ jscon_htwrap_link_r(jscon_item_st *item, jscon_htwrap_st **p_last_accessed_htwra
   }
 
   last_accessed_htwrap = &item->comp->htwrap;
-  last_accessed_htwrap->root = item;
 
   *p_last_accessed_htwrap = last_accessed_htwrap;
 }
@@ -208,9 +207,11 @@ jscon_htwrap_build(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
-  hashtable_build(item->comp->htwrap.hashtable, item->comp->num_branch * 1.3); //30% size increase to account for future expansions
+  hashtable_build(item->comp->htwrap.hashtable, jscon_size(item) * 1.3); //30% size increase to account for future expansions
 
-  for (int i=0; i < item->comp->num_branch; ++i){
+  item->comp->htwrap.root = item;
+
+  for (int i=0; i < jscon_size(item); ++i){
     jscon_htwrap_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }

@@ -64,6 +64,43 @@ jscon_utils_apply_string(jscon_char_kt* string, struct jscon_utils_s *utils)
   }
 }
 
+/* converts double to string and store it in p_str */
+//TODO: make this more readable
+static void 
+jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt *p_str, const int kDigits)
+{
+  if (DOUBLE_IS_INTEGER(kDouble)){
+    sprintf(p_str,"%.lf",kDouble); //convert integer to string
+    return;
+  }
+
+  int decimal=0, sign=0;
+  jscon_char_kt *tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
+
+  int i=0;
+  if (0 > sign){ //negative sign detected
+    p_str[i++] = '-';
+  }
+
+  if (IN_RANGE(decimal,-7,17)){
+    //print scientific notation
+    sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
+    return;
+  }
+
+  char format[100];
+  if (0 < decimal){
+    sprintf(format,"%%.%ds.%%.7s",decimal);
+    sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
+  } else if (0 > decimal) {
+    sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
+    sprintf(i + p_str, format, tmp_str);
+  } else {
+    sprintf(format,"0.%%.7s");
+    sprintf(i + p_str, format, tmp_str);
+  }
+}
+
 /* get double converted to string and then perform buffer method calls */
 static void
 jscon_utils_apply_double(jscon_double_kt d_number, struct jscon_utils_s *utils)

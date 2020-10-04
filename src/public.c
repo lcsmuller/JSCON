@@ -117,7 +117,6 @@ jscon_number(jscon_double_kt d_number, const char *kKey)
           : jscon_double(d_number, kKey);
 }
 
-/* TODO: strdup makes this unsafe */
 jscon_item_st*
 jscon_string(jscon_char_kt *string, const char *kKey)
 {
@@ -140,17 +139,6 @@ jscon_string(jscon_char_kt *string, const char *kKey)
   assert(NULL != new_item->string);
 
   return new_item;
-}
-
-static struct jscon_node_s*
-jscon_new_node(jscon_item_st *item)
-{
-  struct jscon_node_s *new_node = malloc(sizeof *new_node);
-  assert(NULL != new_node);
-
-  new_node->item = item;
-
-  return new_node;
 }
 
 jscon_list_st*
@@ -197,12 +185,17 @@ jscon_list_destroy(jscon_list_st *list)
   list = NULL;
 }
 
+/* TODO: return error value */
 void
 jscon_list_append(jscon_list_st *list, jscon_item_st *item)
 {
   assert(NULL != item);
 
-  struct jscon_node_s *new_node = jscon_new_node(item);
+  struct jscon_node_s *new_node = malloc(sizeof *new_node);
+  assert(NULL != new_node);
+
+  new_node->item = item;
+
   ++list->num_node;
 
   new_node->next = list->last;
@@ -212,10 +205,23 @@ jscon_list_append(jscon_list_st *list, jscon_item_st *item)
   list->last->prev = new_node;
 }
 
-/* TODO: make empty object option */
-jscon_item_st*
-jscon_object(jscon_list_st *list, const char *kKey)
+static void
+jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
 {
+  jscon_htwrap_link_r(item, last_accessed_htwrap);
+
+  for (size_t i=0; i < jscon_size(item); ++i){
+    if (IS_COMPOSITE(item->comp->branch[i])){
+      jscon_htwrap_link_preorder(item->comp->branch[i], last_accessed_htwrap);
+    }
+  }
+}
+
+inline static jscon_item_st*
+jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
+{
+  assert(NULL != list);
+
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
@@ -227,7 +233,7 @@ jscon_object(jscon_list_st *list, const char *kKey)
   }
 
   new_item->parent = NULL;
-  new_item->type = JSCON_OBJECT;
+  new_item->type = type;
   new_item->comp = calloc(1, sizeof *new_item->comp);
   assert(NULL != new_item->comp);
 
@@ -236,17 +242,18 @@ jscon_object(jscon_list_st *list, const char *kKey)
   new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_st*));
   assert(NULL != new_item->comp->branch);
 
-  new_item->comp->num_branch = list->num_node;
-
   struct jscon_node_s *node = list->first->next;
   for (size_t i=0; i < list->num_node; ++i){
     new_item->comp->branch[i] = node->item;
     new_item->comp->branch[i]->parent = new_item;
+
     node = node->next;
 
     free(node->prev);
     node->prev = NULL;
   }
+
+  new_item->comp->num_branch = list->num_node;
 
   list->num_node = 0;
 
@@ -256,9 +263,22 @@ jscon_object(jscon_list_st *list, const char *kKey)
   list->last->prev = list->first;
   list->last->next = NULL;
 
+  jscon_htwrap_st *last_accessed_htwrap = NULL;
+  jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
+
   jscon_htwrap_build(new_item);
 
   return new_item;
+}
+
+jscon_item_st*
+jscon_object(jscon_list_st *list, const char *kKey){
+  return jscon_composite(list, kKey, JSCON_OBJECT);
+}
+
+jscon_item_st*
+jscon_array(jscon_list_st *list, const char *kKey){
+  return jscon_composite(list, kKey, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns -1 if primitive*/
@@ -267,21 +287,21 @@ jscon_size(const jscon_item_st* kItem){
   return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : -1;
 } 
 
-/* get the most nested htwrap relative to the item */
+/* get the last htwrap relative to the item */
 static jscon_htwrap_st*
-jscon_get_deepest_htwrap(jscon_item_st *item)
+jscon_get_last_htwrap(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
   size_t item_depth = jscon_get_depth(item);
 
   /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *deepst_htwrap = &item->comp->htwrap;
-  while(NULL != deepst_htwrap->next && item_depth < jscon_get_depth(deepst_htwrap->next->root)){
-    deepst_htwrap = deepst_htwrap->next;
+  jscon_htwrap_st *last_htwrap = &item->comp->htwrap;
+  while(NULL != last_htwrap->next && item_depth < jscon_get_depth(last_htwrap->next->root)){
+    last_htwrap = last_htwrap->next;
   }
 
-  return deepst_htwrap;
+  return last_htwrap;
 }
 
 /* remake hashtable on functions that deal with increasing branches */
@@ -319,14 +339,14 @@ jscon_dettach(jscon_item_st *item)
   /* get the immediate previous htwrap relative to the item */
   jscon_htwrap_st *htwrap_prev = item->comp->htwrap.prev;
   /* get the deepest htwrap relative to item */
-  jscon_htwrap_st *htwrap_deepst = jscon_get_deepest_htwrap(item);
+  jscon_htwrap_st *htwrap_last = jscon_get_last_htwrap(item);
 
   /* remove tree references to the item */
-  htwrap_prev->next = htwrap_deepst->next;
+  htwrap_prev->next = htwrap_last->next;
 
   /* remove item references to the tree */
   item->parent = NULL;
-  htwrap_deepst->next = NULL;
+  htwrap_last->next = NULL;
   item->comp->htwrap.prev = NULL;
 
   return item;
@@ -340,7 +360,7 @@ jscon_dettach(jscon_item_st *item)
     p_current_item allows for thread safety reentrancy, it should not be
     modified outside of this routine*/
 jscon_item_st*
-jscon_next_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
+jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 {
   /* if item is not NULL, set p_current_item to item, otherwise
       fetch next iteration */ 
@@ -399,7 +419,7 @@ jscon_pop(jscon_item_st* item)
     item->comp->last_accessed_branch like a stack trace. under no circumstance 
     should you modify last_accessed_branch value directly */
 jscon_item_st*
-jscon_next(jscon_item_st* item)
+jscon_iter_next(jscon_item_st* item)
 {
   if (NULL == item) return NULL;
 
@@ -500,43 +520,6 @@ int
 jscon_intcmp(const jscon_item_st* kItem, const jscon_integer_kt kInteger){
   assert(JSCON_INTEGER == kItem->type); //check if given item is integer
   return kItem->i_number == kInteger;
-}
-
-/* converts double to string and store it in p_str */
-//TODO: try to make this more readable
-void 
-jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt *p_str, const int kDigits)
-{
-  if (DOUBLE_IS_INTEGER(kDouble)){
-    sprintf(p_str,"%.lf",kDouble); //convert integer to string
-    return;
-  }
-
-  int decimal=0, sign=0;
-  jscon_char_kt *tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
-
-  int i=0;
-  if (0 > sign){ //negative sign detected
-    p_str[i++] = '-';
-  }
-
-  if (IN_RANGE(decimal,-7,17)){
-    //print scientific notation
-    sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
-    return;
-  }
-
-  char format[100];
-  if (0 < decimal){
-    sprintf(format,"%%.%ds.%%.7s",decimal);
-    sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
-  } else if (0 > decimal) {
-    sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
-    sprintf(i + p_str, format, tmp_str);
-  } else {
-    sprintf(format,"0.%%.7s");
-    sprintf(i + p_str, format, tmp_str);
-  }
 }
 
 size_t

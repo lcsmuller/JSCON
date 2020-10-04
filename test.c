@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 
   jscon_item_st *item, *current_item = NULL;
   char *test1_buffer;
-  jscon_item_st *walk1 = jscon_next_composite_r(root, &current_item);
+  jscon_item_st *walk1 = jscon_iter_composite_r(root, &current_item);
   do {
     item = jscon_get_branch(walk1, "m");
     if (NULL != item){
@@ -93,19 +93,19 @@ int main(int argc, char *argv[])
       free(test1_buffer);
     }
 
-    walk1 = jscon_next_composite_r(NULL, &current_item);
+    walk1 = jscon_iter_composite_r(NULL, &current_item);
   } while (NULL != walk1);
 
   jscon_item_st *walk2 = root;
   for (int i=0; i < 5 && walk2; ++i){
     fprintf(stderr, "%s\n", walk2->key);
-    walk2 = jscon_next(walk2);
+    walk2 = jscon_iter_next(walk2);
   }
 
   walk2 = root;
   do {
     fprintf(stderr, "%s\n", walk2->key);
-    walk2 = jscon_next(walk2);
+    walk2 = jscon_iter_next(walk2);
   } while (NULL != walk2);
 
   char *test2_buffer = jscon_stringify(root, JSCON_ANY);

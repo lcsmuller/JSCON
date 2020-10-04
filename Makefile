@@ -36,10 +36,10 @@ OBJS = $(OBJDIR)/public.o \
        $(OBJDIR)/stringify.o \
        $(OBJDIR)/parser.o \
        $(OBJDIR)/hashtable.o \
-       $(OBJDIR)/test2.o
+       $(OBJDIR)/test.o
 
 MAIN = test2.c
-MAIN_O = $(OBJDIR)/test2.o
+MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug purge test
 

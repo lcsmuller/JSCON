@@ -62,11 +62,11 @@ typedef _Bool jscon_boolean_kt;
       last_accessed_branch: simulate stack trace by storing the last accessed
         branch address. this is used for movement functions that require state
         to be preserved between calls, while also adhering to tree traversal
-        rules. (check public.c jscon_next() for example)
+        rules. (check public.c jscon_iter_next() for example)
 
       htwrap: hashtable special wrapper for easily sorting through
         branches by keys, and skipping primitives (check hashtable.h and
-        hashtable.c for more info, and public.c jscon_next_composite_r() to see
+        hashtable.c for more info, and public.c jscon_iter_composite_r() to see
         it in action)*/
 
 typedef struct {
@@ -135,6 +135,7 @@ jscon_item_st *jscon_string(jscon_char_kt *string, const char *kKey);
 
 jscon_list_st *jscon_list_init();
 jscon_item_st *jscon_object(jscon_list_st *list, const char *kKey);
+jscon_item_st *jscon_array(jscon_list_st *list, const char *kKey);
 
 /* JSCON DESTRUCTORS */
 /* clean up jscon item and global allocated keys */
@@ -157,8 +158,8 @@ void jscon_list_append(jscon_list_st *list, jscon_item_st *item);
 /* JSCON UTILITIES */
 size_t jscon_size(const jscon_item_st* kItem);
 jscon_item_st* jscon_dettach(jscon_item_st *item);
-jscon_item_st* jscon_next_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
-jscon_item_st* jscon_next(jscon_item_st* item);
+jscon_item_st* jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
+jscon_item_st* jscon_iter_next(jscon_item_st* item);
 jscon_item_st* jscon_clone(jscon_item_st *item);
 jscon_char_kt* jscon_typeof(const jscon_item_st* kItem);
 jscon_char_kt* jscon_strdup(const jscon_item_st* kItem);
@@ -167,7 +168,6 @@ int jscon_typecmp(const jscon_item_st* kItem, const jscon_type_et kType);
 int jscon_keycmp(const jscon_item_st* kItem, const char *kKey);
 int jscon_doublecmp(const jscon_item_st* kItem, const jscon_double_kt kDouble);
 int jscon_intcmp(const jscon_item_st* kItem, const jscon_integer_kt kInteger);
-void jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt* p_str, const int kDigits);
 
 /* JSCON GETTERS */
 size_t jscon_get_depth(jscon_item_st *item);

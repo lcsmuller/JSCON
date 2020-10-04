@@ -35,19 +35,35 @@ int main(int argc, char *argv[])
   assert(locale);
 
   jscon_list_st *item_list = jscon_list_init();
+  jscon_list_st *main_list = jscon_list_init();
   jscon_list_append(item_list, jscon_number(14, "num"));
   jscon_list_append(item_list, jscon_boolean(true, "bool"));
   jscon_list_append(item_list, jscon_boolean(false, "bubu"));
   jscon_list_append(item_list, jscon_string(NULL, "huh"));
-  jscon_list_append(item_list, jscon_object(item_list, "obj1"));
-  jscon_list_append(item_list, jscon_object(item_list, "obj2"));
-  jscon_item_st *root = jscon_object(item_list, NULL);
+  jscon_list_append(main_list, jscon_object(item_list, "obj1"));
+
+  jscon_list_append(item_list, jscon_number(24, "num2"));
+  jscon_list_append(main_list, jscon_object(item_list, "obj2"));
+
+  jscon_list_append(item_list, jscon_string("que loucura..", "kek"));
+  jscon_list_append(item_list, jscon_object(item_list, "obj3"));
+  jscon_list_append(main_list, jscon_array(item_list, "arr1"));
+  jscon_list_append(main_list, jscon_object(item_list, "blank_obj"));
+  jscon_list_append(main_list, jscon_array(item_list, "blank_arr"));
+  jscon_item_st *root = jscon_object(main_list, NULL);
+
+  jscon_item_st *curr_item = NULL;
+  jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
+  do {
+    fprintf(stderr, "Hey, a composite %s!\n", item->key);
+  } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
   char *buffer = jscon_stringify(root, JSCON_ANY);
   fprintf(stderr, "%s\n", buffer);
 
   free(buffer);
   jscon_list_destroy(item_list);
+  jscon_list_destroy(main_list);
   jscon_destroy(root);
 
   return EXIT_SUCCESS;
