@@ -684,9 +684,6 @@ jscon_scanf_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
 static void
 jscon_scanf_skip(struct jscon_utils_s *utils)
 {
-  free(utils->key);
-  utils->key = NULL;
-
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
       jscon_scanf_skip_composite('{', '}', utils);
@@ -1018,6 +1015,8 @@ jscon_scanf(char *buffer, char *format, ...)
       } else {
         jscon_scanf_skip(&utils);
       }
+      free(utils.key);
+      utils.key = NULL;
     } else {
       ++utils.buffer;
     }

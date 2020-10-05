@@ -7,21 +7,13 @@ This document describes features to be incorporated in the future.
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
-- Add a hashtable bucket size check when doing functions that increase the total number of branches.
-  - If number of branches is equal to hashtable bucket size, then remake hashtable with current branch size in consideration.
-
-- Setter Functions
-  - Add singletons `jscon_item_st` initializers.
-    - For dynamically creating `jscon_item_st` a jscon entity without depending solely on parsing a json string via `jscon_parse()`.
-  - Add item appending function.
-    - For dynamically creating a `jscon_item_st` tree that can be later encoded via `jscon_stringify()`
-  - Makefile should allow for different keywords to activate each test
+- Makefile should allow for different keywords to activate each test
 
 ## MEDIUM
 
 - Replace memory allocation asserts to a simple return NULL so that the user may decide himself how to deal with the error.
 - Add Unicode support
-- Add example codes
+- Add more example codes
 - Add stringify formatting options
 
 ## LOW
