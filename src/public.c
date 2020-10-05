@@ -172,7 +172,7 @@ jscon_list_destroy(jscon_list_st *list)
   for (size_t i=0; i < list->num_node; ++i){
     node = node->next;
 
-    free(node->item);
+    jscon_destroy(node->item);
     node->item = NULL;
 
     free(node->prev);
@@ -208,7 +208,11 @@ jscon_list_append(jscon_list_st *list, jscon_item_st *item)
   list->last->prev = new_node;
 }
 
-/* TODO: add condition to stop after attaching to a existing composite */
+/* TODO: add condition to stop if after linking item hwrap to a already
+    formed composite. This is far from ideal, I should probably try to
+    make this iteratively just so that I have a better control on whats
+    going on, early break conditions etc. As it is now it will keep on
+    going deeper and deeper recursively, even if not necessary */
 static void
 jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
 {
@@ -251,7 +255,7 @@ jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
     struct jscon_node_s *node = list->first->next;
     for (size_t i=0; i < list->num_node; ++i){
       new_item->comp->branch[i] = node->item;
-      new_item->comp->branch[i]->parent = new_item;
+      node->item->parent = new_item;
 
       node = node->next;
 

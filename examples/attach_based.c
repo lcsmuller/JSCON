@@ -22,7 +22,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <unistd.h> //for access()
 #include <string.h>
 #include <stdbool.h>
 #include <locale.h>
@@ -35,24 +34,36 @@ int main(int argc, char *argv[])
   assert(locale);
 
   jscon_item_st *root = jscon_object(NULL, "root");
-  jscon_list_st *list = jscon_list_init();
+  jscon_item_st *tmp1, *tmp2;
 
-  jscon_list_append(list, jscon_string("Mario", "name"));
-  jscon_list_append(list, jscon_number(28, "age"));
-  jscon_list_append(list, jscon_boolean(false, "retired"));
-  jscon_list_append(list, jscon_boolean(true, "married"));
-  jscon_attach(root, jscon_object(list, "person1"));
+  tmp1 = jscon_array(NULL, "pets");
+  jscon_attach(tmp1, jscon_string("Dog", "0"));
+  jscon_attach(tmp1, jscon_string("Cat", "1"));
+  jscon_attach(tmp1, jscon_string("Fish", "2"));
 
-  jscon_list_append(list, jscon_string("Joana", "name"));
-  jscon_list_append(list, jscon_number(58, "age"));
-  jscon_list_append(list, jscon_boolean(true, "retired"));
-  jscon_list_append(list, jscon_boolean(false, "married"));
-  jscon_attach(root, jscon_object(list, "person2"));
+  tmp2 = jscon_object(NULL, "person1");
+  jscon_attach(tmp2, tmp1);
+  jscon_attach(tmp2, jscon_string("Mario", "name"));
+  jscon_attach(tmp2, jscon_number(28, "age"));
+  jscon_attach(tmp2, jscon_boolean(false, "retired"));
+  jscon_attach(tmp2, jscon_boolean(true, "married"));
+  jscon_attach(root, tmp2);
 
-  jscon_attach(root, jscon_array(NULL, "array"));
+  tmp1 = jscon_array(NULL, "pets");
+  jscon_attach(tmp1, jscon_string("Moose", "0"));
+  jscon_attach(tmp1, jscon_string("Mouse", "1"));
 
-  //circular references won't work
-  jscon_attach(root, root);
+  tmp2 = jscon_object(NULL, "person2");
+  jscon_attach(tmp2, tmp1);
+  jscon_attach(tmp2, jscon_string("Joana", "name"));
+  jscon_attach(tmp2, jscon_number(58, "age"));
+  jscon_attach(tmp2, jscon_boolean(true, "retired"));
+  jscon_attach(tmp2, jscon_boolean(false, "married"));
+  jscon_attach(root, tmp2);
+
+
+  //circular references won't conflict, uncommment to test
+  //jscon_attach(root, root);
 
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
@@ -64,7 +75,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "%s\n", buffer);
 
   free(buffer);
-  jscon_list_destroy(list);
   jscon_destroy(root);
 
   return EXIT_SUCCESS;

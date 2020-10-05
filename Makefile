@@ -30,7 +30,7 @@ OBJDIR = obj
 INCLUDEDIR = include
 LIBDIR = lib
 LIB = $(LIBDIR)/libjscon.a
-TEST1 = test_jscon
+TEST = test_jscon
 
 OBJS = $(OBJDIR)/public.o \
        $(OBJDIR)/stringify.o \
@@ -38,16 +38,16 @@ OBJS = $(OBJDIR)/public.o \
        $(OBJDIR)/hashtable.o \
        $(OBJDIR)/test.o
 
-MAIN = test2.c
+MAIN = examples/list_based.c
 MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug purge test
 
 all: build
 
-test: $(TEST1)
+test: $(TEST)
 
-$(TEST1): build
+$(TEST): build
 	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
 build: mkdir $(MAIN_O) $(OBJS) $(LIB)
@@ -71,4 +71,4 @@ clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(TEST1) $(LIBDIR) *.txt debug.out
+	-rm -rf $(TEST) $(LIBDIR) *.txt debug.out
