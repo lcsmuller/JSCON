@@ -99,14 +99,8 @@ jscon_destroy_preorder(jscon_item_st *item)
 
 /* destroy current item and all of its nested object/arrays */
 void
-jscon_destroy(jscon_item_st *item)
-{
-  if (IS_ROOT(item) && NULL != item->key){
-    free(item->key);
-    item->key = NULL;
-  } 
-
-  jscon_destroy_preorder(item);
+jscon_destroy(jscon_item_st *item){
+  jscon_destroy_preorder(jscon_get_root(item));
 }
 
 static jscon_char_kt*

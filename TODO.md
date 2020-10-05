@@ -4,8 +4,6 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
-- `jscon_attach()`
-  - Doing approximately 30% more mallocs than its `jscon_list_append()` counterpart, one of the reasons is because of realloc, which is expected, but the other reason is because its remaking the hashtable for every new branch attached, which is uneccessary. This should be taken care of.
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.

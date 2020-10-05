@@ -157,8 +157,9 @@ void jscon_list_append(jscon_list_st *list, jscon_item_st *item);
 
 /* JSCON UTILITIES */
 size_t jscon_size(const jscon_item_st* kItem);
-jscon_item_st* jscon_attach(jscon_item_st *item, jscon_item_st *new_branch);
+jscon_item_st* jscon_append(jscon_item_st *item, jscon_item_st *new_branch);
 jscon_item_st* jscon_dettach(jscon_item_st *item);
+void jscon_delete(jscon_item_st *item, const char *kKey);
 jscon_item_st* jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
 jscon_item_st* jscon_iter_next(jscon_item_st* item);
 jscon_item_st* jscon_clone(jscon_item_st *item);

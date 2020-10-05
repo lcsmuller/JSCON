@@ -37,33 +37,33 @@ int main(int argc, char *argv[])
   jscon_item_st *tmp1, *tmp2;
 
   tmp1 = jscon_array(NULL, "pets");
-  jscon_attach(tmp1, jscon_string("Dog", "0"));
-  jscon_attach(tmp1, jscon_string("Cat", "1"));
-  jscon_attach(tmp1, jscon_string("Fish", "2"));
+  jscon_append(tmp1, jscon_string("Dog", "0"));
+  jscon_append(tmp1, jscon_string("Cat", "1"));
+  jscon_append(tmp1, jscon_string("Fish", "2"));
 
   tmp2 = jscon_object(NULL, "person1");
-  jscon_attach(tmp2, tmp1);
-  jscon_attach(tmp2, jscon_string("Mario", "name"));
-  jscon_attach(tmp2, jscon_number(28, "age"));
-  jscon_attach(tmp2, jscon_boolean(false, "retired"));
-  jscon_attach(tmp2, jscon_boolean(true, "married"));
-  jscon_attach(root, tmp2);
+  jscon_append(tmp2, tmp1);
+  jscon_append(tmp2, jscon_string("Mario", "name"));
+  jscon_append(tmp2, jscon_number(28, "age"));
+  jscon_append(tmp2, jscon_boolean(false, "retired"));
+  jscon_append(tmp2, jscon_boolean(true, "married"));
+  jscon_append(root, tmp2);
 
   tmp1 = jscon_array(NULL, "pets");
-  jscon_attach(tmp1, jscon_string("Moose", "0"));
-  jscon_attach(tmp1, jscon_string("Mouse", "1"));
+  jscon_append(tmp1, jscon_string("Moose", "0"));
+  jscon_append(tmp1, jscon_string("Mouse", "1"));
 
   tmp2 = jscon_object(NULL, "person2");
-  jscon_attach(tmp2, tmp1);
-  jscon_attach(tmp2, jscon_string("Joana", "name"));
-  jscon_attach(tmp2, jscon_number(58, "age"));
-  jscon_attach(tmp2, jscon_boolean(true, "retired"));
-  jscon_attach(tmp2, jscon_boolean(false, "married"));
-  jscon_attach(root, tmp2);
+  jscon_append(tmp2, tmp1);
+  jscon_append(tmp2, jscon_string("Joana", "name"));
+  jscon_append(tmp2, jscon_number(58, "age"));
+  jscon_append(tmp2, jscon_boolean(true, "retired"));
+  jscon_append(tmp2, jscon_boolean(false, "married"));
+  jscon_append(root, tmp2);
 
 
   //circular references won't conflict, uncommment to test
-  //jscon_attach(root, root);
+  //jscon_append(root, root);
 
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);

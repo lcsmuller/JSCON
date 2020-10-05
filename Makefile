@@ -38,7 +38,7 @@ OBJS = $(OBJDIR)/public.o \
        $(OBJDIR)/hashtable.o \
        $(OBJDIR)/test.o
 
-MAIN = examples/list_based.c
+MAIN = examples/append_based.c
 MAIN_O = $(OBJDIR)/test.o
 
 .PHONY : clean all debug purge test

@@ -207,7 +207,7 @@ jscon_htwrap_build(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
-  hashtable_build(item->comp->htwrap.hashtable, jscon_size(item) * 1.3); //30% size increase to account for future expansions
+  hashtable_build(item->comp->htwrap.hashtable, 2 + jscon_size(item) * 1.3); //30% size increase to account for future expansions, and a default bucket size of 2
 
   item->comp->htwrap.root = item;
 

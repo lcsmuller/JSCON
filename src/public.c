@@ -307,12 +307,12 @@ jscon_get_last_htwrap(jscon_item_st *item)
   size_t item_depth = jscon_get_depth(item);
 
   /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *last_htwrap = &item->comp->htwrap;
-  while(NULL != last_htwrap->next && item_depth < jscon_get_depth(last_htwrap->next->root)){
-    last_htwrap = last_htwrap->next;
+  jscon_htwrap_st *htwrap_last = &item->comp->htwrap;
+  while(NULL != htwrap_last->next && item_depth < jscon_get_depth(htwrap_last->next->root)){
+    htwrap_last = htwrap_last->next;
   }
 
-  return last_htwrap;
+  return htwrap_last;
 }
 
 /* remake hashtable on functions that deal with increasing branches */
@@ -325,7 +325,7 @@ jscon_hashtable_remake(jscon_item_st *item)
 }
 
 jscon_item_st*
-jscon_attach(jscon_item_st *item, jscon_item_st *new_branch)
+jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
 {
   assert(IS_COMPOSITE(item) && (NULL != new_branch));
 
@@ -341,14 +341,16 @@ jscon_attach(jscon_item_st *item, jscon_item_st *new_branch)
   item->comp->branch[jscon_size(item)-1] = new_branch;
   new_branch->parent = item;
 
-  /* TODO: remake only if exceed current hashtable size */
-  jscon_hashtable_remake(item);
+  if (jscon_size(item) <= item->comp->htwrap.hashtable->num_bucket){
+    jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
+  } else {
+    jscon_hashtable_remake(item);
+  }
 
   if (IS_PRIMITIVE(new_branch)) return new_branch;
 
   /* get the last htwrap relative to item */
   jscon_htwrap_st *htwrap_last = jscon_get_last_htwrap(item);
-
   htwrap_last->next = &new_branch->comp->htwrap;
   new_branch->comp->htwrap.prev = htwrap_last;
 
@@ -364,18 +366,18 @@ jscon_dettach(jscon_item_st *item)
   /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
 
-  /* dettach the item from its parent */
-  for (size_t i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent); ++i){
+  /* dettach the item from its parent and reorder keys */
+  for (long i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent)-1; ++i){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
   }
   item_parent->comp->branch[jscon_size(item_parent)-1] = NULL;
   --item_parent->comp->num_branch;
 
   /* realloc parent references to match new size */
-  item_parent->comp->branch = realloc(item_parent->comp->branch, jscon_size(item_parent) * sizeof(jscon_item_st*));
+  item_parent->comp->branch = realloc(item_parent->comp->branch, (1+jscon_size(item_parent)) * sizeof(jscon_item_st*));
   assert(NULL != item_parent->comp->branch);
 
-  /* parent hashtable has to be remade, to match altered branch size */
+  /* parent hashtable has to be remade, to match reordered keys */
   jscon_hashtable_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
@@ -393,6 +395,18 @@ jscon_dettach(jscon_item_st *item)
 
   return item;
 }
+
+void
+jscon_delete(jscon_item_st *item, const char *kKey)
+{
+  jscon_item_st *branch = jscon_get_branch(item, kKey);
+
+  if (NULL == branch) return;
+
+  jscon_dettach(branch); 
+  jscon_destroy(branch);
+}
+
 
 /* reentrant function, works similar to strtok. the starting point is set
     by doing the function call before the main iteration loop, then
@@ -458,7 +472,7 @@ jscon_pop(jscon_item_st* item)
 }
 
 /* this will simulate tree preorder traversal iteratively, by using 
-    item->comp->last_accessed_branch like a stack trace. under no circumstance 
+    item->comp->last_accessed_branch like a stack frame. under no circumstance 
     should you modify last_accessed_branch value directly */
 jscon_item_st*
 jscon_iter_next(jscon_item_st* item)
