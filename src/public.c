@@ -325,6 +325,11 @@ jscon_attach(jscon_item_st *item, jscon_item_st *new_branch)
 {
   assert(IS_COMPOSITE(item) && (NULL != new_branch));
 
+  if (new_branch == item){
+    assert(NULL != jscon_get_key(item));
+    new_branch = jscon_clone(item);
+  }
+
   ++item->comp->num_branch;
   /* realloc parent references to match new size */
   item->comp->branch = realloc(item->comp->branch, jscon_size(item) * sizeof(jscon_item_st*));
@@ -489,6 +494,10 @@ jscon_clone(jscon_item_st *item)
 
   char *tmp_buffer = jscon_stringify(item, JSCON_ANY);
   jscon_item_st *clone = jscon_parse(tmp_buffer);
+  if (NULL != item->key){
+    clone->key = strdup(item->key);
+    assert(NULL != clone->key);
+  }
   free(tmp_buffer);
 
   return clone;

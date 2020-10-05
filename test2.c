@@ -49,6 +49,11 @@ int main(int argc, char *argv[])
   jscon_list_append(list, jscon_boolean(false, "married"));
   jscon_attach(root, jscon_object(list, "person2"));
 
+  jscon_attach(root, jscon_array(NULL, "array"));
+
+  //circular references won't work
+  jscon_attach(root, root);
+
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
   do {
