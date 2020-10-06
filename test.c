@@ -28,6 +28,7 @@
 
 #include "libjscon.h"
 
+/* forwarding */
 FILE *select_output(int argc, char *argv[]);
 char *get_buffer(char filename[]);
 jscon_item_st *callback_test(jscon_item_st *item);
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
   //jscon_parser_callback(&callback_test);
   jscon_item_st *root = jscon_parse(buffer);
 
-  jscon_item_st *property1 = jscon_dettach(root->comp->branch[0]->comp->branch[2]);
+  jscon_item_st *property1 = jscon_dettach(jscon_get_branch(root, "author"));
   if (NULL != property1){
     char *buffer = jscon_stringify(property1, JSCON_ANY);
     fprintf(stdout, "%s: %s\n", jscon_get_key(property1), buffer);

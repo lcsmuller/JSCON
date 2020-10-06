@@ -59,12 +59,12 @@ hashtable_destroy(hashtable_st *hashtable)
 }
 
 static size_t
-hashtable_genhash(const char *kKey, const size_t kNum_bucket)
+_hashtable_genhash(const char *kKey, const size_t kNum_bucket)
 {
   size_t slot = 0;
   size_t key_len = strlen(kKey);
 
-  //TODO: learn different implementations and improvements
+  //@todo learn different implementations and improvements
   for (size_t i=0; i < key_len; ++i){
     slot = slot * 37 + kKey[i];
   }
@@ -75,7 +75,7 @@ hashtable_genhash(const char *kKey, const size_t kNum_bucket)
 }
 
 static hashtable_entry_st*
-hashtable_pair(const char *kKey, const void *kValue)
+_hashtable_pair(const char *kKey, const void *kValue)
 {
   hashtable_entry_st *entry = calloc(1, sizeof *entry);
   assert(NULL != entry);
@@ -100,7 +100,7 @@ hashtable_get_entry(hashtable_st *hashtable, const char *kKey)
 {
   if (0 == hashtable->num_bucket) return NULL;
 
-  size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
+  size_t slot = _hashtable_genhash(kKey, hashtable->num_bucket);
 
   hashtable_entry_st *entry = hashtable->bucket[slot];
   while (NULL != entry){ //try to find key and return it
@@ -123,11 +123,11 @@ hashtable_get(hashtable_st *hashtable, const char *kKey)
 void*
 hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
 {
-  size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
+  size_t slot = _hashtable_genhash(kKey, hashtable->num_bucket);
 
   hashtable_entry_st *entry = hashtable->bucket[slot];
   if (NULL == entry){
-    hashtable->bucket[slot] = hashtable_pair(kKey, kValue);
+    hashtable->bucket[slot] = _hashtable_pair(kKey, kValue);
     return hashtable->bucket[slot]->value;
   }
 
@@ -140,7 +140,7 @@ hashtable_set(hashtable_st *hashtable, const char *kKey, const void *kValue)
     entry = entry->next;
   }
 
-  entry_prev->next = hashtable_pair(kKey, kValue);
+  entry_prev->next = _hashtable_pair(kKey, kValue);
 
   return (void*)kValue;
 }
@@ -150,7 +150,7 @@ hashtable_remove(hashtable_st *hashtable, const char *kKey)
 {
   if (0 == hashtable->num_bucket) return;
 
-  size_t slot = hashtable_genhash(kKey, hashtable->num_bucket);
+  size_t slot = _hashtable_genhash(kKey, hashtable->num_bucket);
 
   hashtable_entry_st *entry = hashtable->bucket[slot];
   hashtable_entry_st *entry_prev = NULL;

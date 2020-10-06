@@ -35,7 +35,7 @@
 
 #define DOUBLE_IS_INTEGER(d) ((d) <= LLONG_MIN||(d) >= LLONG_MAX||(d) == (long long)(d))
 
-//TODO: add escaped characters
+//@todo add escaped characters
 #define ALLOWED_JSON_CHAR(c) (isspace(c)||isalnum(c)||'_' == (c)||'-' == (c))
 #define CONSUME_BLANK_CHARS(str) for(;(isspace(*str)||iscntrl(*str)); ++str)
 

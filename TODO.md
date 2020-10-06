@@ -11,6 +11,7 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Create a jscon function that open a json text file and converts it to a string automatically.
 - Replace memory allocation asserts to a simple return NULL so that the user may decide himself how to deal with the error.
 - Add Unicode support
 - Add more example codes

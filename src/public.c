@@ -28,7 +28,7 @@
 
 #include "libjscon.h"
 
-/* TODO: change some of these functions to macros */
+/* @todo change some of these functions to macros */
 
 jscon_item_st*
 jscon_null(const char *kKey)
@@ -188,7 +188,7 @@ jscon_list_destroy(jscon_list_st *list)
   list = NULL;
 }
 
-/* TODO: return error value */
+/* @todo return error value */
 void
 jscon_list_append(jscon_list_st *list, jscon_item_st *item)
 {
@@ -208,25 +208,25 @@ jscon_list_append(jscon_list_st *list, jscon_item_st *item)
   list->last->prev = new_node;
 }
 
-/* TODO: add condition to stop if after linking item hwrap to a already
+/* @todo add condition to stop if after linking item hwrap to a already
     formed composite. This is far from ideal, I should probably try to
     make this iteratively just so that I have a better control on whats
     going on, early break conditions etc. As it is now it will keep on
     going deeper and deeper recursively, even if not necessary */
 static void
-jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
+_jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
 {
   jscon_htwrap_link_r(item, last_accessed_htwrap);
 
   for (size_t i=0; i < jscon_size(item); ++i){
     if (IS_COMPOSITE(item->comp->branch[i])){
-      jscon_htwrap_link_preorder(item->comp->branch[i], last_accessed_htwrap);
+      _jscon_htwrap_link_preorder(item->comp->branch[i], last_accessed_htwrap);
     }
   }
 }
 
 inline static jscon_item_st*
-jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
+_jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
@@ -275,7 +275,7 @@ jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
   }
 
   jscon_htwrap_st *last_accessed_htwrap = NULL;
-  jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
+  _jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
 
   jscon_htwrap_build(new_item);
 
@@ -284,12 +284,12 @@ jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
 
 jscon_item_st*
 jscon_object(jscon_list_st *list, const char *kKey){
-  return jscon_composite(list, kKey, JSCON_OBJECT);
+  return _jscon_composite(list, kKey, JSCON_OBJECT);
 }
 
 jscon_item_st*
 jscon_array(jscon_list_st *list, const char *kKey){
-  return jscon_composite(list, kKey, JSCON_ARRAY);
+  return _jscon_composite(list, kKey, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns -1 if primitive*/
@@ -300,7 +300,7 @@ jscon_size(const jscon_item_st* kItem){
 
 /* get the last htwrap relative to the item */
 static jscon_htwrap_st*
-jscon_get_last_htwrap(jscon_item_st *item)
+_jscon_get_last_htwrap(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));
 
@@ -317,7 +317,7 @@ jscon_get_last_htwrap(jscon_item_st *item)
 
 /* remake hashtable on functions that deal with increasing branches */
 static void
-jscon_hashtable_remake(jscon_item_st *item)
+_jscon_hashtable_remake(jscon_item_st *item)
 {
   hashtable_destroy(item->comp->htwrap.hashtable);
   item->comp->htwrap.hashtable = hashtable_init();
@@ -344,13 +344,13 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   if (jscon_size(item) <= item->comp->htwrap.hashtable->num_bucket){
     jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
   } else {
-    jscon_hashtable_remake(item);
+    _jscon_hashtable_remake(item);
   }
 
   if (IS_PRIMITIVE(new_branch)) return new_branch;
 
   /* get the last htwrap relative to item */
-  jscon_htwrap_st *htwrap_last = jscon_get_last_htwrap(item);
+  jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
   htwrap_last->next = &new_branch->comp->htwrap;
   new_branch->comp->htwrap.prev = htwrap_last;
 
@@ -378,12 +378,12 @@ jscon_dettach(jscon_item_st *item)
   assert(NULL != item_parent->comp->branch);
 
   /* parent hashtable has to be remade, to match reordered keys */
-  jscon_hashtable_remake(item_parent);
+  _jscon_hashtable_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
   jscon_htwrap_st *htwrap_prev = item->comp->htwrap.prev;
   /* get the last htwrap relative to item */
-  jscon_htwrap_st *htwrap_last = jscon_get_last_htwrap(item);
+  jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
 
   /* remove tree references to the item */
   htwrap_prev->next = htwrap_last->next;
@@ -444,7 +444,7 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 
 /* return next (not yet accessed) item, by using item->comp->last_accessed_branch as the branch index */
 static inline jscon_item_st*
-jscon_push(jscon_item_st* item)
+_jscon_push(jscon_item_st* item)
 {
   assert(IS_COMPOSITE(item));//item has to be of Object type to fetch a branch
   assert(item->comp->last_accessed_branch < jscon_size(item));//overflow assert
@@ -461,7 +461,7 @@ jscon_push(jscon_item_st* item)
 }
 
 static inline jscon_item_st*
-jscon_pop(jscon_item_st* item)
+_jscon_pop(jscon_item_st* item)
 {
   //resets object's last_accessed_branch
   if (IS_COMPOSITE(item)){
@@ -489,14 +489,14 @@ jscon_iter_next(jscon_item_st* item)
   if (IS_LEAF(item)){
     /* fetch parent until a item with available branch is found */
     do {
-      item = jscon_pop(item);
+      item = _jscon_pop(item);
       if ((NULL == item) || (0 == item->comp->last_accessed_branch)){
         return NULL; //return NULL if exceeded root
       }
      } while (jscon_size(item) == item->comp->last_accessed_branch);
   }
 
-  return jscon_push(item);
+  return _jscon_push(item);
 }
 
 /* This is not the most effective way to clone a item, but it is
@@ -638,7 +638,7 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
 /* return parent */
 jscon_item_st*
 jscon_get_parent(const jscon_item_st* kItem){
-  return jscon_pop((jscon_item_st*)kItem);
+  return _jscon_pop((jscon_item_st*)kItem);
 }
 
 jscon_item_st*
@@ -657,7 +657,7 @@ jscon_get_index(const jscon_item_st* kItem, const char *kKey)
   jscon_item_st *lookup_item = jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
   if (NULL == lookup_item) return -1;
 
-  /* TODO: can this be done differently? */
+  /* @todo can this be done differently? */
   for (size_t i=0; i < jscon_size(kItem); ++i){
     if (lookup_item == kItem->comp->branch[i]){
       return i;
