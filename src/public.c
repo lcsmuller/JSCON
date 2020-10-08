@@ -293,7 +293,7 @@ jscon_array(jscon_list_st *list, const char *kKey){
 }
 
 /* total branches the item possess, returns -1 if primitive*/
-size_t
+long
 jscon_size(const jscon_item_st* kItem){
   return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : -1;
 } 
@@ -361,7 +361,7 @@ jscon_item_st*
 jscon_dettach(jscon_item_st *item)
 {
   //can't dettach root from nothing
-  if (IS_ROOT(item)) return item;
+  if (NULL == item || IS_ROOT(item)) return item;
 
   /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
@@ -649,7 +649,7 @@ jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
 }
 
 /* returns -1 if item not found */
-size_t
+long
 jscon_get_index(const jscon_item_st* kItem, const char *kKey)
 {
   assert(IS_COMPOSITE(kItem));

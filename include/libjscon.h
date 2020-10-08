@@ -156,7 +156,7 @@ char* jscon_stringify(jscon_item_st *root, jscon_type_et type);
 void jscon_list_append(jscon_list_st *list, jscon_item_st *item);
 
 /* JSCON UTILITIES */
-size_t jscon_size(const jscon_item_st* kItem);
+long jscon_size(const jscon_item_st* kItem);
 jscon_item_st* jscon_append(jscon_item_st *item, jscon_item_st *new_branch);
 jscon_item_st* jscon_dettach(jscon_item_st *item);
 void jscon_delete(jscon_item_st *item, const char *kKey);
@@ -178,7 +178,7 @@ jscon_item_st* jscon_get_branch(jscon_item_st *item, const char *kKey);
 jscon_item_st* jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index);
 jscon_item_st* jscon_get_parent(const jscon_item_st* kItem);
 jscon_item_st* jscon_get_byindex(const jscon_item_st* kItem, const size_t kIndex);
-size_t jscon_get_index(const jscon_item_st* kItem, const char *kKey);
+long jscon_get_index(const jscon_item_st* kItem, const char *kKey);
 jscon_type_et jscon_get_type(const jscon_item_st* kItem);
 jscon_char_kt* jscon_get_key(const jscon_item_st* kItem);
 jscon_boolean_kt jscon_get_boolean(const jscon_item_st* kItem);
