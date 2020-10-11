@@ -11,6 +11,8 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
+- Create a `jscon_printf()` functions following `jscon_scanf()` format rules
 - Create a jscon function that open a json text file and converts it to a string automatically.
 - Replace memory allocation asserts to a simple return NULL so that the user may decide himself how to deal with the error.
 - Add Unicode support
