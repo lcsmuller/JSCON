@@ -27,7 +27,7 @@
 #include "hashtable.h"
 
 typedef struct jscon_htwrap_s {
-  hashtable_st *hashtable;
+  struct hashtable_s *hashtable;
 
   struct jscon_item_s *root; //points to root item (object or array)
   struct jscon_htwrap_s *next; //points to next composite item's htwrap

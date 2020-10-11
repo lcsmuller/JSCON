@@ -35,6 +35,7 @@ TEST = test_jscon
 OBJS = $(OBJDIR)/public.o \
        $(OBJDIR)/stringify.o \
        $(OBJDIR)/parser.o \
+       $(OBJDIR)/hashtable.o \
        $(OBJDIR)/hashtable_private.o \
        $(OBJDIR)/test.o
 
