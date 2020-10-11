@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-#ifndef JSCON_HASHTABLE_H
-#define JSCON_HASHTABLE_H
+#ifndef HASHTABLE_H
+#define HASHTABLE_H
 
 /* GENERAL USE IMPLEMENTATIONS */
 typedef struct hashtable_entry_s {
