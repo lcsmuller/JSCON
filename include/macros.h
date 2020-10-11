@@ -23,6 +23,8 @@
 #ifndef JSCON_COMMON_H_
 #define JSCON_COMMON_H_
 
+//#include "libjscon.h" << implicit
+
 #define JSCON_VERSION "0.0"
 
 #define MAX_DIGITS 17

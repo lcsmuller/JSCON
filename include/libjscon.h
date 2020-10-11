@@ -28,7 +28,6 @@
 #include <limits.h>
 
 #include "macros.h"
-#include "hashtable.h"
 
 /* All of the possible jscon datatypes */
 typedef enum {
@@ -68,14 +67,13 @@ typedef _Bool jscon_boolean_kt;
         branches by keys, and skipping primitives (check hashtable.h and
         hashtable.c for more info, and public.c jscon_iter_composite_r() to see
         it in action)*/
-
 typedef struct {
   struct jscon_item_s **branch;
   size_t num_branch;
 
   size_t last_accessed_branch;
 
-  struct jscon_htwrap_s htwrap;
+  struct jscon_htwrap_s *htwrap;
 } jscon_composite_st;
 
 /* these attributes should not be accessed directly, they are only
