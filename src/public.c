@@ -27,6 +27,7 @@
 #include <assert.h>
 
 #include "libjscon.h"
+#include "hashtable_private.h"
 
 /* @todo change some of these functions to macros */
 
@@ -216,7 +217,7 @@ jscon_list_append(jscon_list_st *list, jscon_item_st *item)
 static void
 _jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
 {
-  jscon_htwrap_link_r(item, last_accessed_htwrap);
+  Jscon_htwrap_link_r(item, last_accessed_htwrap);
 
   for (size_t i=0; i < jscon_size(item); ++i){
     if (IS_COMPOSITE(item->comp->branch[i])){
@@ -243,7 +244,7 @@ _jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
   new_item->comp = calloc(1, sizeof *new_item->comp);
   assert(NULL != new_item->comp);
 
-  jscon_htwrap_init(&new_item->comp->htwrap);
+  new_item->comp->htwrap = Jscon_htwrap_init();
 
   if (NULL == list){ //empty object/array
     new_item->comp->branch = malloc(sizeof(jscon_item_st*));
@@ -277,7 +278,7 @@ _jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
   jscon_htwrap_st *last_accessed_htwrap = NULL;
   _jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
 
-  jscon_htwrap_build(new_item);
+  Jscon_htwrap_build(new_item);
 
   return new_item;
 }
@@ -307,7 +308,7 @@ _jscon_get_last_htwrap(jscon_item_st *item)
   size_t item_depth = jscon_get_depth(item);
 
   /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *htwrap_last = &item->comp->htwrap;
+  jscon_htwrap_st *htwrap_last = item->comp->htwrap;
   while(NULL != htwrap_last->next && item_depth < jscon_get_depth(htwrap_last->next->root)){
     htwrap_last = htwrap_last->next;
   }
@@ -319,9 +320,9 @@ _jscon_get_last_htwrap(jscon_item_st *item)
 static void
 _jscon_hashtable_remake(jscon_item_st *item)
 {
-  hashtable_destroy(item->comp->htwrap.hashtable);
-  item->comp->htwrap.hashtable = hashtable_init();
-  jscon_htwrap_build(item);
+  hashtable_destroy(item->comp->htwrap->hashtable);
+  item->comp->htwrap->hashtable = hashtable_init();
+  Jscon_htwrap_build(item);
 }
 
 jscon_item_st*
@@ -341,8 +342,8 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   item->comp->branch[jscon_size(item)-1] = new_branch;
   new_branch->parent = item;
 
-  if (jscon_size(item) <= item->comp->htwrap.hashtable->num_bucket){
-    jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
+  if (jscon_size(item) <= item->comp->htwrap->hashtable->num_bucket){
+    Jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
   } else {
     _jscon_hashtable_remake(item);
   }
@@ -351,8 +352,8 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
 
   /* get the last htwrap relative to item */
   jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
-  htwrap_last->next = &new_branch->comp->htwrap;
-  new_branch->comp->htwrap.prev = htwrap_last;
+  htwrap_last->next = new_branch->comp->htwrap;
+  new_branch->comp->htwrap->prev = htwrap_last;
 
   return new_branch;
 }
@@ -381,7 +382,7 @@ jscon_dettach(jscon_item_st *item)
   _jscon_hashtable_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
-  jscon_htwrap_st *htwrap_prev = item->comp->htwrap.prev;
+  jscon_htwrap_st *htwrap_prev = item->comp->htwrap->prev;
   /* get the last htwrap relative to item */
   jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
 
@@ -391,7 +392,7 @@ jscon_dettach(jscon_item_st *item)
   /* remove item references to the tree */
   item->parent = NULL;
   htwrap_last->next = NULL;
-  item->comp->htwrap.prev = NULL;
+  item->comp->htwrap->prev = NULL;
 
   return item;
 }
@@ -431,7 +432,7 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 
   /* get next htwrap in line, if NULL it means there are no more
       composite datatype items to iterate through */
-  jscon_htwrap_st *next_htwrap = (*p_current_item)->comp->htwrap.next;
+  jscon_htwrap_st *next_htwrap = (*p_current_item)->comp->htwrap->next;
   if (NULL == next_htwrap){
     *p_current_item = NULL;
     return NULL;
@@ -612,7 +613,7 @@ jscon_get_branch(jscon_item_st *item, const char *kKey)
   assert(IS_COMPOSITE(item));
   /* search for entry with given key at item's htwrap,
     and retrieve found or not found(NULL) item */
-  return jscon_htwrap_get(kKey, item);
+  return Jscon_htwrap_get(kKey, item);
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
@@ -654,7 +655,7 @@ jscon_get_index(const jscon_item_st* kItem, const char *kKey)
 {
   assert(IS_COMPOSITE(kItem));
 
-  jscon_item_st *lookup_item = jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
+  jscon_item_st *lookup_item = Jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
   if (NULL == lookup_item) return -1;
 
   /* @todo can this be done differently? */

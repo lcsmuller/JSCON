@@ -29,6 +29,7 @@
 #include <assert.h>
 
 #include "libjscon.h"
+#include "hashtable_private.h"
 
 
 struct jscon_utils_s {
@@ -62,7 +63,7 @@ _jscon_new_branch(jscon_item_st *item)
 static void
 _jscon_destroy_composite(jscon_item_st *item)
 {
-  jscon_htwrap_destroy(&item->comp->htwrap);
+  Jscon_htwrap_destroy(item->comp->htwrap);
 
   free(item->comp->branch);
   item->comp->branch = NULL;
@@ -233,7 +234,7 @@ _jscon_utils_decode_composite(struct jscon_utils_s *utils, size_t n_branch){
   jscon_composite_st *new_comp = calloc(1, sizeof *new_comp);
   assert(NULL != new_comp);
 
-  jscon_htwrap_init(&new_comp->htwrap);
+  new_comp->htwrap = Jscon_htwrap_init();
 
   new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_st*));
   assert(NULL != new_comp->branch);
@@ -291,7 +292,7 @@ _jscon_value_set_object(jscon_item_st *item, struct jscon_utils_s *utils)
   item->type = JSCON_OBJECT;
 
   item->comp = _jscon_utils_decode_composite(utils, _jscon_count_property(utils->buffer));
-  jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
+  Jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
 }
 
 inline static size_t
@@ -342,7 +343,7 @@ _jscon_value_set_array(jscon_item_st *item, struct jscon_utils_s *utils)
   item->type = JSCON_ARRAY;
 
   item->comp = _jscon_utils_decode_composite(utils, _jscon_count_element(utils->buffer));
-  jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
+  Jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
 }
 
 /* create nested composite type (object/array) and return 
@@ -366,7 +367,7 @@ static jscon_item_st*
 _jscon_wrap_composite(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   ++utils->buffer; //skips '}' or ']'
-  jscon_htwrap_build(item);
+  Jscon_htwrap_build(item);
   return jscon_get_parent(item);
 }
 

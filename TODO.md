@@ -4,6 +4,7 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
+- Make JSCON custom hashtable functions private
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
