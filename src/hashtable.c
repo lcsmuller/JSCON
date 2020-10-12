@@ -20,12 +20,16 @@
  * SOFTWARE.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-#include "libjscon.h"
 #include "hashtable.h"
 
+#ifndef STREQ
+#define STREQ(src, dest) (0 == strcmp(src, dest))
+#endif
 
 hashtable_st*
 hashtable_init()

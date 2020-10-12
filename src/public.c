@@ -26,8 +26,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include "libjscon.h"
-#include "hashtable.h"
+#include <libjscon.h>
+
 #include "hashtable_private.h"
 
 /* @todo change some of these functions to macros */

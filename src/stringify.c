@@ -27,7 +27,7 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "libjscon.h"
+#include <libjscon.h>
 
 struct jscon_utils_s {
   char *buffer_base; //buffer's base (first position)

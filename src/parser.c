@@ -28,7 +28,8 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "libjscon.h"
+#include <libjscon.h>
+
 #include "hashtable_private.h"
 
 
