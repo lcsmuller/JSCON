@@ -977,6 +977,8 @@ the correct order, and type, as the requested keys.
 void
 jscon_scanf(char *buffer, char *format, ...)
 {
+  assert(NULL != buffer);
+
   CONSUME_BLANK_CHARS(buffer);
 
   if ('{' != *buffer){
