@@ -294,10 +294,10 @@ jscon_array(jscon_list_st *list, const char *kKey){
   return _jscon_composite(list, kKey, JSCON_ARRAY);
 }
 
-/* total branches the item possess, returns -1 if primitive*/
-long
+/* total branches the item possess, returns 0 if item type is primitive */
+size_t
 jscon_size(const jscon_item_st* kItem){
-  return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : -1;
+  return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : 0;
 } 
 
 /* get the last htwrap relative to the item */
