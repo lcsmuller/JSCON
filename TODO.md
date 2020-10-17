@@ -11,6 +11,7 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Add Makefile for each example code
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
 - Create a `jscon_printf()` functions following `jscon_scanf()` format rules
 - Create a jscon function that open a json text file and converts it to a string automatically.
