@@ -25,7 +25,7 @@ SRCDIR 	= src
 OBJDIR 	= obj
 INCLDIR = include
 
-SRC   = $(filter-out src/*_private.c, $(wildcard src/*.c))
+SRC   = $(filter-out src/%_private.c, $(wildcard src/*.c))
 _OBJS = $(patsubst src/%.c, %.o, $(SRC))
 OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 
