@@ -25,11 +25,11 @@ SRCDIR 	= src
 OBJDIR 	= obj
 INCLDIR = include
 
-SRC 	= $(wildcard src/*.c)
-_OBJS	= $(patsubst src/%.c, %.o, $(SRC))
-OBJS	= $(addprefix $(OBJDIR)/, $(_OBJS))
+SRC   = $(filter-out src/*_private.c, $(wildcard src/*.c))
+_OBJS = $(patsubst src/%.c, %.o, $(SRC))
+OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_LIB 	= libjscon.a
+JSCON_LIB = libjscon.a
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 LDLIBS =

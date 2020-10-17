@@ -31,7 +31,7 @@ CFLAGS = -Wall -Werror -pedantic -g -I$(TOP)/include/
 .PHONY : clean purge
 
 $(EXEC): $(JSCON_LIB) $(SRC)
-	gcc -o $@ $^ $(CFLAGS) $(JSCON_LIB)
+	gcc -o $@ $(SRC) $(JSCON_LIB) $(CFLAGS)
 
 $(JSCON_LIB):
 	$(MAKE) -C $(TOP)
