@@ -20,56 +20,35 @@
 # SOFTWARE.
 #
 
-CFLAGS = -Wall -Werror -pedantic
+CC 	= gcc
+SRCDIR 	= src/
+OBJDIR 	= obj/
+INCLDIR = include/
+
+SRC 	= $(wildcard src/*.c)
+_OBJS	= $(patsubst src/%.c, %.o, $(SRC))
+OBJS	= $(addprefix $(OBJDIR), $(_OBJS))
+
+JSCON_LIB 	= libjscon.a
+
+CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 LDLIBS =
-CC = gcc
 
+.PHONY : all clean purge
 
-SRCDIR = src
-OBJDIR = obj
-INCLUDEDIR = include
-LIBDIR = lib
-LIB = $(LIBDIR)/libjscon.a
-TEST = test_jscon
-
-OBJS = $(OBJDIR)/public.o \
-       $(OBJDIR)/stringify.o \
-       $(OBJDIR)/parser.o \
-       $(OBJDIR)/hashtable.o \
-       $(OBJDIR)/hashtable_private.o \
-       $(OBJDIR)/test.o
-
-MAIN = test.c
-MAIN_O = $(OBJDIR)/test.o
-
-.PHONY : clean all debug purge test
-
-all: build
-
-test: $(TEST)
-
-$(TEST): build
-	$(CC) -o $@ $(OBJS) $(LDLIBS)
-
-build: mkdir $(MAIN_O) $(OBJS) $(LIB)
+all: mkdir $(OBJS) $(JSCON_LIB)
 
 mkdir:
-	-mkdir -p $(OBJDIR) $(LIBDIR)
+	mkdir -p $(OBJDIR) 
 
-$(MAIN_O): $(MAIN)
-	$(CC) -I$(INCLUDEDIR) -c $< -o $@ $(CFLAGS)
+$(OBJDIR)%.o: $(SRCDIR)%.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) -I$(INCLUDEDIR) -c $< -o $@ $(CFLAGS)
-
-$(LIB):
+$(JSCON_LIB):
 	-ar rcs $@ $(OBJS)
-
-debug : $(MAIN) $(SRCDIR)/*.c
-	$(CC) -g -I$(INCLUDEDIR) $(MAIN) $(SRCDIR)/*.c -o debug.out $(CFLAGS)
 
 clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(TEST) $(LIBDIR) *.txt debug.out
+	-rm -rf $(JSCON_LIB) *.txt debug.out
