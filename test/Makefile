@@ -24,22 +24,14 @@ TOP  = ..
 EXEC = run
 SRC  = test.c
 
-JSCON_LIB = libjscon.a
-
 CFLAGS = -Wall -Werror -pedantic -g -I$(TOP)/include/
+
+LDLIBS = -ljscon
 
 .PHONY : clean purge
 
 $(EXEC): $(JSCON_LIB) $(SRC)
-	gcc -o $@ $(SRC) $(JSCON_LIB) $(CFLAGS)
-
-$(JSCON_LIB):
-	$(MAKE) -C $(TOP)
-	cp $(TOP)/$(JSCON_LIB) .
+	gcc -o $@ $(SRC) $(CFLAGS) $(LDLIBS)
 
 clean :
-	-rm -rf run $(JSCON_LIB)
-
-purge : clean
-	-rm -rf *.txt
-	$(MAKE) -C $(TOP) purge
+	-rm -rf run *.txt

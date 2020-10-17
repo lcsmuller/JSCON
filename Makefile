@@ -29,26 +29,31 @@ SRC   = $(filter-out src/*_private.c, $(wildcard src/*.c))
 _OBJS = $(patsubst src/%.c, %.o, $(SRC))
 OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_LIB = libjscon.a
+JSCON_SLIB = libjscon.so
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
+
 LDLIBS =
 
 .PHONY : all clean purge
 
-all: mkdir $(OBJS) $(JSCON_LIB)
+all: mkdir $(OBJS) $(JSCON_SLIB)
 
 mkdir:
 	mkdir -p $(OBJDIR) 
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) -c -fPIC $< -o $@ $(CFLAGS)
 
-$(JSCON_LIB):
-	-ar rcs $@ $(OBJS)
+$(JSCON_SLIB):
+	$(CC) $(OBJS) -shared -o $(JSCON_SLIB) $(LDLIBS)	
+
+install: all
+	cp $(JSCON_SLIB) /usr/local/lib && \
+	ldconfig
 
 clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(JSCON_LIB) *.txt debug.out
+	-rm -rf $(JSCON_SLIB) *.txt
