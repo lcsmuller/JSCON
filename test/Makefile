@@ -26,7 +26,7 @@ SRC  = test.c
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(TOP)/include/
 
-LDLIBS = -ljscon
+LDLIBS = $(TOP)/libjscon.a
 
 .PHONY : clean purge
 

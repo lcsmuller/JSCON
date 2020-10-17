@@ -29,7 +29,8 @@ SRC   = $(filter-out src/*_private.c, $(wildcard src/*.c))
 _OBJS = $(patsubst src/%.c, %.o, $(SRC))
 OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_SLIB = libjscon.so
+JSCON_DLIB = libjscon.so
+JSCON_SLIB = libjscon.a
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 
@@ -37,7 +38,7 @@ LDLIBS =
 
 .PHONY : all clean purge
 
-all: mkdir $(OBJS) $(JSCON_SLIB)
+all: mkdir $(OBJS) $(JSCON_DLIB) $(JSCON_SLIB)
 
 mkdir:
 	mkdir -p $(OBJDIR) 
@@ -45,15 +46,18 @@ mkdir:
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -c -fPIC $< -o $@ $(CFLAGS)
 
+$(JSCON_DLIB):
+	$(CC) $(OBJS) -shared -o $(JSCON_DLIB) $(LDLIBS)	
+
 $(JSCON_SLIB):
-	$(CC) $(OBJS) -shared -o $(JSCON_SLIB) $(LDLIBS)	
+	ar rcs $@ $(OBJS)
 
 install: all
-	cp $(JSCON_SLIB) /usr/local/lib && \
+	cp $(JSCON_DLIB) /usr/local/lib && \
 	ldconfig
 
 clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(JSCON_SLIB) *.txt
+	-rm -rf $(JSCON_DLIB) $(JSCON_SLIB) *.txt
