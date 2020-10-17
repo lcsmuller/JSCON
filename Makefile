@@ -21,15 +21,15 @@
 #
 
 CC 	= gcc
-SRCDIR 	= src/
-OBJDIR 	= obj/
-INCLDIR = include/
+SRCDIR 	= src
+OBJDIR 	= obj
+INCLDIR = include
 
 SRC 	= $(wildcard src/*.c)
 _OBJS	= $(patsubst src/%.c, %.o, $(SRC))
-OBJS	= $(addprefix $(OBJDIR), $(_OBJS))
+OBJS	= $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_LIB = libjscon.a
+JSCON_LIB 	= libjscon.a
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 LDLIBS =
@@ -41,7 +41,7 @@ all: mkdir $(OBJS) $(JSCON_LIB)
 mkdir:
 	mkdir -p $(OBJDIR) 
 
-$(OBJDIR)%.o: $(SRCDIR)%.c
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(JSCON_LIB):
@@ -51,4 +51,4 @@ clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(JSCON_LIB)
+	-rm -rf $(JSCON_LIB) *.txt debug.out

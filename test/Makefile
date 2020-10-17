@@ -41,4 +41,5 @@ clean :
 	-rm -rf run $(JSCON_LIB)
 
 purge : clean
+	-rm -rf *.txt
 	$(MAKE) -C $(TOP) purge
