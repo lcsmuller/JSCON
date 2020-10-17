@@ -29,7 +29,7 @@ SRC 	= $(wildcard src/*.c)
 _OBJS	= $(patsubst src/%.c, %.o, $(SRC))
 OBJS	= $(addprefix $(OBJDIR), $(_OBJS))
 
-JSCON_LIB 	= libjscon.a
+JSCON_LIB = libjscon.a
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 LDLIBS =
@@ -51,4 +51,4 @@ clean :
 	-rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(JSCON_LIB) *.txt debug.out
+	-rm -rf $(JSCON_LIB)
