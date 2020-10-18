@@ -24,13 +24,14 @@ CC 	= gcc
 SRCDIR 	= src
 OBJDIR 	= obj
 INCLDIR = include
+LIBDIR	= lib
 
-SRC   = $(filter-out src/%_private.c, $(wildcard src/*.c))
+SRC   = $(wildcard src/*.c)
 _OBJS = $(patsubst src/%.c, %.o, $(SRC))
 OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_DLIB = libjscon.so
-JSCON_SLIB = libjscon.a
+JSCON_DLIB = $(LIBDIR)/libjscon.so
+JSCON_SLIB = $(LIBDIR)/libjscon.a
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
 
@@ -41,7 +42,7 @@ LDLIBS =
 all: mkdir $(OBJS) $(JSCON_DLIB) $(JSCON_SLIB)
 
 mkdir:
-	mkdir -p $(OBJDIR) 
+	mkdir -p $(OBJDIR) $(LIBDIR)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -c -fPIC $< -o $@ $(CFLAGS)
@@ -57,7 +58,8 @@ install: all
 	ldconfig
 
 clean :
-	-rm -rf $(OBJDIR)
+	rm -rf $(OBJDIR)
 
 purge : clean
-	-rm -rf $(JSCON_DLIB) $(JSCON_SLIB) *.txt
+	rm -rf $(LIBDIR)
+	rm -rf $(JSCON_DLIB) $(JSCON_SLIB) *.txt

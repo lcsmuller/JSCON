@@ -21,17 +21,24 @@
 #
 
 TOP  = ..
+
+LIBDIR = $(TOP)/lib
+
 EXEC = run
 SRC  = test.c
 
 CFLAGS = -Wall -Werror -pedantic -g -I$(TOP)/include/
 
-LDLIBS = $(TOP)/libjscon.a
+LDLIBS  = -L$(LIBDIR) -ljscon
+LDFLAGS = "-Wl,-rpath,$(LIBDIR)"
 
 .PHONY : clean purge
 
-$(EXEC): $(JSCON_LIB) $(SRC)
-	gcc -o $@ $(SRC) $(CFLAGS) $(LDLIBS)
+$(EXEC): $(LIBDIR)
+	gcc -o $@ $(SRC) $(LDLIBS) $(CFLAGS) $(LDFLAGS)
+
+$(LIBDIR):
+	$(MAKE) -C $(TOP)
 
 clean :
 	-rm -rf run *.txt
