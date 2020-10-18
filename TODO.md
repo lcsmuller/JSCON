@@ -11,6 +11,7 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Update with hashtable.c dictionary functionality where it makes sense
 - Add Makefile for each example code
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
 - Create a `jscon_printf()` functions following `jscon_scanf()` format rules
