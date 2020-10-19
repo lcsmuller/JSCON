@@ -1017,7 +1017,9 @@ jscon_scanf(char *buffer, char *format, ...)
         _jscon_scanf_apply(&utils, chunk);
       } else {
         _jscon_scanf_skip(&utils);
+      }
 
+      if (NULL != utils.key){
         free(utils.key);
         utils.key = NULL;
       }
