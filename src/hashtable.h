@@ -65,7 +65,9 @@ void dictionary_destroy(dictionary_st *dictionary);
 #define dictionary_get(dict, key) hashtable_get((hashtable_st*)dict, key)
 void *dictionary_set(dictionary_st *dictionary, const char *kKey, const void *kValue, _Bool to_free);
 void dictionary_remove(dictionary_st *dictionary, const char *kKey);
-char *dictionary_new_string(dictionary_st *dictionary, const char *kKey, char *src);
+void *dictionary_replace(dictionary_st *dictionary, const char *kKey, void *new_value);
+long long dictionary_get_strtoll(dictionary_st *dictionary, const char *kKey);
+double dictionary_get_strtod(dictionary_st *dictionary, const char *kKey);
 
 
 #endif

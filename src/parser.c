@@ -642,6 +642,13 @@ jscon_parse(char *buffer)
     exit(EXIT_FAILURE);
 }
 
+/* struct that will be stored at jscon_scanf dictionary */
+/* @todo make this more explicit */
+struct chunk_s {
+  void *value;
+  char specifier[5];
+};
+
 inline static void
 _jscon_scanf_skip_string(struct jscon_utils_s *utils)
 {
@@ -743,19 +750,22 @@ _jscon_scanf_format_info(char *specifier, size_t *p_tmp)
 }
 
 static void
-_jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
+_jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
 {
-  char *specifier = &entry->key[strlen(entry->key)+1];
+  char *specifier = chunk->specifier;
+  void *value     = chunk->value;
+    
 
   /* if specifier is item, simply call jscon_parse at current buffer token */
   if (STREQ(specifier, "ji")){
-    jscon_item_st **item = entry->value;
+    jscon_item_st **item = value;
     *item = jscon_parse(utils->buffer);
     _jscon_scanf_skip(utils); //skip characters parsed by jscon_parse
 
     /* get key, but keep in mind that this item is an "entity". The key will
         be ignored when serializing with jscon_stringify(); */
-    (*item)->key = strdup(entry->key);
+    (*item)->key = utils->key;
+    utils->key = NULL;
     return;
   }
 
@@ -770,7 +780,7 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
       }
       
       jscon_char_kt *string = _jscon_utils_decode_string(utils);
-      strcpy(entry->value, string);
+      strcpy(value, string);
       free(string);
       return;
    }
@@ -785,7 +795,7 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
         goto type_error;
       }
 
-      jscon_boolean_kt *boolean = entry->value;
+      jscon_boolean_kt *boolean = value;
       *boolean = _jscon_utils_decode_boolean(utils);
       return;
    }
@@ -800,7 +810,7 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
       /* null conversion */
       size_t n_bytes; //get amount of bytes that should be set to 0
       _jscon_scanf_format_info(specifier, &n_bytes);
-      memset(entry->value, 0, n_bytes);
+      memset(value, 0, n_bytes);
       return;
    }
   case '{':/*OBJECT DETECTED*/
@@ -819,14 +829,14 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
           strcpy(err_typeis, "jscon_integer_kt* or jscon_item_st**");
           goto type_error;
         }
-        jscon_integer_kt *number_i = entry->value;
+        jscon_integer_kt *number_i = value;
         *number_i = (jscon_integer_kt)tmp;
       } else {
         if (!STREQ(specifier, "jf")){
           strcpy(err_typeis, "jscon_double_kt* or jscon_item_st**");
           goto type_error;
         }
-        jscon_double_kt *number_d = entry->value; 
+        jscon_double_kt *number_d = value; 
         *number_d = tmp;
       }
       return;
@@ -835,7 +845,7 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, hashtable_entry_st *entry)
 
 
   type_error:
-    fprintf(stderr,"ERROR: expected specifier %s but specifier is %s\n",err_typeis, _jscon_scanf_format_info(specifier, NULL));
+    fprintf(stderr,"ERROR: expected specifier %s but specifier is %s( found: \"%s\" )\n",err_typeis, _jscon_scanf_format_info(specifier, NULL), specifier);
     exit(EXIT_FAILURE);
 
   token_error:
@@ -892,30 +902,20 @@ _jscon_scanf_format_analyze(char *format)
   }
 }
 
-/* this can be a little confusing, basically it stores the key and the
-    type specifier characters in the same string, with a null
-    terminator character inbetween, to make sure thata only the key is read
-    yet the type can still be accessed by skipping the the first null terminator
-    
-    an approximate resulting format:
-      input:    '#key%specifier\0'
-      output:   'key\0specifier\0'   */
-static char**
-_jscon_scanf_format_decode(const size_t kNum_keys, char *format, hashtable_st *hashtable, va_list ap)
+static void
+_jscon_scanf_format_decode(char *format, dictionary_st *dictionary, va_list ap)
 {
   assert('\0' != *format); //can't be empty string
 
   const size_t STR_LEN = 256;
   char str[STR_LEN];
 
-  char **keys = malloc(kNum_keys * sizeof *keys);
-  assert(NULL != keys);
-  char *specifier;
+  struct chunk_s *chunk;
 
   /* split individual keys from specifiers and set them
       to a hashtable */
   char c;
-  size_t i = 0, j = 0; //str and keys index respectively
+  size_t i = 0; //str char index
   while (true) //run until end of string found
   {
     CONSUME_BLANK_CHARS(format);
@@ -947,26 +947,23 @@ _jscon_scanf_format_decode(const size_t kNum_keys, char *format, hashtable_st *h
 
     str[i-1] = '\0';
 
-    /* 3rd STEP: store '#key\0specifier\0' string and its variable
-        address (given at ... parameter) in hashtable */
-    keys[j] = malloc(i);
-    assert(NULL != keys[j]);
-    memcpy(keys[j], str, i); //get the string in its entirety
+    chunk = calloc(1, sizeof *chunk);
+    assert(NULL != chunk);
 
-    specifier = &keys[j][strlen(keys[j])+1]; //get specifier string
-    
-    if ( STREQ("NaN", _jscon_scanf_format_info(specifier, NULL)) ){
-      fprintf(stderr, "\n\nERROR: unknown type specifier %%%s\n", specifier);
+    strncpy(chunk->specifier, &str[strlen(str)+1], 4); //get specifier string
+    chunk->value = va_arg(ap, void*);
+
+    if ( STREQ("NaN", _jscon_scanf_format_info(chunk->specifier, NULL)) ){
+      fprintf(stderr, "\n\nERROR: unknown type specifier %%%s\n", chunk->specifier);
       exit(EXIT_FAILURE);
     }
-    hashtable_set(hashtable, keys[j], va_arg(ap, void*));
 
-    if ('\0' == c) return keys; //end of string, return
+    dictionary_set(dictionary, str, chunk, true);
+
+    if ('\0' == c) return; //end of string, return
 
     i = 0; //resets i to start next key from scratch
     ++format; //start of next key
-    ++j; //next key index
-    assert(j < kNum_keys);
   }
 }
 
@@ -994,13 +991,15 @@ jscon_scanf(char *buffer, char *format, ...)
   va_list ap;
   va_start(ap, format);
 
-  const size_t kNum_keys = _jscon_scanf_format_analyze(format);
+  size_t kNum_keys = _jscon_scanf_format_analyze(format);
 
-  hashtable_st *hashtable = hashtable_init();
-  hashtable_build(hashtable, kNum_keys);
+  /* key/value dictionary fetched from format */
+  dictionary_st *dictionary = dictionary_init();
+  dictionary_build(dictionary, kNum_keys);
 
   //return keys for freeing later
-  char **keys = _jscon_scanf_format_decode(kNum_keys, format, hashtable, ap);
+  _jscon_scanf_format_decode(format, dictionary, ap);
+  assert(kNum_keys == dictionary->len);
 
   while ('\0' != *utils.buffer)
   {
@@ -1012,25 +1011,22 @@ jscon_scanf(char *buffer, char *format, ...)
       ++utils.buffer; //consume ':'
       CONSUME_BLANK_CHARS(utils.buffer);
 
-      /* check wether key found is specified */
-      hashtable_entry_st *entry = hashtable_get_entry(hashtable, utils.key);
-      if (NULL != entry){
-        _jscon_scanf_apply(&utils, entry);
+      /* check whether key found is specified */
+      struct chunk_s *chunk = dictionary_get(dictionary, utils.key);
+      if (NULL != chunk){
+        _jscon_scanf_apply(&utils, chunk);
       } else {
         _jscon_scanf_skip(&utils);
+
+        free(utils.key);
+        utils.key = NULL;
       }
-      free(utils.key);
-      utils.key = NULL;
     } else {
       ++utils.buffer;
     }
   }
 
-  hashtable_destroy(hashtable);
-  for (size_t i=0; i < kNum_keys; ++i){
-    free(keys[i]);
-  }
-  free(keys);
+  dictionary_destroy(dictionary);
 
   va_end(ap);
 }

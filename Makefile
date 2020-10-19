@@ -61,5 +61,6 @@ clean :
 	rm -rf $(OBJDIR)
 
 purge : clean
+	$(MAKE) -C test clean
 	rm -rf $(LIBDIR)
 	rm -rf $(JSCON_DLIB) $(JSCON_SLIB) *.txt
