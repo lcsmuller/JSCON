@@ -958,7 +958,7 @@ _jscon_scanf_format_decode(char *format, dictionary_st *dictionary, va_list ap)
       exit(EXIT_FAILURE);
     }
 
-    dictionary_set(dictionary, str, chunk, free);
+    dictionary_set(dictionary, str, chunk, &free);
 
     if ('\0' == c) return; //end of string, return
 
