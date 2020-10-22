@@ -54,6 +54,7 @@ $(JSCON_SLIB):
 	ar rcs $@ $(OBJS)
 
 install: all
+	cp $(INCLDIR)/* /usr/local/include
 	cp $(JSCON_DLIB) /usr/local/lib && \
 	ldconfig
 
