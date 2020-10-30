@@ -11,6 +11,7 @@ This document describes features to be incorporated in the future.
 
 ## MEDIUM
 
+- Make structs that shouldn't be accessed publically private
 - Update with hashtable.c dictionary functionality where it makes sense
 - Add Makefile for each example code
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
