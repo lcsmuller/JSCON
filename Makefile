@@ -33,7 +33,7 @@ OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
 JSCON_DLIB = $(LIBDIR)/libjscon.so
 JSCON_SLIB = $(LIBDIR)/libjscon.a
 
-CFLAGS = -Wall -Werror -pedantic -g -I$(INCLDIR)
+CFLAGS = -Wall -Werror -Wextra -pedantic -O2 -g -I$(INCLDIR)
 
 LDLIBS =
 

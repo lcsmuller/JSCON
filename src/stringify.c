@@ -43,6 +43,7 @@ struct jscon_utils_s {
 static void
 _jscon_utils_analyze(char get_char, struct jscon_utils_s *utils){
   ++utils->buffer_offset;
+  (void)get_char;
 }
 
 /* fills allocated buffer (with its length calculated by

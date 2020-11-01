@@ -369,7 +369,7 @@ jscon_dettach(jscon_item_st *item)
   jscon_item_st *item_parent = item->parent;
 
   /* dettach the item from its parent and reorder keys */
-  for (long i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent)-1; ++i){
+  for (size_t i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent)-1; ++i){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
   }
   item_parent->comp->branch[jscon_size(item_parent)-1] = NULL;
@@ -630,7 +630,7 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
-  if ((0 <= (origin_index + kRelative_index)) && jscon_size(kParent) > (origin_index + kRelative_index)){
+  if ((0 <= (int)(origin_index + kRelative_index)) && jscon_size(kParent) > (origin_index + kRelative_index)){
     return jscon_get_byindex(kParent, origin_index + kRelative_index);
   }
 

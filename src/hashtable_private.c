@@ -7,7 +7,7 @@
 #include "hashtable_private.h"
 
 jscon_htwrap_st*
-Jscon_htwrap_init(jscon_htwrap_st *htwrap)
+Jscon_htwrap_init()
 {
   jscon_htwrap_st *new_htwrap = calloc(1, sizeof *new_htwrap);
   assert(NULL != new_htwrap);
@@ -50,7 +50,7 @@ Jscon_htwrap_build(jscon_item_st *item)
 
   item->comp->htwrap->root = item;
 
-  for (int i=0; i < jscon_size(item); ++i){
+  for (size_t i=0; i < jscon_size(item); ++i){
     Jscon_htwrap_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }
