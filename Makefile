@@ -20,40 +20,44 @@
 # SOFTWARE.
 #
 
-CC 	= gcc
-SRCDIR 	= src
-OBJDIR 	= obj
-INCLDIR = include
-LIBDIR	= lib
+CC	:= gcc
+SRCDIR	:= src
+OBJDIR	:= obj
+INCLDIR	:= include
+LIBDIR	:= lib
 
-SRC   = $(wildcard src/*.c)
-_OBJS = $(patsubst src/%.c, %.o, $(SRC))
-OBJS  = $(addprefix $(OBJDIR)/, $(_OBJS))
+SRC	:= $(wildcard src/*.c)
+_OBJS	:= $(patsubst src/%.c, %.o, $(SRC))
+OBJS	:= $(addprefix $(OBJDIR)/, $(_OBJS))
 
-JSCON_DLIB = $(LIBDIR)/libjscon.so
-JSCON_SLIB = $(LIBDIR)/libjscon.a
+JSCON_DLIB	:= $(LIBDIR)/libjscon.so
+JSCON_SLIB	:= $(LIBDIR)/libjscon.a
 
-CFLAGS = -Wall -Werror -Wextra -pedantic -O2 -g -I$(INCLDIR)
+LIBJSCON_CFLAGS	:= -I$(INCLDIR)
 
-LDLIBS =
+LIBS_CFLAGS	:= $(LIBJSCON_CFLAGS)
+
+CFLAGS	:= -Wall -Werror -Wextra -pedantic -fPIC -O2 -g
 
 .PHONY : all clean purge
 
-all: mkdir $(OBJS) $(JSCON_DLIB) $(JSCON_SLIB)
+all : mkdir $(OBJS) $(JSCON_DLIB) $(JSCON_SLIB)
 
-mkdir:
+mkdir :
 	mkdir -p $(OBJDIR) $(LIBDIR)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) -c -fPIC $< -o $@ $(CFLAGS)
+$(OBJDIR)/%.o : $(SRCDIR)/%.c
+	$(CC) $(CFLAGS) $(LIBS_CFLAGS) \
+		-c $< -o $@
 
-$(JSCON_DLIB):
-	$(CC) $(OBJS) -shared -o $(JSCON_DLIB) $(LDLIBS)	
+$(JSCON_DLIB) :
+	$(CC) $(LIBS_CFLAGS) \
+	      $(OBJS) -shared -o $(JSCON_DLIB)
 
-$(JSCON_SLIB):
+$(JSCON_SLIB) :
 	ar rcs $@ $(OBJS)
 
-install: all
+install : all
 	cp $(INCLDIR)/* /usr/local/include
 	cp $(JSCON_DLIB) /usr/local/lib && \
 	ldconfig
@@ -63,5 +67,5 @@ clean :
 
 purge : clean
 	$(MAKE) -C test clean
-	rm -rf $(LIBDIR)
-	rm -rf $(JSCON_DLIB) $(JSCON_SLIB) *.txt
+	$(MAKE) -C examples clean
+	rm -rf $(LIBDIR) *.txt

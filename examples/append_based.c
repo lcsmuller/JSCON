@@ -28,7 +28,7 @@
 
 #include "libjscon.h"
 
-int main(int argc, char *argv[])
+int main(void)
 {
   char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
