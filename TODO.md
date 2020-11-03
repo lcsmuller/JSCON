@@ -8,17 +8,15 @@ This document describes features to be incorporated in the future.
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
-- Makefile should allow for different keywords to activate each test
 
 ## MEDIUM
 
+- Activate debug mode with Makefile
 - Make structs that shouldn't be accessed publically private
-- Update with hashtable.c dictionary functionality where it makes sense
-- Add Makefile for each example code
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
 - Create a `jscon_printf()` functions following `jscon_scanf()` format rules
 - Create a jscon function that open a json text file and converts it to a string automatically.
-- Replace memory allocation asserts to a simple return NULL so that the user may decide himself how to deal with the error.
+- Replace public function's out of memory memory asserts with a NULL return, so that the user may decide himself how to deal with the error.
 - Add Unicode support
 - Add more example codes
 - Add stringify formatting options
