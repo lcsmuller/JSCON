@@ -4,7 +4,9 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
-- Replace strcpy with a safer version that inserts a null terminator to the end of the strings
+- `jscon_scanf()`
+  - Ignoring one letter keys
+  - Replace strcpy with a safer version that inserts a null terminator to the end of the strings
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
