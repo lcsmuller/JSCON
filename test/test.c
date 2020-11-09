@@ -41,31 +41,36 @@ int main(int argc, char *argv[])
   FILE *f_out = select_output(argc, argv);
   char *buffer = get_buffer(argv[1]);
 
-  jscon_item_st *map1 = NULL, *map2 = NULL;
-  jscon_item_st *map3 = NULL;
+  jscon_item_st *item[3] = {NULL};
+  int integer1, integer2;
+  char str1[25] = {0};
+  double double1 = 0.0;
 
-  jscon_scanf(buffer, "#meta%ji,#data%ji,#string%ji", &map1, &map2, &map3);
+  //jscon_scanf(buffer, "#meta%ji,#data%ji,#string%ji,#a%jd,#b%js,#c%jf", &item[0], &item[1], &item[2], &integer1, str1, &double1);
+  jscon_scanf(buffer, 
+              "#t%js " \
+              "#s%jd " \
+              "#op%jd " \
+              "#d%ji",
+               str1,
+               &integer1,
+               &integer2,
+               &item[0]);
   
-  if (NULL != map1){
-    char *buffer1 = jscon_stringify(map1, JSCON_ANY);
-    //fprintf(stdout, "%s: %s\n", jscon_get_key(map1), buffer1);
-    free(buffer1);
-    jscon_destroy(map1);
+  for (size_t i=0; i<3; ++i){
+    if (NULL == item[i])
+    continue;
+
+    char *buffer = jscon_stringify(item[i], JSCON_ANY);
+    //fprintf(stdout, "%s: %s\n", jscon_get_key(item[i]), buffer);
+    free(buffer);
+    jscon_destroy(item[i]);
   }
 
-  if (NULL != map2){
-    char *buffer2 = jscon_stringify(map2, JSCON_ANY);
-    //fprintf(stdout, "%s: %s\n", jscon_get_key(map2), buffer2);
-    free(buffer2);
-    jscon_destroy(map2);
-  }
-
-  if (NULL != map3){
-    char *buffer3 = jscon_stringify(map3, JSCON_ANY);
-    //fprintf(stdout, "%s: %s\n", jscon_get_key(map3), buffer3);
-    free(buffer3);
-    jscon_destroy(map3);
-  }
+  fprintf(stdout, "integer1: %d\n", integer1);
+  fprintf(stdout, "integer2: %d\n", integer2);
+  fprintf(stdout, "str1: %s\n", str1);
+  fprintf(stdout, "double1: %f\n", double1);
 
   //jscon_parser_callback(&callback_test);
   jscon_item_st *root = jscon_parse(buffer);
@@ -82,13 +87,13 @@ int main(int argc, char *argv[])
   fprintf(stdout, "key: data, index: %ld\n", jscon_get_index(root, "data"));
   fprintf(stdout, "key: string, index: %ld\n", jscon_get_index(root, "string"));
 
-  jscon_item_st *item, *current_item = NULL;
+  jscon_item_st *tmp, *current_item = NULL;
   char *test1_buffer;
   jscon_item_st *walk1 = jscon_iter_composite_r(root, &current_item);
   do {
-    item = jscon_get_branch(walk1, "m");
-    if (NULL != item){
-      test1_buffer = jscon_stringify(item, JSCON_ANY);
+    tmp = jscon_get_branch(walk1, "m");
+    if (NULL != tmp){
+      test1_buffer = jscon_stringify(tmp, JSCON_ANY);
       fwrite(test1_buffer, 1, strlen(test1_buffer), stderr);
       fputc('\n', stderr);
       free(test1_buffer);
