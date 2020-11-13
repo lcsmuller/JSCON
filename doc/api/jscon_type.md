@@ -1,8 +1,8 @@
 # JSCON API Reference
 
-### `jscon_type_et;`
+### `enum jscon_type;`
 
-### Datatype Flags
+### Primitives Datatype Flags
 
 | Flags | Code | Description |
 | :--- | :--- | :--- |
@@ -24,7 +24,7 @@
 
 ### Description
 
-The enum `jscon_type_et` defines the item datatype, it is also used for filtering or comparing the item datatype with another type defined in a routine parameter. As seen in [`jscon_stringify()`](jscon_stringify.md) and [`jscon_typecmp()`](jscon_typecmp.md), respectively.
+The enum `jscon_type` defines the item datatype, it is also used for filtering or comparing the item datatype with another type defined in a routine parameter. As seen in [`jscon_stringify()`](jscon_stringify.md) and [`jscon_typecmp()`](jscon_typecmp.md), respectively.
 
 ### See Also
 

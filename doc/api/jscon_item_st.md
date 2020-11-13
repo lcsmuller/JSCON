@@ -8,7 +8,7 @@
 | :--- | :--- | :--- |
 |**`key`**|`char *`| The key string of this item |
 |**`parent`**|`jscon_item_st *`| The parent of this item |
-|**`type`**|[`jscon_type_et`](jscon_type_et.md)| The datatype of this item |
+|**`type`**|[`enum jscon_type`](jscon_type.md)| The datatype of this item |
 |**`union {string, d_number, i_number, boolean, comp}`**|`union`| The datatypes this item may activate based on its type |
 
 These fields should **NOT** be written to directly, use the library public functions for that purpose.
@@ -19,7 +19,7 @@ The structure `jscon_item_st` is created by decoding JSON data when calling [`js
 
 ### See Also
 
-* [`jscon_type_et;`](jscon_type_et.md)
+* [`enum jscon_type;`](jscon_type.md)
 * [`jscon_parse(buffer);`](jscon_parse.md)
 * [`jscon_next(item);`](jscon_next.md)
 * [`jscon_get_branch(item, key);`](jscon_get_branch.md)

@@ -4,28 +4,16 @@ This document describes the public C API.
 
 ## Datatypes
 
-### Primitives
-
-| Primitive | Alias | Flag |
-| :--- | :--- | :--- |
-|**`jscon_char_kt *`**|`char *`|`JSCON_STRING`|
-|**`jscon_double_kt`**|`double`|`JSCON_NUMBER_DOUBLE`|
-|**`jscon_integer_kt`**|`long long`|`JSCON_NUMBER_INTEGER`|
-|**`jscon_boolean_kt`**|`bool`|`JSCON_BOOLEAN`|
-|`---`|`---`|`JSCON_NULL`|
-|`---`|`---`|`JSCON_UNDEFINED`|
-
 ### Structs
 
 | Struct | Flag |
 | :--- | :--- |
-|[**`jscon_composite_st`**](api/jscon_composite_st.md)|`JSCON_OBJECT or JSCON_ARRAY`|
 |[**`jscon_item_st;`**](api/jscon_item_st.md)|`---`|
 |[**`jscon_list_st;`**](api/jscon_list_st.md)|`---`|
 
 ### Enums
 
-* [`jscon_type_et;`](api/jscon_type_et.md)
+* [`enum jscon_type;`](api/jscon_type.md)
 
 ### Callbacks
 

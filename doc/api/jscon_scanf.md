@@ -24,7 +24,7 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 |**`jf`**|`jscon_double_kt *`| Floating point: Decimal number containing a decimal point. |`0.0`|
 |**`js`**|`jscon_char_kt *`| String of characters. |`first char set to '\0'`|
 |**`jb`**|`jscon_boolean_kt *`| True or false. |`false`|
-|**`ji`**|`jscon_item_st **`| A [`jscon_item_st`](jscon_item_st.md) structure. |`item with type set to `[`JSCON_NULL`](jscon_type_et.md)|
+|**`ji`**|`jscon_item_st **`| A [`jscon_item_st`](jscon_item_st.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
 
 ### Description
 
@@ -45,6 +45,6 @@ jscon_scanf(buffer, "#beta%js #gamma%jb #alpha%ji", string, &boolean, &item);
 ### See Also
 
 * [`jscon_items_st;`](jscon_item_st.md)
-* [`jscon_type_et;`](jscon_type_et.md)
+* [`enum jscon_type;`](jscon_type.md)
 * [`jscon_stringify(item, type);`](jscon_stringify.md)
 * [`jscon_destroy(item);`](jscon_destroy.md)

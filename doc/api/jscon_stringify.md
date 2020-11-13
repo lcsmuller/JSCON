@@ -7,7 +7,7 @@
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
 |**`item`**|[`jscon_item_st *`](jscon_item_st.md)| The JSCON item to be encoded |
-|**`type`**|[`jscon_type_et`](jscon_type_et.md)| The primitive datatype filter for encoding |
+|**`type`**|[`enum jscon_type`](jscon_type.md)| The primitive datatype filter for encoding |
 
 ### Return Value
 
@@ -45,5 +45,5 @@ free(bool_str_json);
 ### See Also
 
 * [`jscon_items_st;`](jscon_item_st.md)
-* [`jscon_type_et;`](jscon_type_et.md)
+* [`enum jscon_type;`](jscon_type.md)
 * [`jscon_parse(item);`](jscon_parse.md)
