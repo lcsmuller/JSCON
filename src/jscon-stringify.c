@@ -22,12 +22,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
 
 #include <libjscon.h>
+
+#include "jscon-common.h"
 
 struct jscon_utils_s {
   char *buffer_base; //buffer's base (first position)
@@ -57,7 +58,7 @@ _jscon_utils_encode(char get_char, struct jscon_utils_s *utils)
 
 /* get string value to perform buffer method calls */
 static void
-_jscon_utils_apply_string(jscon_char_kt* string, struct jscon_utils_s *utils)
+_jscon_utils_apply_string(char *string, struct jscon_utils_s *utils)
 {
   while ('\0' != *string){
     (*utils->method)(*string,utils);
@@ -68,15 +69,15 @@ _jscon_utils_apply_string(jscon_char_kt* string, struct jscon_utils_s *utils)
 /* converts double to string and store it in p_str */
 //@todo make this more readable
 static void 
-_jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt *p_str, const int kDigits)
+_jscon_double_tostr(const double d_number, char *p_str, const int digits)
 {
-  if (DOUBLE_IS_INTEGER(kDouble)){
-    sprintf(p_str,"%.lf",kDouble); //convert integer to string
+  if (DOUBLE_IS_INTEGER(d_number)){
+    sprintf(p_str,"%.lf",d_number); //convert integer to string
     return;
   }
 
   int decimal=0, sign=0;
-  jscon_char_kt *tmp_str = fcvt(kDouble,kDigits-1,&decimal,&sign);
+  char *tmp_str = fcvt(d_number,digits-1,&decimal,&sign);
 
   int i=0;
   if (0 > sign){ //negative sign detected
@@ -104,7 +105,7 @@ _jscon_double_tostr(const jscon_double_kt kDouble, jscon_char_kt *p_str, const i
 
 /* get double converted to string and then perform buffer method calls */
 static void
-_jscon_utils_apply_double(jscon_double_kt d_number, struct jscon_utils_s *utils)
+_jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   _jscon_double_tostr(d_number, get_strnum, MAX_DIGITS);
@@ -114,7 +115,7 @@ _jscon_utils_apply_double(jscon_double_kt d_number, struct jscon_utils_s *utils)
 
 /* get int converted to string and then perform buffer method calls */
 static void
-_jscon_utils_apply_integer(jscon_integer_kt i_number, struct jscon_utils_s *utils)
+_jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
 {
   char get_strnum[MAX_DIGITS];
   snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
@@ -125,7 +126,7 @@ _jscon_utils_apply_integer(jscon_integer_kt i_number, struct jscon_utils_s *util
 /* walk jscon item, by traversing its branches recursively,
     and perform buffer_method callback on each branch */
 static void
-_jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct jscon_utils_s *utils)
+_jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jscon_utils_s *utils)
 {
   /* 1st STEP: stringify jscon item only if it match the type
       given as parameter or is a composite type item */
@@ -227,8 +228,8 @@ _jscon_stringify_preorder(jscon_item_st *item, jscon_type_et type, struct jscon_
 }
 
 /* converts a jscon item to a json formatted text, and return it */
-jscon_char_kt*
-jscon_stringify(jscon_item_st *root, jscon_type_et type)
+char*
+jscon_stringify(jscon_item_st *root, enum jscon_type type)
 {
   assert(NULL != root);
 
@@ -238,7 +239,7 @@ jscon_stringify(jscon_item_st *root, jscon_type_et type)
       sure the given item is treated as a root when printing, in the
       case that given item isn't already a root (roots donesn't have
       keys or parents) */
-  jscon_char_kt *hold_key = root->key;
+  char *hold_key = root->key;
   root->key = NULL;
   jscon_item_st *hold_parent = root->parent;
   root->parent = NULL;

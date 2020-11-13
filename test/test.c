@@ -104,13 +104,13 @@ int main(int argc, char *argv[])
 
   jscon_item_st *walk2 = root;
   for (int i=0; i < 5 && walk2; ++i){
-    fprintf(stderr, "%s\n", walk2->key);
+    fprintf(stderr, "%s\n", jscon_get_key(walk2));
     walk2 = jscon_iter_next(walk2);
   }
 
   walk2 = root;
   do {
-    fprintf(stderr, "%s\n", walk2->key);
+    fprintf(stderr, "%s\n", jscon_get_key(walk2));
     walk2 = jscon_iter_next(walk2);
   } while (NULL != walk2);
 

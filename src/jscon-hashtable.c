@@ -4,7 +4,7 @@
 
 #include <libjscon.h>
 
-#include "hashtable_private.h"
+#include "jscon-common.h"
 
 jscon_htwrap_st*
 Jscon_htwrap_init()
@@ -56,19 +56,19 @@ Jscon_htwrap_build(jscon_item_st *item)
 }
 
 jscon_item_st*
-Jscon_htwrap_get(const char *kKey, jscon_item_st *item)
+Jscon_htwrap_get(const char *key, jscon_item_st *item)
 {
   if (!IS_COMPOSITE(item)) return NULL;
 
   jscon_htwrap_st *htwrap = item->comp->htwrap;
-  return hashtable_get(htwrap->hashtable, kKey);
+  return hashtable_get(htwrap->hashtable, key);
 }
 
 jscon_item_st*
-Jscon_htwrap_set(const char *kKey, jscon_item_st *item)
+Jscon_htwrap_set(const char *key, jscon_item_st *item)
 {
   assert(!IS_ROOT(item));
 
   jscon_htwrap_st *htwrap = item->parent->comp->htwrap;
-  return hashtable_set(htwrap->hashtable, kKey, item);
+  return hashtable_set(htwrap->hashtable, key, item);
 }

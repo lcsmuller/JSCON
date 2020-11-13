@@ -22,7 +22,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
@@ -30,7 +29,7 @@
 
 #include <libjscon.h>
 
-#include "hashtable_private.h"
+#include "jscon-common.h"
 
 
 struct jscon_utils_s {
@@ -105,7 +104,7 @@ jscon_destroy(jscon_item_st *item){
   _jscon_destroy_preorder(jscon_get_root(item));
 }
 
-static jscon_char_kt*
+static char*
 _jscon_utils_decode_string(struct jscon_utils_s *utils)
 {
   char *start = utils->buffer;
@@ -121,7 +120,7 @@ _jscon_utils_decode_string(struct jscon_utils_s *utils)
 
   utils->buffer = end + 1; //skips double quotes buffer position
 
-  jscon_char_kt* set_str = strndup(start, end - start);
+  char* set_str = strndup(start, end - start);
   assert(NULL != set_str);
 
   return set_str;
@@ -135,7 +134,7 @@ _jscon_value_set_string(jscon_item_st *item, struct jscon_utils_s *utils)
   item->string = _jscon_utils_decode_string(utils);
 }
 
-static jscon_double_kt
+static double
 _jscon_utils_decode_double(struct jscon_utils_s *utils)
 {
   char *start = utils->buffer;
@@ -177,7 +176,7 @@ _jscon_utils_decode_double(struct jscon_utils_s *utils)
   strncpy(numerical_string, start, end-start);
   numerical_string[end-start] = '\0';
 
-  jscon_double_kt set_double;
+  double set_double;
   sscanf(numerical_string,"%lf",&set_double);
 
   utils->buffer = end; //skips entire length of number
@@ -193,14 +192,14 @@ _jscon_value_set_number(jscon_item_st *item, struct jscon_utils_s *utils)
   double set_double = _jscon_utils_decode_double(utils);
   if (DOUBLE_IS_INTEGER(set_double)){
     item->type = JSCON_INTEGER;
-    item->i_number = (jscon_integer_kt)set_double;
+    item->i_number = (long long)set_double;
   } else {
     item->type = JSCON_DOUBLE;
     item->d_number = set_double;
   }
 }
 
-static jscon_boolean_kt
+static bool
 _jscon_utils_decode_boolean(struct jscon_utils_s *utils)
 {
   if ('t' == *utils->buffer){
@@ -684,7 +683,6 @@ _jscon_scanf_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
       ++utils->buffer; //skips whatever char
     }
 
-
     if (0 == depth) return; //entire item has been skipped, return
 
   } while ('\0' != *utils->buffer);
@@ -724,20 +722,20 @@ _jscon_scanf_format_info(char *specifier, size_t *p_tmp)
   }
 
   if (STREQ(specifier, "js")){
-    *n_bytes = sizeof(jscon_char_kt*);
-    return "jscon_char_kt*";
+    *n_bytes = sizeof(char*);
+    return "char*";
   }
   if (STREQ(specifier, "jd")){
-    *n_bytes = sizeof(jscon_integer_kt);
-    return "jscon_integer_kt*";
+    *n_bytes = sizeof(long long);
+    return "long long*";
   }
   if (STREQ(specifier, "jf")){
-    *n_bytes = sizeof(jscon_double_kt);
-    return "jscon_double_kt*";
+    *n_bytes = sizeof(double);
+    return "double*";
   }
   if (STREQ(specifier, "jb")){
-    *n_bytes = sizeof(jscon_boolean_kt);
-    return "jscon_boolean_kt*";
+    *n_bytes = sizeof(bool);
+    return "bool*";
   }
   if (STREQ(specifier, "ji")){
     /* this will never get validated at _jscon_scanf_apply(),
@@ -745,6 +743,7 @@ _jscon_scanf_format_info(char *specifier, size_t *p_tmp)
     *n_bytes = sizeof(jscon_item_st*);
     return "jscon_item_st**";
   }
+
   *n_bytes = 0;
   return "NaN";
 }
@@ -753,7 +752,7 @@ static void
 _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
 {
   char *specifier = chunk->specifier;
-  void *value     = chunk->value;
+  void *value = chunk->value;
     
 
   /* if specifier is item, simply call jscon_parse at current buffer token */
@@ -775,11 +774,11 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   case '\"':/*STRING DETECTED*/
    {
       if (!STREQ(specifier, "js")){
-        strcpy(err_typeis, "jscon_char_kt* or jscon_item_st**");
+        strcpy(err_typeis, "char* or jscon_item_st**");
         goto type_error;
       }
       
-      jscon_char_kt *string = _jscon_utils_decode_string(utils);
+      char *string = _jscon_utils_decode_string(utils);
       strcpy(value, string);
       free(string);
       return;
@@ -791,11 +790,11 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         goto token_error;
       }
       if (!STREQ(specifier, "jb")){
-        strcpy(err_typeis, "jscon_boolean_kt* or jscon_item_st**");
+        strcpy(err_typeis, "bool* or jscon_item_st**");
         goto type_error;
       }
 
-      jscon_boolean_kt *boolean = value;
+      bool *boolean = value;
       *boolean = _jscon_utils_decode_boolean(utils);
       return;
    }
@@ -826,17 +825,17 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
       double tmp = _jscon_utils_decode_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
         if (!STREQ(specifier, "jd")){
-          strcpy(err_typeis, "jscon_integer_kt* or jscon_item_st**");
+          strcpy(err_typeis, "long long* or jscon_item_st**");
           goto type_error;
         }
-        jscon_integer_kt *number_i = value;
-        *number_i = (jscon_integer_kt)tmp;
+        long long *number_i = value;
+        *number_i = (long long)tmp;
       } else {
         if (!STREQ(specifier, "jf")){
-          strcpy(err_typeis, "jscon_double_kt* or jscon_item_st**");
+          strcpy(err_typeis, "double* or jscon_item_st**");
           goto type_error;
         }
-        jscon_double_kt *number_d = value; 
+        double *number_d = value; 
         *number_d = tmp;
       }
       return;
@@ -991,15 +990,15 @@ jscon_scanf(char *buffer, char *format, ...)
   va_list ap;
   va_start(ap, format);
 
-  size_t kNum_keys = _jscon_scanf_format_analyze(format);
+  size_t num_key = _jscon_scanf_format_analyze(format);
 
   /* key/value dictionary fetched from format */
   dictionary_st *dictionary = dictionary_init();
-  dictionary_build(dictionary, kNum_keys);
+  dictionary_build(dictionary, num_key);
 
   //return keys for freeing later
   _jscon_scanf_format_decode(format, dictionary, ap);
-  assert(kNum_keys == dictionary->len);
+  assert(num_key == dictionary->len);
 
   while ('\0' != *utils.buffer)
   {

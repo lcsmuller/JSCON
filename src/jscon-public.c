@@ -22,24 +22,22 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 
 #include <libjscon.h>
 
-#include "hashtable_private.h"
+#include "jscon-common.h"
 
-/* @todo change some of these functions to macros */
 
 jscon_item_st*
-jscon_null(const char *kKey)
+jscon_null(const char *key)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -52,13 +50,13 @@ jscon_null(const char *kKey)
 }
 
 jscon_item_st*
-jscon_boolean(jscon_boolean_kt boolean, const char *kKey)
+jscon_boolean(bool boolean, const char *key)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -72,13 +70,13 @@ jscon_boolean(jscon_boolean_kt boolean, const char *kKey)
 }
 
 jscon_item_st*
-jscon_integer(jscon_integer_kt i_number, const char *kKey)
+jscon_integer(long long i_number, const char *key)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -92,13 +90,13 @@ jscon_integer(jscon_integer_kt i_number, const char *kKey)
 }
 
 jscon_item_st*
-jscon_double(jscon_double_kt d_number, const char *kKey)
+jscon_double(double d_number, const char *key)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -112,23 +110,23 @@ jscon_double(jscon_double_kt d_number, const char *kKey)
 }
 
 jscon_item_st*
-jscon_number(jscon_double_kt d_number, const char *kKey)
+jscon_number(double d_number, const char *key)
 {
   return DOUBLE_IS_INTEGER(d_number)
-          ? jscon_integer((jscon_integer_kt)d_number, kKey)
-          : jscon_double(d_number, kKey);
+          ? jscon_integer((long long)d_number, key)
+          : jscon_double(d_number, key);
 }
 
 jscon_item_st*
-jscon_string(jscon_char_kt *string, const char *kKey)
+jscon_string(char *string, const char *key)
 {
-  if (NULL == string) return jscon_null(kKey);
+  if (NULL == string) return jscon_null(key);
 
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -228,13 +226,13 @@ _jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed
 }
 
 inline static jscon_item_st*
-_jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
+_jscon_composite(jscon_list_st *list, const char *key, enum jscon_type type)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
 
-  if (NULL != kKey){
-    new_item->key = strdup(kKey);
+  if (NULL != key){
+    new_item->key = strdup(key);
     assert(NULL != new_item->key);
   } else {
     new_item->key = NULL;
@@ -285,19 +283,19 @@ _jscon_composite(jscon_list_st *list, const char *kKey, jscon_type_et type)
 }
 
 jscon_item_st*
-jscon_object(jscon_list_st *list, const char *kKey){
-  return _jscon_composite(list, kKey, JSCON_OBJECT);
+jscon_object(jscon_list_st *list, const char *key){
+  return _jscon_composite(list, key, JSCON_OBJECT);
 }
 
 jscon_item_st*
-jscon_array(jscon_list_st *list, const char *kKey){
-  return _jscon_composite(list, kKey, JSCON_ARRAY);
+jscon_array(jscon_list_st *list, const char *key){
+  return _jscon_composite(list, key, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns 0 if item type is primitive */
 size_t
-jscon_size(const jscon_item_st* kItem){
-  return IS_COMPOSITE(kItem) ? kItem->comp->num_branch : 0;
+jscon_size(const jscon_item_st *item){
+  return IS_COMPOSITE(item) ? item->comp->num_branch : 0;
 } 
 
 /* get the last htwrap relative to the item */
@@ -399,9 +397,9 @@ jscon_dettach(jscon_item_st *item)
 }
 
 void
-jscon_delete(jscon_item_st *item, const char *kKey)
+jscon_delete(jscon_item_st *item, const char *key)
 {
-  jscon_item_st *branch = jscon_get_branch(item, kKey);
+  jscon_item_st *branch = jscon_get_branch(item, key);
 
   if (NULL == branch) return;
 
@@ -446,7 +444,7 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 
 /* return next (not yet accessed) item, by using item->comp->last_accessed_branch as the branch index */
 static inline jscon_item_st*
-_jscon_push(jscon_item_st* item)
+_jscon_push(jscon_item_st *item)
 {
   assert(IS_COMPOSITE(item));//item has to be of Object type to fetch a branch
   assert(item->comp->last_accessed_branch < jscon_size(item));//overflow assert
@@ -463,7 +461,7 @@ _jscon_push(jscon_item_st* item)
 }
 
 static inline jscon_item_st*
-_jscon_pop(jscon_item_st* item)
+_jscon_pop(jscon_item_st *item)
 {
   //resets object's last_accessed_branch
   if (IS_COMPOSITE(item)){
@@ -477,7 +475,7 @@ _jscon_pop(jscon_item_st* item)
     item->comp->last_accessed_branch like a stack frame. under no circumstance 
     should you modify last_accessed_branch value directly */
 jscon_item_st*
-jscon_iter_next(jscon_item_st* item)
+jscon_iter_next(jscon_item_st *item)
 {
   if (NULL == item) return NULL;
 
@@ -523,10 +521,10 @@ jscon_clone(jscon_item_st *item)
   return clone;
 }
 
-jscon_char_kt*
-jscon_typeof(const jscon_item_st *kItem)
+char*
+jscon_typeof(const jscon_item_st *item)
 {
-  switch (kItem->type){
+  switch (item->type){
     case JSCON_DOUBLE: return "Double";
     case JSCON_INTEGER: return "Integer";
     case JSCON_STRING: return "String";
@@ -539,49 +537,49 @@ jscon_typeof(const jscon_item_st *kItem)
   }
 }
 
-jscon_char_kt*
-jscon_strdup(const jscon_item_st* kItem)
+char*
+jscon_strdup(const jscon_item_st *item)
 {
-  jscon_char_kt *src = jscon_get_string(kItem);
+  char *src = jscon_get_string(item);
 
   if (NULL == src) return NULL;
 
-  jscon_char_kt *dest = strdup(src);
+  char *dest = strdup(src);
   assert(NULL != dest);
 
   return dest;
 }
 
-jscon_char_kt*
-jscon_strcpy(char *dest, const jscon_item_st* kItem)
+char*
+jscon_strcpy(char *dest, const jscon_item_st *item)
 {
-  jscon_char_kt *src = jscon_get_string(kItem);
+  char *src = jscon_get_string(item);
 
   return (NULL != src) ? strcpy(dest, src) : NULL;
 }
 
 int
-jscon_typecmp(const jscon_item_st* kItem, const jscon_type_et kType){
-  return kItem->type & kType; //BITMASK AND
+jscon_typecmp(const jscon_item_st *item, const enum jscon_type type){
+  return item->type & type; //BITMASK AND
 }
 
 int
-jscon_keycmp(const jscon_item_st* kItem, const char *kKey){
-  return (NULL != jscon_get_key(kItem)) ? STREQ(kItem->key, kKey) : 0;
+jscon_keycmp(const jscon_item_st *item, const char *key){
+  return (NULL != jscon_get_key(item)) ? STREQ(item->key, key) : 0;
 }
 
 int
-jscon_doublecmp(const jscon_item_st* kItem, const jscon_double_kt kDouble){
-  assert(JSCON_DOUBLE == kItem->type); //check if given item is double
+jscon_doublecmp(const jscon_item_st *item, const double d_number){
+  assert(JSCON_DOUBLE == item->type); //check if given item is double
 
-  return kItem->d_number == kDouble;
+  return item->d_number == d_number;
 }
 
 int
-jscon_intcmp(const jscon_item_st* kItem, const jscon_integer_kt kInteger){
-  assert(JSCON_INTEGER == kItem->type); //check if given item is integer
+jscon_intcmp(const jscon_item_st *item, const long long i_number){
+  assert(JSCON_INTEGER == item->type); //check if given item is integer
 
-  return kItem->i_number == kInteger;
+  return item->i_number == i_number;
 }
 
 size_t
@@ -597,7 +595,7 @@ jscon_get_depth(jscon_item_st *item)
 }
 
 jscon_item_st*
-jscon_get_root(jscon_item_st* item)
+jscon_get_root(jscon_item_st *item)
 {
   while (!IS_ROOT(item)){
     item = jscon_get_parent(item);
@@ -609,24 +607,24 @@ jscon_get_root(jscon_item_st* item)
 
 /* get item branch with given key */
 jscon_item_st*
-jscon_get_branch(jscon_item_st *item, const char *kKey)
+jscon_get_branch(jscon_item_st *item, const char *key)
 {
   assert(IS_COMPOSITE(item));
   /* search for entry with given key at item's htwrap,
     and retrieve found or not found(NULL) item */
-  return Jscon_htwrap_get(kKey, item);
+  return Jscon_htwrap_get(key, item);
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
 jscon_item_st*
-jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
+jscon_get_sibling(const jscon_item_st* origin, const size_t kRelative_index)
 {
-  assert(!IS_ROOT(kOrigin));
+  assert(!IS_ROOT(origin));
 
-  const jscon_item_st* kParent = jscon_get_parent(kOrigin);
+  const jscon_item_st* kParent = jscon_get_parent(origin);
 
-  //get parent's branch index of the kOrigin item
-  size_t origin_index= jscon_get_index(kParent, kOrigin->key);
+  //get parent's branch index of the origin item
+  size_t origin_index= jscon_get_index(kParent, origin->key);
 
   /* if relative index given doesn't exceed kParent branch amount,
     or dropped below 0, return branch at given relative index */
@@ -639,29 +637,30 @@ jscon_get_sibling(const jscon_item_st* kOrigin, const size_t kRelative_index)
 
 /* return parent */
 jscon_item_st*
-jscon_get_parent(const jscon_item_st* kItem){
-  return _jscon_pop((jscon_item_st*)kItem);
+jscon_get_parent(const jscon_item_st *item){
+  return _jscon_pop((jscon_item_st*)item);
 }
 
 jscon_item_st*
-jscon_get_byindex(const jscon_item_st* kItem, const size_t index)
+jscon_get_byindex(const jscon_item_st *item, const size_t index)
 {
-  assert(IS_COMPOSITE(kItem));
-  return (index < jscon_size(kItem)) ? kItem->comp->branch[index] : NULL;
+  assert(IS_COMPOSITE(item));
+  return (index < jscon_size(item)) ? item->comp->branch[index] : NULL;
 }
 
 /* returns -1 if item not found */
 long
-jscon_get_index(const jscon_item_st* kItem, const char *kKey)
+jscon_get_index(const jscon_item_st *item, const char *key)
 {
-  assert(IS_COMPOSITE(kItem));
+  assert(IS_COMPOSITE(item));
 
-  jscon_item_st *lookup_item = Jscon_htwrap_get(kKey, (jscon_item_st*)kItem);
+  jscon_item_st *lookup_item = Jscon_htwrap_get(key, (jscon_item_st*)item);
+
   if (NULL == lookup_item) return -1;
 
   /* @todo can this be done differently? */
-  for (size_t i=0; i < jscon_size(kItem); ++i){
-    if (lookup_item == kItem->comp->branch[i]){
+  for (size_t i=0; i < jscon_size(item); ++i){
+    if (lookup_item == item->comp->branch[i]){
       return i;
     }
   }
@@ -670,48 +669,48 @@ jscon_get_index(const jscon_item_st* kItem, const char *kKey)
   exit(EXIT_FAILURE);
 }
 
-jscon_type_et
-jscon_get_type(const jscon_item_st* kItem){
-  return kItem->type;
+enum jscon_type
+jscon_get_type(const jscon_item_st *item){
+  return item->type;
 }
 
-jscon_char_kt*
-jscon_get_key(const jscon_item_st* kItem){
-  return kItem->key;
+char*
+jscon_get_key(const jscon_item_st *item){
+  return item->key;
 }
 
-jscon_boolean_kt
-jscon_get_boolean(const jscon_item_st* kItem)
+bool
+jscon_get_boolean(const jscon_item_st *item)
 {
-  if (NULL == kItem || JSCON_NULL == kItem->type) return false;
+  if (NULL == item || JSCON_NULL == item->type) return false;
 
-  assert(JSCON_BOOLEAN == kItem->type);
-  return kItem->boolean;
+  assert(JSCON_BOOLEAN == item->type);
+  return item->boolean;
 }
 
-jscon_char_kt*
-jscon_get_string(const jscon_item_st* kItem)
+char*
+jscon_get_string(const jscon_item_st *item)
 {
-  if (NULL == kItem || JSCON_NULL == kItem->type) return NULL;
+  if (NULL == item || JSCON_NULL == item->type) return NULL;
 
-  assert(JSCON_STRING == kItem->type);
-  return kItem->string;
+  assert(JSCON_STRING == item->type);
+  return item->string;
 }
 
-jscon_double_kt
-jscon_get_double(const jscon_item_st* kItem)
+double
+jscon_get_double(const jscon_item_st *item)
 {
-  if (NULL == kItem || JSCON_NULL == kItem->type) return 0.0;
+  if (NULL == item || JSCON_NULL == item->type) return 0.0;
 
-  assert(JSCON_DOUBLE == kItem->type);
-  return kItem->d_number;
+  assert(JSCON_DOUBLE == item->type);
+  return item->d_number;
 }
 
-jscon_integer_kt
-jscon_get_integer(const jscon_item_st* kItem)
+long long
+jscon_get_integer(const jscon_item_st *item)
 {
-  if (NULL == kItem || JSCON_NULL == kItem->type) return 0;
+  if (NULL == item || JSCON_NULL == item->type) return 0;
 
-  assert(JSCON_INTEGER == kItem->type);
-  return kItem->i_number;
+  assert(JSCON_INTEGER == item->type);
+  return item->i_number;
 }
