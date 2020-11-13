@@ -55,15 +55,15 @@ typedef jscon_item_st* (jscon_callbacks_ft)(jscon_item_st*);
 
 /* JSCON INIT */
 jscon_item_st *jscon_null(const char *key);
-jscon_item_st *jscon_boolean(bool boolean, const char *key);
-jscon_item_st *jscon_integer(long long i_number, const char *key);
-jscon_item_st *jscon_double(double d_number, const char *key);
-jscon_item_st *jscon_number(double d_number, const char *key);
-jscon_item_st *jscon_string(char *string, const char *key);
+jscon_item_st *jscon_boolean(const char *key, bool boolean);
+jscon_item_st *jscon_integer(const char *key, long long i_number);
+jscon_item_st *jscon_double(const char *key, double d_number);
+jscon_item_st *jscon_number(const char *key, double d_number);
+jscon_item_st *jscon_string(const char *key, char *string);
 
 jscon_list_st *jscon_list_init();
-jscon_item_st *jscon_object(jscon_list_st *list, const char *key);
-jscon_item_st *jscon_array(jscon_list_st *list, const char *key);
+jscon_item_st *jscon_object(const char *key, jscon_list_st *list);
+jscon_item_st *jscon_array(const char *key, jscon_list_st *list);
 
 /* JSCON DESTRUCTORS */
 /* clean up jscon item and global allocated keys */

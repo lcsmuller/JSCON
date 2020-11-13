@@ -26,7 +26,8 @@
 #include <stdbool.h>
 #include <locale.h>
 
-#include "libjscon.h"
+#include <libjscon.h>
+
 
 int main(void)
 {
@@ -36,33 +37,33 @@ int main(void)
   jscon_list_st *list = jscon_list_init();
   jscon_list_st *main_list = jscon_list_init();
 
-  jscon_list_append(list, jscon_string("Dog", "0"));
-  jscon_list_append(list, jscon_string("Cat", "1"));
-  jscon_list_append(list, jscon_string("Fish", "2"));
-  jscon_list_append(list, jscon_array(list, "pets"));
+  jscon_list_append(list, jscon_string("0", "Dog"));
+  jscon_list_append(list, jscon_string("1", "Cat"));
+  jscon_list_append(list, jscon_string("2", "Fish"));
+  jscon_list_append(list, jscon_array("pets", list));
 
-  jscon_list_append(list, jscon_string("Mario", "name"));
-  jscon_list_append(list, jscon_number(28, "age"));
-  jscon_list_append(list, jscon_boolean(false, "retired"));
-  jscon_list_append(list, jscon_boolean(true, "married"));
-  jscon_list_append(main_list, jscon_object(list, "person1"));
+  jscon_list_append(list, jscon_string("name", "Mario"));
+  jscon_list_append(list, jscon_number("age", 28));
+  jscon_list_append(list, jscon_boolean("retired", false));
+  jscon_list_append(list, jscon_boolean("married", true));
+  jscon_list_append(main_list, jscon_object("person1", list));
 
-  jscon_list_append(list, jscon_string("Moose", "0"));
-  jscon_list_append(list, jscon_string("Mouse", "1"));
-  jscon_list_append(list, jscon_array(list, "pets"));
+  jscon_list_append(list, jscon_string("0", "Moose"));
+  jscon_list_append(list, jscon_string("1", "Mouse"));
+  jscon_list_append(list, jscon_array("pets", list));
 
-  jscon_list_append(list, jscon_string("Joana", "name"));
-  jscon_list_append(list, jscon_number(58, "age"));
-  jscon_list_append(list, jscon_boolean(true, "retired"));
-  jscon_list_append(list, jscon_boolean(false, "married"));
-  jscon_list_append(main_list, jscon_object(list, "person2"));
+  jscon_list_append(list, jscon_string("name", "Joana"));
+  jscon_list_append(list, jscon_number("age", 58));
+  jscon_list_append(list, jscon_boolean("retired", true));
+  jscon_list_append(list, jscon_boolean("married", false));
+  jscon_list_append(main_list, jscon_object("person2", list));
 
-  jscon_item_st *root = jscon_object(main_list, "root");
+  jscon_item_st *root = jscon_object("root", main_list);
 
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
   do {
-    fprintf(stderr, "Hey, a composite %s!\n", item->key);
+    fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
   } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
   char *buffer = jscon_stringify(root, JSCON_ANY);

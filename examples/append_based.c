@@ -33,32 +33,32 @@ int main(void)
   char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
 
-  jscon_item_st *root = jscon_object(NULL, "root");
+  jscon_item_st *root = jscon_object("root", NULL);
   jscon_item_st *tmp1, *tmp2;
 
-  tmp1 = jscon_array(NULL, "pets");
-  jscon_append(tmp1, jscon_string("Dog", "0"));
-  jscon_append(tmp1, jscon_string("Cat", "1"));
-  jscon_append(tmp1, jscon_string("Fish", "2"));
+  tmp1 = jscon_array("pets", NULL);
+  jscon_append(tmp1, jscon_string("0", "Dog"));
+  jscon_append(tmp1, jscon_string("1", "Cat"));
+  jscon_append(tmp1, jscon_string("2", "Fish"));
 
-  tmp2 = jscon_object(NULL, "person1");
+  tmp2 = jscon_object("person1", NULL);
   jscon_append(tmp2, tmp1);
-  jscon_append(tmp2, jscon_string("Mario", "name"));
-  jscon_append(tmp2, jscon_number(28, "age"));
-  jscon_append(tmp2, jscon_boolean(false, "retired"));
-  jscon_append(tmp2, jscon_boolean(true, "married"));
+  jscon_append(tmp2, jscon_string("name", "Mario"));
+  jscon_append(tmp2, jscon_number("age", 28));
+  jscon_append(tmp2, jscon_boolean("retired", false));
+  jscon_append(tmp2, jscon_boolean("married", true));
   jscon_append(root, tmp2);
 
-  tmp1 = jscon_array(NULL, "pets");
-  jscon_append(tmp1, jscon_string("Moose", "0"));
-  jscon_append(tmp1, jscon_string("Mouse", "1"));
+  tmp1 = jscon_array("pets", NULL);
+  jscon_append(tmp1, jscon_string("0", "Moose"));
+  jscon_append(tmp1, jscon_string("1", "Mouse"));
 
-  tmp2 = jscon_object(NULL, "person2");
+  tmp2 = jscon_object("person2", NULL);
   jscon_append(tmp2, tmp1);
-  jscon_append(tmp2, jscon_string("Joana", "name"));
-  jscon_append(tmp2, jscon_number(58, "age"));
-  jscon_append(tmp2, jscon_boolean(true, "retired"));
-  jscon_append(tmp2, jscon_boolean(false, "married"));
+  jscon_append(tmp2, jscon_string("name", "Joana"));
+  jscon_append(tmp2, jscon_number("age", 58));
+  jscon_append(tmp2, jscon_boolean("retired", true));
+  jscon_append(tmp2, jscon_boolean("married", false));
   jscon_append(root, tmp2);
 
 
@@ -68,7 +68,7 @@ int main(void)
   jscon_item_st *curr_item = NULL;
   jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
   do {
-    fprintf(stderr, "Hey, a composite %s!\n", item->key);
+    fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
   } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
   char *buffer = jscon_stringify(root, JSCON_ANY);

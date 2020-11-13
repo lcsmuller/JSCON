@@ -50,7 +50,7 @@ jscon_null(const char *key)
 }
 
 jscon_item_st*
-jscon_boolean(bool boolean, const char *key)
+jscon_boolean(const char *key, bool boolean)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
@@ -70,7 +70,7 @@ jscon_boolean(bool boolean, const char *key)
 }
 
 jscon_item_st*
-jscon_integer(long long i_number, const char *key)
+jscon_integer(const char *key, long long i_number)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
@@ -90,7 +90,7 @@ jscon_integer(long long i_number, const char *key)
 }
 
 jscon_item_st*
-jscon_double(double d_number, const char *key)
+jscon_double(const char *key, double d_number)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
@@ -110,15 +110,15 @@ jscon_double(double d_number, const char *key)
 }
 
 jscon_item_st*
-jscon_number(double d_number, const char *key)
+jscon_number(const char *key, double d_number)
 {
   return DOUBLE_IS_INTEGER(d_number)
-          ? jscon_integer((long long)d_number, key)
-          : jscon_double(d_number, key);
+          ? jscon_integer(key, (long long)d_number)
+          : jscon_double(key, d_number);
 }
 
 jscon_item_st*
-jscon_string(char *string, const char *key)
+jscon_string(const char *key, char *string)
 {
   if (NULL == string) return jscon_null(key);
 
@@ -226,7 +226,7 @@ _jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed
 }
 
 inline static jscon_item_st*
-_jscon_composite(jscon_list_st *list, const char *key, enum jscon_type type)
+_jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
   assert(NULL != new_item);
@@ -283,13 +283,13 @@ _jscon_composite(jscon_list_st *list, const char *key, enum jscon_type type)
 }
 
 jscon_item_st*
-jscon_object(jscon_list_st *list, const char *key){
-  return _jscon_composite(list, key, JSCON_OBJECT);
+jscon_object(const char *key, jscon_list_st *list){
+  return _jscon_composite(key, list, JSCON_OBJECT);
 }
 
 jscon_item_st*
-jscon_array(jscon_list_st *list, const char *key){
-  return _jscon_composite(list, key, JSCON_ARRAY);
+jscon_array(const char *key, jscon_list_st *list){
+  return _jscon_composite(key, list, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns 0 if item type is primitive */
