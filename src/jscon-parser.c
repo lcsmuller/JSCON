@@ -596,7 +596,7 @@ jscon_item_st*
 jscon_parse(char *buffer)
 {
   jscon_item_st *root = calloc(1, sizeof *root);
-  DEBUG_ASSERT(NULL != root, "Out of memory");
+  if (NULL == root) return NULL;
 
   struct jscon_utils_s utils = {
     .buffer = buffer,
