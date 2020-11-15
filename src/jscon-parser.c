@@ -25,11 +25,11 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
 
 #include <libjscon.h>
 
 #include "jscon-common.h"
+#include "debug.h"
 
 
 struct jscon_utils_s {
@@ -53,7 +53,7 @@ _jscon_new_branch(jscon_item_st *item)
   ++item->comp->num_branch;
 
   item->comp->branch[jscon_size(item)-1] = calloc(1, sizeof(jscon_item_st));
-  assert(NULL != item->comp->branch[jscon_size(item)-1]);
+  DEBUG_ASSERT(NULL != item->comp->branch[jscon_size(item)-1], "Out of memory");
 
   item->comp->branch[jscon_size(item)-1]->parent = item;
 
@@ -108,7 +108,7 @@ static char*
 _jscon_utils_decode_string(struct jscon_utils_s *utils)
 {
   char *start = utils->buffer;
-  assert('\"' == *start); //makes sure a string is given
+  DEBUG_ASSERT('\"' == *start, "Not a string"); //makes sure a string is given
 
   char *end = ++start;
   while (('\0' != *end) && ('\"' != *end)){
@@ -116,12 +116,12 @@ _jscon_utils_decode_string(struct jscon_utils_s *utils)
       ++end;
     }
   }
-  assert('\"' == *end); //makes sure end of string exists
+  DEBUG_ASSERT('\"' == *end, "Not a string"); //makes sure end of string exists
 
   utils->buffer = end + 1; //skips double quotes buffer position
 
-  char* set_str = strndup(start, end - start);
-  assert(NULL != set_str);
+  char *set_str = strndup(start, end - start);
+  DEBUG_ASSERT(NULL != set_str, "Out of memory");
 
   return set_str;
 }
@@ -146,7 +146,7 @@ _jscon_utils_decode_double(struct jscon_utils_s *utils)
   }
 
   /* 2nd STEP: skips until a non digit char found */
-  assert(isdigit(*end)); //interrupt if char isn't digit
+  DEBUG_ASSERT(isdigit(*end), "Not a number"); //interrupt if char isn't digit
   while (isdigit(*++end)){
     continue; //skips while char is digit
   }
@@ -165,7 +165,7 @@ _jscon_utils_decode_double(struct jscon_utils_s *utils)
     if (('+' == *end) || ('-' == *end)){ 
       ++end;
     }
-    assert(isdigit(*end));
+    DEBUG_ASSERT(isdigit(*end), "Not a number");
     while (isdigit(*++end)){
       continue;
     }
@@ -173,7 +173,7 @@ _jscon_utils_decode_double(struct jscon_utils_s *utils)
 
   /* 5th STEP: convert string to double and return its value */
   char numerical_string[MAX_DIGITS];
-  strncpy(numerical_string, start, end-start);
+  strscpy(numerical_string, start, end - start);
   numerical_string[end-start] = '\0';
 
   double set_double;
@@ -232,12 +232,12 @@ _jscon_value_set_null(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_composite_st*
 _jscon_utils_decode_composite(struct jscon_utils_s *utils, size_t n_branch){
   jscon_composite_st *new_comp = calloc(1, sizeof *new_comp);
-  assert(NULL != new_comp);
+  DEBUG_ASSERT(NULL != new_comp, "Out of memory");
 
   new_comp->htwrap = Jscon_htwrap_init();
 
   new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_st*));
-  assert(NULL != new_comp->branch);
+  DEBUG_ASSERT(NULL != new_comp->branch, "Out of memory");
 
   ++utils->buffer; //skips composite's '{' or '[' delim
 
@@ -272,7 +272,7 @@ _jscon_count_property(char *buffer)
             ++buffer;
           }
         } while ('\0' != *buffer && '\"' != *buffer);
-        assert('\"' == *buffer);
+        DEBUG_ASSERT('\"' == *buffer, "Not a string");
         break;
     }
 
@@ -282,8 +282,8 @@ _jscon_count_property(char *buffer)
 
   } while ('\0' != *buffer);
 
-  fprintf(stderr, "\n\nERROR: bad formatting\n");
-  exit(EXIT_FAILURE);
+  DEBUG_ERR("Bad formatting");
+  return -1;
 }
 
 static void
@@ -323,7 +323,7 @@ _jscon_count_element(char *buffer)
             ++buffer;
           }
         } while ('\0' != *buffer && '\"' != *buffer);
-        assert('\"' == *buffer);
+        DEBUG_ASSERT('\"' == *buffer, "Not a String");
         break;
     }
 
@@ -333,8 +333,8 @@ _jscon_count_element(char *buffer)
 
   } while ('\0' != *buffer);
 
-  fprintf(stderr, "\n\nERROR: bad formatting\n");
-  exit(EXIT_FAILURE);
+  DEBUG_ERR("Bad formatting");
+  return -1;
 }
 
 static void
@@ -395,43 +395,43 @@ _jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
 
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      //DEV fprintf(stderr, "NEW OBJECT\n");
+      //DEBUG_PUTS("NEW OBJECT\n");
       item_setter = &_jscon_new_composite;
       value_setter = &_jscon_value_set_object;
       break;
   case '[':/*ARRAY DETECTED*/
-      //DEV fprintf(stderr, "NEW ARRAY\n");
+      //DEBUG_PUTS("NEW ARRAY\n");
       item_setter = &_jscon_new_composite;
       value_setter = &_jscon_value_set_array;
       break;
   case '\"':/*STRING DETECTED*/
-      //DEV fprintf(stderr, "NEW STRING\n");
+      //DEBUG_PUTS("NEW STRING\n");
       item_setter = &_jscon_append_primitive;
       value_setter = &_jscon_value_set_string;
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto error;
+        goto token_error;
       }
-      //DEV fprintf(stderr, "NEW BOOL\n");
+      //DEBUG_PUTS("NEW BOOL\n");
       item_setter = &_jscon_append_primitive;
       value_setter = &_jscon_value_set_boolean;
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
-        goto error; 
+        goto token_error; 
       }
-      //DEV fprintf(stderr, "NEW NULL\n");
+      //DEBUG_PUTS("NEW NULL\n");
       item_setter = &_jscon_append_primitive;
       value_setter = &_jscon_value_set_null;
       break;
   default:
       /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto error;
+        goto token_error;
       }
-      //DEV fprintf(stderr, "NEW NUMBER\n");
+      //DEBUG_PUTS("NEW NUMBER\n");
       item_setter = &_jscon_append_primitive;
       value_setter = &_jscon_value_set_number;
       break;
@@ -440,9 +440,9 @@ _jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
   return (*item_setter)(item, utils, value_setter);
 
 
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
-    exit(EXIT_FAILURE);
+token_error:
+  DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+  abort();
 }
 
 /* this will be active if the current item is of array type jscon,
@@ -452,13 +452,13 @@ static jscon_item_st*
 _jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   CONSUME_BLANK_CHARS(utils->buffer);
-  //DEV fprintf(stderr, "arr{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEBUG_PUTS("arr{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      //DEV fprintf(stderr, "WRAP {%s}\n", item->key);
+      //DEBUG_PUTS("WRAP {%s}\n", item->key);
       return _jscon_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
-      //DEV fprintf(stderr, "NEXT ELEMENT\n");
+      //DEBUG_PUTS("NEXT ELEMENT\n");
       ++utils->buffer; //skips ','
       CONSUME_BLANK_CHARS(utils->buffer);
 
@@ -468,11 +468,13 @@ _jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
       //creates numerical key for the array element
       char numerical_key[MAX_DIGITS];
       snprintf(numerical_key, MAX_DIGITS-1, "%ld", jscon_size(item));
-      assert(NULL == utils->key);
-      utils->key = strdup(numerical_key);
 
-      //DEV fprintf(stderr, "ARRTOKEN: \'%c\' ", *utils->buffer);
-      //DEV fprintf(stderr, "CREATE {%s} ", utils->key);
+      DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
+      utils->key = strdup(numerical_key);
+      DEBUG_ASSERT(NULL != utils->key, "Out of memory");
+
+      //DEBUG_PUTS("ARRTOKEN: \'%c\' ", *utils->buffer);
+      //DEBUG_PUTS("CREATE {%s} ", utils->key);
 
       return _jscon_build_branch(item, utils);
    }
@@ -488,22 +490,22 @@ static jscon_item_st*
 _jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   CONSUME_BLANK_CHARS(utils->buffer);
-  //DEV fprintf(stderr, "obj{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEBUG_PUTS("obj{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      //DEV fprintf(stderr, "WRAP {%s}\n", item->key);
+      //DEBUG_PUTS("WRAP {%s}\n", item->key);
       return _jscon_wrap_composite(item, utils);
   case '\"':/*KEY STRING DETECTED*/
-      assert(NULL == utils->key);
+      DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
       utils->key = _jscon_utils_decode_string(utils);
-      assert(':' == *utils->buffer); //check for key's assign token 
+      DEBUG_ASSERT(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
       ++utils->buffer; //skips ':'
       CONSUME_BLANK_CHARS(utils->buffer);
-      //DEV fprintf(stderr, "OBJTOKEN: \'%c\' ", *utils->buffer);
-      //DEV fprintf(stderr, "CREATE {%s} ", utils->key);
+      //DEBUG_PUTS("OBJTOKEN: \'%c\' ", *utils->buffer);
+      //DEBUG_PUTS("CREATE {%s} ", utils->key);
       return _jscon_build_branch(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
-      //DEV fprintf(stderr, "NEXT PROPERTY\n");
+      //DEBUG_PUTS("NEXT PROPERTY\n");
       ++utils->buffer; //skips ','
       CONSUME_BLANK_CHARS(utils->buffer);
 
@@ -511,15 +513,10 @@ _jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
   default:
       /*SKIPS IF CONTROL CHARACTER*/
       if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
-        goto error;
+        DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
       }
       return item;
   }
-
-
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
-    exit(EXIT_FAILURE);
 }
 
 /* this call will only be used once, at the first iteration,
@@ -528,42 +525,42 @@ _jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 _jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
 {
-  //DEV fprintf(stderr, "ent{%s}: \'%c\' ", item->key, *utils->buffer);
+  //DEBUG_PUTS("ent{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      //DEV fprintf(stderr, "SET OBJECT\n");
+      //DEBUG_PUTS("SET OBJECT\n");
       _jscon_value_set_object(item, utils);
       break;
   case '[':/*ARRAY DETECTED*/
-      //DEV fprintf(stderr, "SET ARRAY\n");
+      //DEBUG_PUTS("SET ARRAY\n");
       _jscon_value_set_array(item, utils);
       break;
   case '\"':/*STRING DETECTED*/
-      //DEV fprintf(stderr, "SET STRING\n");
+      //DEBUG_PUTS("SET STRING\n");
       _jscon_value_set_string(item, utils);
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
       if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto error;
+        goto token_error;
       }
-      //DEV fprintf(stderr, "SET BOOL\n");
+      //DEBUG_PUTS("SET BOOL\n");
       _jscon_value_set_boolean(item, utils);
       break;
   case 'n':/*CHECK FOR NULL*/
       if (!STRNEQ(utils->buffer,"null",4)){
-        goto error;
+        goto token_error;
       }
-      //DEV fprintf(stderr, "SET NULL\n");
+      //DEBUG_PUTS("SET NULL\n");
       _jscon_value_set_null(item, utils);
       break;
   default:
       CONSUME_BLANK_CHARS(utils->buffer);
       /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto error;
+        goto token_error;
       }
-      //DEV fprintf(stderr, "SET NUMBER\n");
+      //DEBUG_PUTS("SET NUMBER\n");
       _jscon_value_set_number(item, utils);
       break;
   }
@@ -571,9 +568,9 @@ _jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
   return item;
 
 
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n", *utils->buffer);
-    exit(EXIT_FAILURE);
+token_error:
+  DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+  abort(); 
 }
 
 static inline jscon_item_st*
@@ -599,7 +596,7 @@ jscon_item_st*
 jscon_parse(char *buffer)
 {
   jscon_item_st *root = calloc(1, sizeof *root);
-  assert(NULL != root);
+  DEBUG_ASSERT(NULL != root, "Out of memory");
 
   struct jscon_utils_s utils = {
     .buffer = buffer,
@@ -625,20 +622,15 @@ jscon_parse(char *buffer)
         break;
     default: //nothing else to build, check buffer for potential error
         if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
-          goto error;
+          DEBUG_ERR("Invalid JSON Token: %c", *utils.buffer);
         }
         ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
-        //DEV fprintf(stderr, "UNDEFINED \'%c\'\n", *utils.buffer);
+        //DEBUG_PUTS("UNDEFINED \'%c\'\n", *utils.buffer);
         break;
     }
   }
 
   return root;
-
-
-  error:
-    fprintf(stderr,"ERROR: invalid json token %c\n",*utils.buffer);
-    exit(EXIT_FAILURE);
 }
 
 /* struct that will be stored at jscon_scanf dictionary */
@@ -658,7 +650,7 @@ _jscon_scanf_skip_string(struct jscon_utils_s *utils)
       ++utils->buffer;
     }
   } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-  assert('\"' == *utils->buffer);
+  DEBUG_ASSERT('\"' == *utils->buffer, "Not a String");
   ++utils->buffer; //skip double quotes
 }
 
@@ -774,12 +766,13 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   case '\"':/*STRING DETECTED*/
    {
       if (!STREQ(specifier, "js")){
-        strcpy(err_typeis, "char* or jscon_item_st**");
+        char reason[] = "char* or jscon_item_st**";
+        strscpy(err_typeis, reason, strlen(reason));
         goto type_error;
       }
       
       char *string = _jscon_utils_decode_string(utils);
-      strcpy(value, string);
+      strscpy(value, string, strlen(string));
       free(string);
       return;
    }
@@ -790,7 +783,8 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         goto token_error;
       }
       if (!STREQ(specifier, "jb")){
-        strcpy(err_typeis, "bool* or jscon_item_st**");
+        char reason[] = "bool* or jscon_item_st**";
+        strscpy(err_typeis, reason, strlen(reason));
         goto type_error;
       }
 
@@ -814,8 +808,11 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
    }
   case '{':/*OBJECT DETECTED*/
   case '[':/*ARRAY DETECTED*/
-      strcpy(err_typeis, "jscon_item_st**");
+   {
+      char reason[] = "jscon_item_st**";
+      strscpy(err_typeis, reason, strlen(reason));
       goto type_error;
+   }
   default:
    { /*CHECK FOR NUMBER*/
       if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
@@ -825,14 +822,16 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
       double tmp = _jscon_utils_decode_double(utils);
       if (DOUBLE_IS_INTEGER(tmp)){
         if (!STREQ(specifier, "jd")){
-          strcpy(err_typeis, "long long* or jscon_item_st**");
+          char reason[] = "long long* or jscon_item_st**";
+          strscpy(err_typeis, reason, strlen(reason));
           goto type_error;
         }
         long long *number_i = value;
         *number_i = (long long)tmp;
       } else {
         if (!STREQ(specifier, "jf")){
-          strcpy(err_typeis, "double* or jscon_item_st**");
+          char reason[] = "double* or jscon_item_st**";
+          strscpy(err_typeis, reason, strlen(reason));
           goto type_error;
         }
         double *number_d = value; 
@@ -843,13 +842,11 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   }
 
 
-  type_error:
-    fprintf(stderr,"ERROR: expected specifier %s but specifier is %s( found: \"%s\" )\n",err_typeis, _jscon_scanf_format_info(specifier, NULL), specifier);
-    exit(EXIT_FAILURE);
+type_error:
+  DEBUG_ERR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_scanf_format_info(specifier, NULL), specifier);
 
-  token_error:
-    fprintf(stderr,"ERROR: invalid json token %c\n",*utils->buffer);
-    exit(EXIT_FAILURE);
+token_error:
+  DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
 }
 
 /* count amount of keys and check for formatting errors */
@@ -867,16 +864,14 @@ _jscon_scanf_format_analyze(char *format)
 
     /*1st STEP: check for key '#' prefix existence */
     if ('#' != c){
-      fprintf(stderr, "\nERROR: missing key '#' prefix\n\n");
-      exit(EXIT_FAILURE);
+      DEBUG_ASSERT('#' == c, "Missing format '#' key prefix"); //make sure key prefix is there
     }
     c = *++format;
 
     /* @todo check for escaped characters */
     /*2nd STEP: check if key matches a criteria for being a key */
     if (!ALLOWED_JSON_CHAR(c)){
-      fprintf(stderr, "\nERROR: key char not allowed '%c'\n\n", c);
-      exit(EXIT_FAILURE);
+      DEBUG_ERR("Key char not allowed: '%c'", c);
     }
 
     ++num_keys; //found key, increment num_keys
@@ -886,8 +881,7 @@ _jscon_scanf_format_analyze(char *format)
 
     /*3rd STEP: check if key's type is specified */
     if ('%' != c){
-      fprintf(stderr, "\nERROR: missing type specifier\n\n");
-      exit(EXIT_FAILURE);
+      DEBUG_ASSERT('%' == c, "Missing format '%' type specifier prefix");
     }
 
     /*@todo error check for available unknown characters */
@@ -904,7 +898,7 @@ _jscon_scanf_format_analyze(char *format)
 static void
 _jscon_scanf_format_decode(char *format, dictionary_st *dictionary, va_list ap)
 {
-  assert('\0' != *format); //can't be empty string
+  DEBUG_ASSERT('\0' != *format, "Empty String"); //can't be empty string
 
   const size_t STR_LEN = 256;
   char str[STR_LEN];
@@ -920,20 +914,20 @@ _jscon_scanf_format_decode(char *format, dictionary_st *dictionary, va_list ap)
     CONSUME_BLANK_CHARS(format);
     c = *format;
 
-    assert('#' == c); //make sure key prefix is there
+    DEBUG_ASSERT('#' == c, "Missing format '#' key prefix"); //make sure key prefix is there
     c = *++format; //skip '#'
     
     /* 1st STEP: build key specific characters */
     while ('%' != c){
       str[i] = c;
       ++i;
-      assert(i <= STR_LEN);
+      DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
       
       c = *++format;
     }
     str[i] = '\0'; //key is formed
     ++i;
-    assert(i <= STR_LEN);
+    DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
 
     /* 2nd STEP: key is formed, proceed to fetch the specifier */
     //skips '%' char and fetch successive specifier characters
@@ -941,20 +935,19 @@ _jscon_scanf_format_decode(char *format, dictionary_st *dictionary, va_list ap)
       c = *++format;
       str[i] = c;
       ++i;
-      assert(i <= STR_LEN);
+      DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
     } while(isalpha(c));
 
     str[i-1] = '\0';
 
     chunk = calloc(1, sizeof *chunk);
-    assert(NULL != chunk);
+    DEBUG_ASSERT(NULL != chunk, "Out of memory");
 
-    strncpy(chunk->specifier, &str[strlen(str)+1], 4); //get specifier string
+    strscpy(chunk->specifier, &str[strlen(str)+1], 4); //get specifier string
     chunk->value = va_arg(ap, void*);
 
     if ( STREQ("NaN", _jscon_scanf_format_info(chunk->specifier, NULL)) ){
-      fprintf(stderr, "\n\nERROR: unknown type specifier %%%s\n", chunk->specifier);
-      exit(EXIT_FAILURE);
+      DEBUG_ERR("Unknown type specifier %%%s", chunk->specifier);
     }
 
     dictionary_set(dictionary, str, chunk, &free);
@@ -974,13 +967,12 @@ the correct order, and type, as the requested keys.
 void
 jscon_scanf(char *buffer, char *format, ...)
 {
-  assert(NULL != buffer);
+  DEBUG_ASSERT(NULL != buffer, "Missing JSON text");
 
   CONSUME_BLANK_CHARS(buffer);
 
   if ('{' != *buffer){
-    fprintf(stderr, "\n\nERROR: json root item must be a JSONC_OBJECT\n");
-    exit(EXIT_FAILURE);
+    DEBUG_ERR("Item type must be JSCON_OBJECT");
   }
 
   struct jscon_utils_s utils = {
@@ -998,14 +990,14 @@ jscon_scanf(char *buffer, char *format, ...)
 
   //return keys for freeing later
   _jscon_scanf_format_decode(format, dictionary, ap);
-  assert(num_key == dictionary->len);
+  DEBUG_ASSERT(num_key == dictionary->len, "Number of keys encountered is different than allocated");
 
   while ('\0' != *utils.buffer)
   {
     if ('\"' == *utils.buffer){
-      assert(NULL == utils.key);
+      DEBUG_ASSERT(NULL == utils.key, "utils.key wasn't freed");
       utils.key = _jscon_utils_decode_string(&utils);
-      assert(':' == *utils.buffer);
+      DEBUG_ASSERT(':' == *utils.buffer, "Missing ':' token after key"); //check for key's assign token 
 
       ++utils.buffer; //consume ':'
       CONSUME_BLANK_CHARS(utils.buffer);

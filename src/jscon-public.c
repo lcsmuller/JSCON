@@ -23,22 +23,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include <libjscon.h>
 
 #include "jscon-common.h"
+#include "debug.h"
 
 
 jscon_item_st*
 jscon_null(const char *key)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
+  if (NULL == new_item) return NULL;
 
   if (NULL != key){
     new_item->key = strdup(key);
-    assert(NULL != new_item->key);
+    if (NULL == new_item->key){
+      free(new_item);
+      return NULL;
+    }
   } else {
     new_item->key = NULL;
   }
@@ -53,11 +56,14 @@ jscon_item_st*
 jscon_boolean(const char *key, bool boolean)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
+  if (NULL == new_item) return NULL;
 
   if (NULL != key){
     new_item->key = strdup(key);
-    assert(NULL != new_item->key);
+    if (NULL == new_item->key){
+      free(new_item);
+      return NULL;
+    }
   } else {
     new_item->key = NULL;
   }
@@ -73,11 +79,14 @@ jscon_item_st*
 jscon_integer(const char *key, long long i_number)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
+  if (NULL == new_item) return NULL;
 
   if (NULL != key){
     new_item->key = strdup(key);
-    assert(NULL != new_item->key);
+    if (NULL == new_item->key){
+      free(new_item);
+      return NULL;
+    }
   } else {
     new_item->key = NULL;
   }
@@ -93,11 +102,14 @@ jscon_item_st*
 jscon_double(const char *key, double d_number)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
+  if (NULL == new_item) return NULL;
 
   if (NULL != key){
     new_item->key = strdup(key);
-    assert(NULL != new_item->key);
+    if (NULL == new_item->key){
+      free(new_item);
+      return NULL;
+    }
   } else {
     new_item->key = NULL;
   }
@@ -123,11 +135,11 @@ jscon_string(const char *key, char *string)
   if (NULL == string) return jscon_null(key);
 
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
+  if (NULL == new_item) return NULL;
 
   if (NULL != key){
     new_item->key = strdup(key);
-    assert(NULL != new_item->key);
+    if (NULL == new_item->key) goto free_key;
   } else {
     new_item->key = NULL;
   }
@@ -136,22 +148,29 @@ jscon_string(const char *key, char *string)
   new_item->type = JSCON_STRING;
 
   new_item->string = strdup(string);
-  assert(NULL != new_item->string);
+  if (NULL == new_item->string) goto free_string;
 
   return new_item;
+
+free_string:
+  free(new_item->key);
+free_key:
+  free(new_item);
+
+  return NULL;
 }
 
 jscon_list_st*
 jscon_list_init()
 {
   jscon_list_st *new_list = malloc(sizeof *new_list);
-  assert(NULL != new_list);
+  if (NULL == new_list) return NULL;
 
   new_list->first = malloc(sizeof *new_list->first);
-  assert(NULL != new_list->first);
+  if (NULL == new_list->first) goto free_first;
 
   new_list->last = malloc(sizeof *new_list->last);
-  assert(NULL != new_list->last);
+  if (NULL == new_list->last) goto free_last;
 
   new_list->first->next = new_list->last;
   new_list->first->prev = NULL;
@@ -162,6 +181,13 @@ jscon_list_init()
   new_list->num_node = 0;
 
   return new_list;
+
+free_last:
+  free(new_list->first);
+free_first:
+  free(new_list);
+
+  return NULL;
 }
 
 void
@@ -188,14 +214,13 @@ jscon_list_destroy(jscon_list_st *list)
   list = NULL;
 }
 
-/* @todo return error value */
 void
 jscon_list_append(jscon_list_st *list, jscon_item_st *item)
 {
-  assert(NULL != item);
+  DEBUG_ASSERT(NULL != item, "NULL Item");
 
   struct jscon_node_s *new_node = malloc(sizeof *new_node);
-  assert(NULL != new_node);
+  DEBUG_ASSERT(NULL != new_node, "Out of memory");
 
   new_node->item = item;
 
@@ -229,28 +254,21 @@ inline static jscon_item_st*
 _jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
 {
   jscon_item_st *new_item = malloc(sizeof *new_item);
-  assert(NULL != new_item);
-
-  if (NULL != key){
-    new_item->key = strdup(key);
-    assert(NULL != new_item->key);
-  } else {
-    new_item->key = NULL;
-  }
+  if (NULL == new_item) return NULL;
 
   new_item->parent = NULL;
   new_item->type = type;
   new_item->comp = calloc(1, sizeof *new_item->comp);
-  assert(NULL != new_item->comp);
+  if (NULL == new_item->comp) goto comp_free;
 
   new_item->comp->htwrap = Jscon_htwrap_init();
 
   if (NULL == list){ //empty object/array
     new_item->comp->branch = malloc(sizeof(jscon_item_st*));
-    assert(NULL != new_item->comp->branch);
+    if (NULL == new_item->comp->branch) goto branch_free;
   } else {
     new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_st*));
-    assert(NULL != new_item->comp->branch);
+    if (NULL == new_item->comp->branch) goto branch_free;
 
     struct jscon_node_s *node = list->first->next;
     for (size_t i=0; i < list->num_node; ++i){
@@ -274,12 +292,30 @@ _jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
     list->last->next = NULL;
   }
 
+  if (NULL != key){
+    new_item->key = strdup(key);
+    if (NULL == new_item->key) goto key_free;
+  } else {
+    new_item->key = NULL;
+  }
+
   jscon_htwrap_st *last_accessed_htwrap = NULL;
   _jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
 
   Jscon_htwrap_build(new_item);
 
   return new_item;
+
+
+key_free:
+  free(new_item->key);
+  free(new_item->comp->branch);
+branch_free:
+  free(new_item->comp);
+comp_free:
+  free(new_item);
+
+  return NULL;
 }
 
 jscon_item_st*
@@ -302,7 +338,7 @@ jscon_size(const jscon_item_st *item){
 static jscon_htwrap_st*
 _jscon_get_last_htwrap(jscon_item_st *item)
 {
-  assert(IS_COMPOSITE(item));
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   size_t item_depth = jscon_get_depth(item);
 
@@ -316,28 +352,36 @@ _jscon_get_last_htwrap(jscon_item_st *item)
 }
 
 /* remake hashtable on functions that deal with increasing branches */
+/* @todo move to jscon-hashtable.c */
 static void
 _jscon_hashtable_remake(jscon_item_st *item)
 {
   hashtable_destroy(item->comp->htwrap->hashtable);
+
   item->comp->htwrap->hashtable = hashtable_init();
+  DEBUG_ASSERT(NULL != item->comp->htwrap->hashtable, "Out of memory");
+
   Jscon_htwrap_build(item);
 }
 
 jscon_item_st*
 jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
 {
-  assert(IS_COMPOSITE(item) && (NULL != new_branch));
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   if (new_branch == item){
-    assert(NULL != jscon_get_key(item));
+    DEBUG_ASSERT(NULL != jscon_get_key(item), "Can't perform circular append of item without a key");
     new_branch = jscon_clone(item);
+    if (NULL == new_branch) return NULL;
   }
 
   ++item->comp->num_branch;
   /* realloc parent references to match new size */
-  item->comp->branch = realloc(item->comp->branch, jscon_size(item) * sizeof(jscon_item_st*));
-  assert(NULL != item->comp->branch);
+  jscon_item_st **tmp = realloc(item->comp->branch, jscon_size(item) * sizeof(jscon_item_st*));
+  if (NULL == tmp) return NULL;
+
+  item->comp->branch = tmp;
+
   item->comp->branch[jscon_size(item)-1] = new_branch;
   new_branch->parent = item;
 
@@ -374,8 +418,10 @@ jscon_dettach(jscon_item_st *item)
   --item_parent->comp->num_branch;
 
   /* realloc parent references to match new size */
-  item_parent->comp->branch = realloc(item_parent->comp->branch, (1+jscon_size(item_parent)) * sizeof(jscon_item_st*));
-  assert(NULL != item_parent->comp->branch);
+  jscon_item_st **tmp = realloc(item_parent->comp->branch, (1+jscon_size(item_parent)) * sizeof(jscon_item_st*));
+  if (NULL == tmp) return NULL;
+
+  item_parent->comp->branch = tmp;
 
   /* parent hashtable has to be remade, to match reordered keys */
   _jscon_hashtable_remake(item_parent);
@@ -400,7 +446,6 @@ void
 jscon_delete(jscon_item_st *item, const char *key)
 {
   jscon_item_st *branch = jscon_get_branch(item, key);
-
   if (NULL == branch) return;
 
   jscon_dettach(branch); 
@@ -421,7 +466,7 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
   /* if item is not NULL, set p_current_item to item, otherwise
       fetch next iteration */ 
   if (NULL != item){
-    assert(IS_COMPOSITE(item));
+    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
     *p_current_item = item;
     return item;
   }
@@ -446,8 +491,8 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 static inline jscon_item_st*
 _jscon_push(jscon_item_st *item)
 {
-  assert(IS_COMPOSITE(item));//item has to be of Object type to fetch a branch
-  assert(item->comp->last_accessed_branch < jscon_size(item));//overflow assert
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+  DEBUG_ASSERT(item->comp->last_accessed_branch < jscon_size(item), "Overflow, trying to access forbidden memory");
 
   ++item->comp->last_accessed_branch; //update last_accessed_branch to next
   jscon_item_st *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
@@ -512,11 +557,15 @@ jscon_clone(jscon_item_st *item)
 
   char *tmp_buffer = jscon_stringify(item, JSCON_ANY);
   jscon_item_st *clone = jscon_parse(tmp_buffer);
+  free(tmp_buffer);
+
   if (NULL != item->key){
     clone->key = strdup(item->key);
-    assert(NULL != clone->key);
+    if (NULL == clone->key){
+      jscon_destroy(clone);
+      clone = NULL;
+    }
   }
-  free(tmp_buffer);
 
   return clone;
 }
@@ -541,12 +590,9 @@ char*
 jscon_strdup(const jscon_item_st *item)
 {
   char *src = jscon_get_string(item);
-
   if (NULL == src) return NULL;
 
   char *dest = strdup(src);
-  assert(NULL != dest);
-
   return dest;
 }
 
@@ -554,8 +600,12 @@ char*
 jscon_strcpy(char *dest, const jscon_item_st *item)
 {
   char *src = jscon_get_string(item);
+  if (NULL == src) return NULL;
 
-  return (NULL != src) ? strcpy(dest, src) : NULL;
+  ssize_t ret = strscpy(dest, src, strlen(src));
+  DEBUG_ASSERT(ret != -1, "Overflow occured");
+
+  return dest;
 }
 
 int
@@ -570,14 +620,14 @@ jscon_keycmp(const jscon_item_st *item, const char *key){
 
 int
 jscon_doublecmp(const jscon_item_st *item, const double d_number){
-  assert(JSCON_DOUBLE == item->type); //check if given item is double
+  DEBUG_ASSERT(JSCON_DOUBLE == item->type, "Item type is not a Double");
 
   return item->d_number == d_number;
 }
 
 int
 jscon_intcmp(const jscon_item_st *item, const long long i_number){
-  assert(JSCON_INTEGER == item->type); //check if given item is integer
+  DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
 
   return item->i_number == i_number;
 }
@@ -609,7 +659,7 @@ jscon_get_root(jscon_item_st *item)
 jscon_item_st*
 jscon_get_branch(jscon_item_st *item, const char *key)
 {
-  assert(IS_COMPOSITE(item));
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
   /* search for entry with given key at item's htwrap,
     and retrieve found or not found(NULL) item */
   return Jscon_htwrap_get(key, item);
@@ -619,7 +669,7 @@ jscon_get_branch(jscon_item_st *item, const char *key)
 jscon_item_st*
 jscon_get_sibling(const jscon_item_st* origin, const size_t kRelative_index)
 {
-  assert(!IS_ROOT(origin));
+  DEBUG_ASSERT(!IS_ROOT(origin), "Origin is root (has no siblings)");
 
   const jscon_item_st* kParent = jscon_get_parent(origin);
 
@@ -644,7 +694,7 @@ jscon_get_parent(const jscon_item_st *item){
 jscon_item_st*
 jscon_get_byindex(const jscon_item_st *item, const size_t index)
 {
-  assert(IS_COMPOSITE(item));
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
   return (index < jscon_size(item)) ? item->comp->branch[index] : NULL;
 }
 
@@ -652,7 +702,7 @@ jscon_get_byindex(const jscon_item_st *item, const size_t index)
 long
 jscon_get_index(const jscon_item_st *item, const char *key)
 {
-  assert(IS_COMPOSITE(item));
+  DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   jscon_item_st *lookup_item = Jscon_htwrap_get(key, (jscon_item_st*)item);
 
@@ -665,8 +715,8 @@ jscon_get_index(const jscon_item_st *item, const char *key)
     }
   }
 
-  fprintf(stderr, "\n\nERROR: item exists in hashtable but is not referenced by the parent\n");
-  exit(EXIT_FAILURE);
+  DEBUG_ERR("Item exists in hashtable but is not referenced by parent");
+  return -1;
 }
 
 enum jscon_type
@@ -684,7 +734,7 @@ jscon_get_boolean(const jscon_item_st *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return false;
 
-  assert(JSCON_BOOLEAN == item->type);
+  DEBUG_ASSERT(JSCON_BOOLEAN == item->type, "Item type is not a Boolean");
   return item->boolean;
 }
 
@@ -693,7 +743,7 @@ jscon_get_string(const jscon_item_st *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return NULL;
 
-  assert(JSCON_STRING == item->type);
+  DEBUG_ASSERT(JSCON_STRING == item->type, "Item type is not a String");
   return item->string;
 }
 
@@ -702,7 +752,7 @@ jscon_get_double(const jscon_item_st *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return 0.0;
 
-  assert(JSCON_DOUBLE == item->type);
+  DEBUG_ASSERT(JSCON_DOUBLE == item->type, "Item type is not a Double");
   return item->d_number;
 }
 
@@ -711,6 +761,6 @@ jscon_get_integer(const jscon_item_st *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return 0;
 
-  assert(JSCON_INTEGER == item->type);
+  DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
   return item->i_number;
 }

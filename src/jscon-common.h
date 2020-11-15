@@ -25,6 +25,7 @@
 
 //#include "libjscon.h" << implicit
 #include "hashtable.h"
+#include "strscpy.h"
 
 #define JSCON_VERSION "0.0"
 

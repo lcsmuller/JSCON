@@ -24,11 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
 
 #include <libjscon.h>
 
 #include "jscon-common.h"
+#include "debug.h"
 
 struct jscon_utils_s {
   char *buffer_base; //buffer's base (first position)
@@ -172,8 +172,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
       (*utils->method)('[', utils);
       break;
   default:
-      fprintf(stderr,"ERROR: can't stringify undefined datatype\n");
-      exit(EXIT_FAILURE);
+      DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
   }
 
   /* 4th STEP: if item is is a branch's leaf (defined at macros.h),
@@ -222,8 +221,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
       (*utils->method)(']', utils);
       break;
   default: /* this shouldn't ever happen, but just in case */
-      fprintf(stderr,"ERROR: not a wrapper (object or array) jscon type\n");
-      exit(EXIT_FAILURE);
+      DEBUG_ERR("Item is not an Object or Array");
   }
 }
 
@@ -231,7 +229,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
 char*
 jscon_stringify(jscon_item_st *root, enum jscon_type type)
 {
-  assert(NULL != root);
+  DEBUG_ASSERT(NULL != root, "Item is NULL");
 
   struct jscon_utils_s utils = {0};
 
@@ -249,7 +247,7 @@ jscon_stringify(jscon_item_st *root, enum jscon_type type)
   utils.method = &_jscon_utils_analyze;
   _jscon_stringify_preorder(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
-  assert(NULL != utils.buffer_base);
+  if (NULL == utils.buffer_base) return NULL;
 
   /* 3rd STEP: reset buffer_offset and proceed with
       _jscon_utils_encode to fill allocated buffer */
