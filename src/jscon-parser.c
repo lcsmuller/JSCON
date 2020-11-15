@@ -45,15 +45,23 @@ struct jscon_utils_s {
 typedef void (jscon_create_value_ft)(jscon_item_st *item, struct jscon_utils_s *utils);
 typedef jscon_item_st* (jscon_create_item_ft)(jscon_item_st*, struct jscon_utils_s*, jscon_create_value_ft*);
 
+static jscon_item_st*
+_jscon_item_init()
+{
+  jscon_item_st *new_item = calloc(1, sizeof *new_item);
+  DEBUG_ASSERT(NULL != new_item, "Out of memory");
+
+  return new_item;
+}
+
 /* create a new branch to current jscon object item, and return
   the new branch address */
 static jscon_item_st*
-_jscon_new_branch(jscon_item_st *item)
+_jscon_branch_init(jscon_item_st *item)
 {
   ++item->comp->num_branch;
 
-  item->comp->branch[jscon_size(item)-1] = calloc(1, sizeof(jscon_item_st));
-  DEBUG_ASSERT(NULL != item->comp->branch[jscon_size(item)-1], "Out of memory");
+  item->comp->branch[jscon_size(item)-1] = _jscon_item_init();
 
   item->comp->branch[jscon_size(item)-1]->parent = item;
 
@@ -61,7 +69,7 @@ _jscon_new_branch(jscon_item_st *item)
 }
 
 static void
-_jscon_destroy_composite(jscon_item_st *item)
+_jscon_composite_destroy(jscon_item_st *item)
 {
   Jscon_htwrap_destroy(item->comp->htwrap);
 
@@ -78,17 +86,17 @@ _jscon_destroy_preorder(jscon_item_st *item)
   switch (jscon_get_type(item)){
   case JSCON_OBJECT:
   case JSCON_ARRAY:
-      for (size_t i=0; i < jscon_size(item); ++i){
-        _jscon_destroy_preorder(item->comp->branch[i]);
-      }
-      _jscon_destroy_composite(item);
-      break;
+        for (size_t i=0; i < jscon_size(item); ++i){
+          _jscon_destroy_preorder(item->comp->branch[i]);
+        }
+        _jscon_composite_destroy(item);
+        break;
   case JSCON_STRING:
-      free(item->string);
-      item->string = NULL;
-      break;
+        free(item->string);
+        item->string = NULL;
+        break;
   default:
-      break;
+        break;
   }
 
   free(item->key);
@@ -255,24 +263,24 @@ _jscon_count_property(char *buffer)
   do {
     switch (*buffer){
     case ':':
-        num_branch += (depth == 1);
-        break;
+          num_branch += (depth == 1);
+          break;
     case '{':
-        ++depth;
-        break;
+          ++depth;
+          break;
     case '}':
-        --depth;
-        break;
+          --depth;
+          break;
     case '\"':
-        /* loops until null terminator or end of string are found */
-        do {
-          /* skips escaped characters */
-          if ('\\' == *buffer++){
-            ++buffer;
-          }
-        } while ('\0' != *buffer && '\"' != *buffer);
-        DEBUG_ASSERT('\"' == *buffer, "Not a string");
-        break;
+          /* loops until null terminator or end of string are found */
+          do {
+            /* skips escaped characters */
+            if ('\\' == *buffer++){
+              ++buffer;
+            }
+          } while ('\0' != *buffer && '\"' != *buffer);
+          DEBUG_ASSERT('\"' == *buffer, "Not a string");
+          break;
     }
 
     ++buffer; //skips whatever char
@@ -306,24 +314,24 @@ _jscon_count_element(char *buffer)
   do {
     switch (*buffer){
     case ',':
-        num_branch += (depth == 1);
-        break;
+          num_branch += (depth == 1);
+          break;
     case '[':
-        ++depth;
-        break;
+          ++depth;
+          break;
     case ']':
-        --depth;
-        break;
+          --depth;
+          break;
     case '\"':
-        /* loops until null terminator or end of string are found */
-        do {
-          /* skips escaped characters */
-          if ('\\' == *buffer++){
-            ++buffer;
-          }
-        } while ('\0' != *buffer && '\"' != *buffer);
-        DEBUG_ASSERT('\"' == *buffer, "Not a String");
-        break;
+          /* loops until null terminator or end of string are found */
+          do {
+            /* skips escaped characters */
+            if ('\\' == *buffer++){
+              ++buffer;
+            }
+          } while ('\0' != *buffer && '\"' != *buffer);
+          DEBUG_ASSERT('\"' == *buffer, "Not a String");
+          break;
     }
 
     ++buffer; //skips whatever char
@@ -348,9 +356,9 @@ _jscon_value_set_array(jscon_item_st *item, struct jscon_utils_s *utils)
 /* create nested composite type (object/array) and return 
     the address. */
 static jscon_item_st*
-_jscon_new_composite(jscon_item_st *item, struct jscon_utils_s *utils, jscon_create_value_ft *value_setter)
+_jscon_composite_init(jscon_item_st *item, struct jscon_utils_s *utils, jscon_create_value_ft *value_setter)
 {
-  item = _jscon_new_branch(item);
+  item = _jscon_branch_init(item);
   item->key = utils->key;
   utils->key = NULL;
 
@@ -374,7 +382,7 @@ _jscon_wrap_composite(jscon_item_st *item, struct jscon_utils_s *utils)
 static jscon_item_st*
 _jscon_append_primitive(jscon_item_st *item, struct jscon_utils_s *utils, jscon_create_value_ft *value_setter)
 {
-  item = _jscon_new_branch(item);
+  item = _jscon_branch_init(item);
   item->key = utils->key;
   utils->key = NULL;
 
@@ -387,53 +395,47 @@ _jscon_append_primitive(jscon_item_st *item, struct jscon_utils_s *utils, jscon_
 /* this routine is called when setting a branch of a composite type
     (object and array) item. */
 static jscon_item_st*
-_jscon_build_branch(jscon_item_st *item, struct jscon_utils_s *utils)
+_jscon_branch_build(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   jscon_create_item_ft *item_setter;
   jscon_create_value_ft *value_setter;
 
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      //DEBUG_PUTS("NEW OBJECT\n");
-      item_setter = &_jscon_new_composite;
-      value_setter = &_jscon_value_set_object;
-      break;
+        item_setter = &_jscon_composite_init;
+        value_setter = &_jscon_value_set_object;
+        break;
   case '[':/*ARRAY DETECTED*/
-      //DEBUG_PUTS("NEW ARRAY\n");
-      item_setter = &_jscon_new_composite;
-      value_setter = &_jscon_value_set_array;
-      break;
+        item_setter = &_jscon_composite_init;
+        value_setter = &_jscon_value_set_array;
+        break;
   case '\"':/*STRING DETECTED*/
-      //DEBUG_PUTS("NEW STRING\n");
-      item_setter = &_jscon_append_primitive;
-      value_setter = &_jscon_value_set_string;
-      break;
+        item_setter = &_jscon_append_primitive;
+        value_setter = &_jscon_value_set_string;
+        break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
-      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto token_error;
-      }
-      //DEBUG_PUTS("NEW BOOL\n");
-      item_setter = &_jscon_append_primitive;
-      value_setter = &_jscon_value_set_boolean;
-      break;
+        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+          goto token_error;
+        }
+        item_setter = &_jscon_append_primitive;
+        value_setter = &_jscon_value_set_boolean;
+        break;
   case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(utils->buffer,"null",4)){
-        goto token_error; 
-      }
-      //DEBUG_PUTS("NEW NULL\n");
-      item_setter = &_jscon_append_primitive;
-      value_setter = &_jscon_value_set_null;
-      break;
+        if (!STRNEQ(utils->buffer,"null",4)){
+          goto token_error; 
+        }
+        item_setter = &_jscon_append_primitive;
+        value_setter = &_jscon_value_set_null;
+        break;
   default:
-      /*CHECK FOR NUMBER*/
-      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto token_error;
-      }
-      //DEBUG_PUTS("NEW NUMBER\n");
-      item_setter = &_jscon_append_primitive;
-      value_setter = &_jscon_value_set_number;
-      break;
+        /*CHECK FOR NUMBER*/
+        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+          goto token_error;
+        }
+        item_setter = &_jscon_append_primitive;
+        value_setter = &_jscon_value_set_number;
+        break;
   }
 
   return (*item_setter)(item, utils, value_setter);
@@ -448,73 +450,61 @@ token_error:
   whatever item is created here will be this array's property.
   if a ']' token is found then the array is wrapped up */
 static jscon_item_st*
-_jscon_build_array(jscon_item_st *item, struct jscon_utils_s *utils)
+_jscon_array_build(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   CONSUME_BLANK_CHARS(utils->buffer);
-  //DEBUG_PUTS("arr{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case ']':/*ARRAY WRAPPER DETECTED*/
-      //DEBUG_PUTS("WRAP {%s}\n", item->key);
-      return _jscon_wrap_composite(item, utils);
+        return _jscon_wrap_composite(item, utils);
   case ',': /*NEXT ELEMENT TOKEN*/
-      //DEBUG_PUTS("NEXT ELEMENT\n");
-      ++utils->buffer; //skips ','
-      CONSUME_BLANK_CHARS(utils->buffer);
+        ++utils->buffer; //skips ','
+        CONSUME_BLANK_CHARS(utils->buffer);
 
-      return item;
+        return item;
   default:
    {
-      //creates numerical key for the array element
-      char numerical_key[MAX_DIGITS];
-      snprintf(numerical_key, MAX_DIGITS-1, "%ld", jscon_size(item));
+        //creates numerical key for the array element
+        char numerical_key[MAX_DIGITS];
+        snprintf(numerical_key, MAX_DIGITS-1, "%ld", jscon_size(item));
 
-      DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
-      utils->key = strdup(numerical_key);
-      DEBUG_ASSERT(NULL != utils->key, "Out of memory");
+        DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
+        utils->key = strdup(numerical_key);
+        DEBUG_ASSERT(NULL != utils->key, "Out of memory");
 
-      //DEBUG_PUTS("ARRTOKEN: \'%c\' ", *utils->buffer);
-      //DEBUG_PUTS("CREATE {%s} ", utils->key);
-
-      return _jscon_build_branch(item, utils);
+        return _jscon_branch_build(item, utils);
    }
   }
 
-  //token error checking done inside _jscon_build_branch
+  //token error checking done inside _jscon_branch_build
 }
 
 /* this will be active if the current item is of object type jscon,
   whatever item is created here will be this object's property.
   if a '}' token is found then the object is wrapped up */
 static jscon_item_st*
-_jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
+_jscon_object_build(jscon_item_st *item, struct jscon_utils_s *utils)
 {
   CONSUME_BLANK_CHARS(utils->buffer);
-  //DEBUG_PUTS("obj{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
-      //DEBUG_PUTS("WRAP {%s}\n", item->key);
-      return _jscon_wrap_composite(item, utils);
+        return _jscon_wrap_composite(item, utils);
   case '\"':/*KEY STRING DETECTED*/
-      DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
-      utils->key = _jscon_utils_decode_string(utils);
-      DEBUG_ASSERT(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
-      ++utils->buffer; //skips ':'
-      CONSUME_BLANK_CHARS(utils->buffer);
-      //DEBUG_PUTS("OBJTOKEN: \'%c\' ", *utils->buffer);
-      //DEBUG_PUTS("CREATE {%s} ", utils->key);
-      return _jscon_build_branch(item, utils);
+        DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
+        utils->key = _jscon_utils_decode_string(utils);
+        DEBUG_ASSERT(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
+        ++utils->buffer; //skips ':'
+        CONSUME_BLANK_CHARS(utils->buffer);
+        return _jscon_branch_build(item, utils);
   case ',': /*NEXT PROPERTY TOKEN*/
-      //DEBUG_PUTS("NEXT PROPERTY\n");
-      ++utils->buffer; //skips ','
-      CONSUME_BLANK_CHARS(utils->buffer);
-
-      return item;
+        ++utils->buffer; //skips ','
+        CONSUME_BLANK_CHARS(utils->buffer);
+        return item;
   default:
-      /*SKIPS IF CONTROL CHARACTER*/
-      if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
-        DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
-      }
-      return item;
+        /*SKIPS IF CONTROL CHARACTER*/
+        if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
+          DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+        }
+        return item;
   }
 }
 
@@ -522,46 +512,39 @@ _jscon_build_object(jscon_item_st *item, struct jscon_utils_s *utils)
   it also allows the creation of a jscon that's not part of an
   array or object. ex: jscon_item_parse("10") */
 static jscon_item_st*
-_jscon_build_entity(jscon_item_st *item, struct jscon_utils_s *utils)
+_jscon_entity_build(jscon_item_st *item, struct jscon_utils_s *utils)
 {
-  //DEBUG_PUTS("ent{%s}: \'%c\' ", item->key, *utils->buffer);
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      //DEBUG_PUTS("SET OBJECT\n");
-      _jscon_value_set_object(item, utils);
-      break;
+        _jscon_value_set_object(item, utils);
+        break;
   case '[':/*ARRAY DETECTED*/
-      //DEBUG_PUTS("SET ARRAY\n");
-      _jscon_value_set_array(item, utils);
-      break;
+        _jscon_value_set_array(item, utils);
+        break;
   case '\"':/*STRING DETECTED*/
-      //DEBUG_PUTS("SET STRING\n");
       _jscon_value_set_string(item, utils);
       break;
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
-      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto token_error;
-      }
-      //DEBUG_PUTS("SET BOOL\n");
-      _jscon_value_set_boolean(item, utils);
-      break;
+        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+          goto token_error;
+        }
+        _jscon_value_set_boolean(item, utils);
+        break;
   case 'n':/*CHECK FOR NULL*/
-      if (!STRNEQ(utils->buffer,"null",4)){
-        goto token_error;
-      }
-      //DEBUG_PUTS("SET NULL\n");
-      _jscon_value_set_null(item, utils);
-      break;
+        if (!STRNEQ(utils->buffer,"null",4)){
+          goto token_error;
+        }
+        _jscon_value_set_null(item, utils);
+        break;
   default:
-      CONSUME_BLANK_CHARS(utils->buffer);
-      /*CHECK FOR NUMBER*/
-      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto token_error;
-      }
-      //DEBUG_PUTS("SET NUMBER\n");
-      _jscon_value_set_number(item, utils);
-      break;
+        CONSUME_BLANK_CHARS(utils->buffer);
+        /*CHECK FOR NUMBER*/
+        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+          goto token_error;
+        }
+        _jscon_value_set_number(item, utils);
+        break;
   }
 
   return item;
@@ -607,25 +590,24 @@ jscon_parse(char *buffer)
   while ((NULL != item) && ('\0' != *utils.buffer)){
     switch(item->type){
     case JSCON_OBJECT:
-        item = _jscon_build_object(item, &utils);
-        break;
+          item = _jscon_object_build(item, &utils);
+          break;
     case JSCON_ARRAY:
-        item = _jscon_build_array(item, &utils);
-        break;
+          item = _jscon_array_build(item, &utils);
+          break;
     case JSCON_UNDEFINED://this should be true only at the first call
-        item = _jscon_build_entity(item, &utils);
+          item = _jscon_entity_build(item, &utils);
 
-        /* primitives can't have branches, skip the rest  */
-        if (IS_PRIMITIVE(item)) return item;
+          /* primitives can't have branches, skip the rest  */
+          if (IS_PRIMITIVE(item)) return item;
 
-        break;
+          break;
     default: //nothing else to build, check buffer for potential error
-        if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
-          DEBUG_ERR("Invalid JSON Token: %c", *utils.buffer);
-        }
-        ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
-        //DEBUG_PUTS("UNDEFINED \'%c\'\n", *utils.buffer);
-        break;
+          if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
+            DEBUG_ERR("Invalid JSON Token: %c", *utils.buffer);
+          }
+          ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
+          break;
     }
   }
 
@@ -684,20 +666,20 @@ _jscon_scanf_skip(struct jscon_utils_s *utils)
 {
   switch (*utils->buffer){
   case '{':/*OBJECT DETECTED*/
-      _jscon_scanf_skip_composite('{', '}', utils);
-      return;
+        _jscon_scanf_skip_composite('{', '}', utils);
+        return;
   case '[':/*ARRAY DETECTED*/
-      _jscon_scanf_skip_composite('[', ']', utils);
-      return;
+        _jscon_scanf_skip_composite('[', ']', utils);
+        return;
   case '\"':/*STRING DETECTED*/
-      _jscon_scanf_skip_string(utils);
-      return;
+        _jscon_scanf_skip_string(utils);
+        return;
   default:
-      //consume characters while not end of string or not new key
-      while ('\0' != *utils->buffer && ',' != *utils->buffer){
-        ++utils->buffer;
-      }
-      return;
+        //consume characters while not end of string or not new key
+        while ('\0' != *utils->buffer && ',' != *utils->buffer){
+          ++utils->buffer;
+        }
+        return;
   }
 }
 
@@ -764,79 +746,79 @@ _jscon_scanf_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   switch (*utils->buffer){
   case '\"':/*STRING DETECTED*/
    {
-      if (!STREQ(specifier, "js")){
-        char reason[] = "char* or jscon_item_st**";
-        strscpy(err_typeis, reason, strlen(reason));
-        goto type_error;
-      }
-      
-      char *string = _jscon_utils_decode_string(utils);
-      strscpy(value, string, strlen(string));
-      free(string);
-      return;
+        if (!STREQ(specifier, "js")){
+          char reason[] = "char* or jscon_item_st**";
+          strscpy(err_typeis, reason, strlen(reason));
+          goto type_error;
+        }
+        
+        char *string = _jscon_utils_decode_string(utils);
+        strscpy(value, string, strlen(string));
+        free(string);
+        return;
    }
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
    {
-      if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
-        goto token_error;
-      }
-      if (!STREQ(specifier, "jb")){
-        char reason[] = "bool* or jscon_item_st**";
-        strscpy(err_typeis, reason, strlen(reason));
-        goto type_error;
-      }
+        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+          goto token_error;
+        }
+        if (!STREQ(specifier, "jb")){
+          char reason[] = "bool* or jscon_item_st**";
+          strscpy(err_typeis, reason, strlen(reason));
+          goto type_error;
+        }
 
-      bool *boolean = value;
-      *boolean = _jscon_utils_decode_boolean(utils);
-      return;
+        bool *boolean = value;
+        *boolean = _jscon_utils_decode_boolean(utils);
+        return;
    }
   case 'n':/*CHECK FOR NULL*/
    {
-      if (!STRNEQ(utils->buffer,"null",4)){
-        goto token_error; 
-      }
+        if (!STRNEQ(utils->buffer,"null",4)){
+          goto token_error; 
+        }
 
-      _jscon_utils_decode_null(utils);
+        _jscon_utils_decode_null(utils);
 
-      /* null conversion */
-      size_t n_bytes; //get amount of bytes that should be set to 0
-      _jscon_scanf_format_info(specifier, &n_bytes);
-      memset(value, 0, n_bytes);
-      return;
+        /* null conversion */
+        size_t n_bytes; //get amount of bytes that should be set to 0
+        _jscon_scanf_format_info(specifier, &n_bytes);
+        memset(value, 0, n_bytes);
+        return;
    }
   case '{':/*OBJECT DETECTED*/
   case '[':/*ARRAY DETECTED*/
    {
-      char reason[] = "jscon_item_st**";
-      strscpy(err_typeis, reason, strlen(reason));
-      goto type_error;
+        char reason[] = "jscon_item_st**";
+        strscpy(err_typeis, reason, strlen(reason));
+        goto type_error;
    }
   default:
    { /*CHECK FOR NUMBER*/
-      if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
-        goto token_error;
-      }
-      
-      double tmp = _jscon_utils_decode_double(utils);
-      if (DOUBLE_IS_INTEGER(tmp)){
-        if (!STREQ(specifier, "jd")){
-          char reason[] = "long long* or jscon_item_st**";
-          strscpy(err_typeis, reason, strlen(reason));
-          goto type_error;
+        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+          goto token_error;
         }
-        long long *number_i = value;
-        *number_i = (long long)tmp;
-      } else {
-        if (!STREQ(specifier, "jf")){
-          char reason[] = "double* or jscon_item_st**";
-          strscpy(err_typeis, reason, strlen(reason));
-          goto type_error;
+        
+        double tmp = _jscon_utils_decode_double(utils);
+        if (DOUBLE_IS_INTEGER(tmp)){
+          if (!STREQ(specifier, "jd")){
+            char reason[] = "long long* or jscon_item_st**";
+            strscpy(err_typeis, reason, strlen(reason));
+            goto type_error;
+          }
+          long long *number_i = value;
+          *number_i = (long long)tmp;
+        } else {
+          if (!STREQ(specifier, "jf")){
+            char reason[] = "double* or jscon_item_st**";
+            strscpy(err_typeis, reason, strlen(reason));
+            goto type_error;
+          }
+          double *number_d = value; 
+          *number_d = tmp;
         }
-        double *number_d = value; 
-        *number_d = tmp;
-      }
-      return;
+        return;
    }
   }
 

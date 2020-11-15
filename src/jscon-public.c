@@ -562,16 +562,21 @@ jscon_clone(jscon_item_st *item)
 char*
 jscon_typeof(const jscon_item_st *item)
 {
+
+/* if case matches, return token as string */
+#define CASE_RETURN_STR(type) case type: return #type
+
   switch (item->type){
-    case JSCON_DOUBLE: return "Double";
-    case JSCON_INTEGER: return "Integer";
-    case JSCON_STRING: return "String";
-    case JSCON_NULL: return "Null";
-    case JSCON_BOOLEAN: return "Boolean";
-    case JSCON_OBJECT: return "Object";
-    case JSCON_ARRAY: return "Array";
-    case JSCON_UNDEFINED: return "Undefined";
-    default: return "NaN";
+  CASE_RETURN_STR(JSCON_DOUBLE);
+  CASE_RETURN_STR(JSCON_INTEGER);
+  CASE_RETURN_STR(JSCON_STRING);
+  CASE_RETURN_STR(JSCON_NULL);
+  CASE_RETURN_STR(JSCON_BOOLEAN);
+  CASE_RETURN_STR(JSCON_OBJECT);
+  CASE_RETURN_STR(JSCON_ARRAY);
+  CASE_RETURN_STR(JSCON_UNDEFINED);
+
+  default: return "NaN";
   }
 }
 
@@ -656,19 +661,19 @@ jscon_get_branch(jscon_item_st *item, const char *key)
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
 jscon_item_st*
-jscon_get_sibling(const jscon_item_st* origin, const size_t kRelative_index)
+jscon_get_sibling(const jscon_item_st* origin, const size_t relative_index)
 {
   DEBUG_ASSERT(!IS_ROOT(origin), "Origin is root (has no siblings)");
 
-  const jscon_item_st* kParent = jscon_get_parent(origin);
+  const jscon_item_st* parent = jscon_get_parent(origin);
 
   //get parent's branch index of the origin item
-  size_t origin_index= jscon_get_index(kParent, origin->key);
+  size_t origin_index = jscon_get_index(parent, origin->key);
 
-  /* if relative index given doesn't exceed kParent branch amount,
+  /* if relative index given doesn't exceed parent branch amount,
     or dropped below 0, return branch at given relative index */
-  if ((0 <= (int)(origin_index + kRelative_index)) && jscon_size(kParent) > (origin_index + kRelative_index)){
-    return jscon_get_byindex(kParent, origin_index + kRelative_index);
+  if ((0 <= (int)(origin_index + relative_index)) && jscon_size(parent) > (origin_index + relative_index)){
+    return jscon_get_byindex(parent, origin_index + relative_index);
   }
 
   return NULL;
