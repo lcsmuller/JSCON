@@ -5,7 +5,6 @@ This document describes features to be incorporated in the future.
 ## HIGH
 
 - `jscon_scanf()`
-  - Replace strcpy with a safer version that inserts a null terminator to the end of the strings
   - Allow for more integer datatypes such as `short`, `int` and `long`, instead of just `long long`, to avoid alignment issues
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
