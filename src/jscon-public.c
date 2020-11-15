@@ -351,19 +351,6 @@ _jscon_get_last_htwrap(jscon_item_st *item)
   return htwrap_last;
 }
 
-/* remake hashtable on functions that deal with increasing branches */
-/* @todo move to jscon-hashtable.c */
-static void
-_jscon_hashtable_remake(jscon_item_st *item)
-{
-  hashtable_destroy(item->comp->htwrap->hashtable);
-
-  item->comp->htwrap->hashtable = hashtable_init();
-  DEBUG_ASSERT(NULL != item->comp->htwrap->hashtable, "Out of memory");
-
-  Jscon_htwrap_build(item);
-}
-
 jscon_item_st*
 jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
 {
@@ -389,7 +376,7 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   if (jscon_size(item) <= item->comp->htwrap->hashtable->num_bucket){
     Jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
   } else {
-    _jscon_hashtable_remake(item);
+    Jscon_htwrap_remake(item);
   }
 
   if (IS_PRIMITIVE(new_branch)) return new_branch;
@@ -426,7 +413,7 @@ jscon_dettach(jscon_item_st *item)
   --item_parent->comp->num_branch;
 
   /* parent hashtable has to be remade, to match reordered keys */
-  _jscon_hashtable_remake(item_parent);
+  Jscon_htwrap_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
   jscon_htwrap_st *htwrap_prev = item->comp->htwrap->prev;
@@ -548,10 +535,10 @@ jscon_iter_next(jscon_item_st *item)
 
 /* This is not the most effective way to clone a item, but it is
     the most reliable, because it automatically accounts for any
-    new feature I might add in the future. By first stringfying the
-    (to be cloned) jscon_item and then parsing the resulting string into
-    a new (clone) jscon_item, it's guaranteed that it will be a perfect 
-    clone, with its own addressed htwrap, strings, etc */
+    new feature that might added in the future. By first stringfying the
+    (to be cloned) Item and then parsing the resulting string into
+    a new clone Item, it's guaranteed that it will be a perfect 
+    clone, with its unique hashtable, strings, etc */
 jscon_item_st*
 jscon_clone(jscon_item_st *item)
 {
@@ -687,7 +674,6 @@ jscon_get_sibling(const jscon_item_st* origin, const size_t kRelative_index)
   return NULL;
 }
 
-/* return parent */
 jscon_item_st*
 jscon_get_parent(const jscon_item_st *item){
   return _jscon_pop((jscon_item_st*)item);
@@ -700,7 +686,6 @@ jscon_get_byindex(const jscon_item_st *item, const size_t index)
   return (index < jscon_size(item)) ? item->comp->branch[index] : NULL;
 }
 
-/* returns -1 if item not found */
 long
 jscon_get_index(const jscon_item_st *item, const char *key)
 {
@@ -718,7 +703,7 @@ jscon_get_index(const jscon_item_st *item, const char *key)
   }
 
   DEBUG_ERR("Item exists in hashtable but is not referenced by parent");
-  return -1;
+  abort();
 }
 
 enum jscon_type

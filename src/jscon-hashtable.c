@@ -72,3 +72,15 @@ Jscon_htwrap_set(const char *key, jscon_item_st *item)
   jscon_htwrap_st *htwrap = item->parent->comp->htwrap;
   return hashtable_set(htwrap->hashtable, key, item);
 }
+
+/* remake hashtable on functions that deal with increasing branches */
+void
+Jscon_htwrap_remake(jscon_item_st *item)
+{
+  hashtable_destroy(item->comp->htwrap->hashtable);
+
+  item->comp->htwrap->hashtable = hashtable_init();
+  DEBUG_ASSERT(NULL != item->comp->htwrap->hashtable, "Out of memory");
+
+  Jscon_htwrap_build(item);
+}

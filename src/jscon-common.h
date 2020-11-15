@@ -44,13 +44,13 @@
 #define ALLOWED_JSON_CHAR(c) (isspace(c) || isalnum(c) || '_' == (c) || '-' == (c))
 #define CONSUME_BLANK_CHARS(str) for( ; (isspace(*str) || iscntrl(*str)) ; ++str)
 
-#define IS_COMPOSITE(i) ((i) && jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
-#define IS_EMPTY_COMPOSITE(i) (IS_COMPOSITE(i) && 0 == jscon_size(i))
-#define IS_PRIMITIVE(i) ((i) && !jscon_typecmp(i, JSCON_OBJECT|JSCON_ARRAY))
-#define IS_PROPERTY(i) (jscon_typecmp(i->parent, JSCON_OBJECT))
-#define IS_ELEMENT(i) (jscon_typecmp(i->parent, JSCON_ARRAY))
-#define IS_LEAF(i) (IS_PRIMITIVE(i) || IS_EMPTY_COMPOSITE(i))
-#define IS_ROOT(i) (NULL == i->parent)
+#define IS_COMPOSITE(item) ((item) && jscon_typecmp(item, JSCON_OBJECT|JSCON_ARRAY))
+#define IS_EMPTY_COMPOSITE(item) (IS_COMPOSITE(item) && 0 == jscon_size(item))
+#define IS_PRIMITIVE(item) ((item) && !jscon_typecmp(item, JSCON_OBJECT|JSCON_ARRAY))
+#define IS_PROPERTY(item) (jscon_typecmp(item->parent, JSCON_OBJECT))
+#define IS_ELEMENT(item) (jscon_typecmp(item->parent, JSCON_ARRAY))
+#define IS_LEAF(item) (IS_PRIMITIVE(item) || IS_EMPTY_COMPOSITE(item))
+#define IS_ROOT(item) (NULL == item->parent)
 
 typedef struct jscon_htwrap_s {
   struct hashtable_s *hashtable;
@@ -66,6 +66,7 @@ void Jscon_htwrap_link_r(struct jscon_item_s *item, jscon_htwrap_st **last_acces
 void Jscon_htwrap_build(struct jscon_item_s *item);
 struct jscon_item_s* Jscon_htwrap_get(const char *key, struct jscon_item_s *item);
 struct jscon_item_s* Jscon_htwrap_set(const char *key, struct jscon_item_s *item);
+void Jscon_htwrap_remake(jscon_item_st *item);
 
 /* JSCON COMPOSITE TYPES
   if jscon_item type is of composite type (object or array) it will

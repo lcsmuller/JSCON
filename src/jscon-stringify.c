@@ -145,34 +145,34 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
   /* 3rd STEP: converts item to its string format and append to buffer */
   switch (item->type){
   case JSCON_NULL:
-      _jscon_utils_apply_string("null", utils);
-      break;
-  case JSCON_BOOLEAN:
-      if (true == item->boolean){
-        _jscon_utils_apply_string("true", utils);
+        _jscon_utils_apply_string("null", utils);
         break;
-      }
-      _jscon_utils_apply_string("false", utils);
-      break;
+  case JSCON_BOOLEAN:
+        if (true == item->boolean){
+          _jscon_utils_apply_string("true", utils);
+          break;
+        }
+        _jscon_utils_apply_string("false", utils);
+        break;
   case JSCON_DOUBLE:
-      _jscon_utils_apply_double(item->d_number, utils);
-      break;
+        _jscon_utils_apply_double(item->d_number, utils);
+        break;
   case JSCON_INTEGER:
-      _jscon_utils_apply_integer(item->i_number, utils);
-      break;
+        _jscon_utils_apply_integer(item->i_number, utils);
+        break;
   case JSCON_STRING:
-      (*utils->method)('\"', utils);
-      _jscon_utils_apply_string(item->string, utils);
-      (*utils->method)('\"', utils);
-      break;
+        (*utils->method)('\"', utils);
+        _jscon_utils_apply_string(item->string, utils);
+        (*utils->method)('\"', utils);
+        break;
   case JSCON_OBJECT:
-      (*utils->method)('{', utils);
-      break;
+        (*utils->method)('{', utils);
+        break;
   case JSCON_ARRAY:
-      (*utils->method)('[', utils);
-      break;
+        (*utils->method)('[', utils);
+        break;
   default:
-      DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
+        DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
   }
 
   /* 4th STEP: if item is is a branch's leaf (defined at macros.h),
@@ -180,13 +180,13 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
   if (IS_LEAF(item)){
     switch(item->type){
     case JSCON_OBJECT:
-        (*utils->method)('}', utils);
-        return;
+          (*utils->method)('}', utils);
+          return;
     case JSCON_ARRAY:
-        (*utils->method)(']', utils);
-        return;
+          (*utils->method)(']', utils);
+          return;
     default: //is a primitive, just return
-        return;
+          return;
     }
   }
 
@@ -215,13 +215,13 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
   /* 7th STEP: write the composite's type item wrapper token */
   switch(item->type){
   case JSCON_OBJECT:
-      (*utils->method)('}', utils);
-      break;
+        (*utils->method)('}', utils);
+        break;
   case JSCON_ARRAY:
-      (*utils->method)(']', utils);
-      break;
+        (*utils->method)(']', utils);
+        break;
   default: /* this shouldn't ever happen, but just in case */
-      DEBUG_ERR("Item is not an Object or Array");
+        DEBUG_ERR("Item is not an Object or Array");
   }
 }
 
