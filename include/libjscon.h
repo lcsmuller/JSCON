@@ -28,6 +28,10 @@
 #include <stdbool.h>
 #include <limits.h>
 
+
+#define DEBUG_MODE 1
+
+
 /* All of the possible jscon datatypes */
 enum jscon_type {
   /* DATATYPE FLAGS */
