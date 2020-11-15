@@ -375,12 +375,13 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
     if (NULL == new_branch) return NULL;
   }
 
-  ++item->comp->num_branch;
   /* realloc parent references to match new size */
-  jscon_item_st **tmp = realloc(item->comp->branch, jscon_size(item) * sizeof(jscon_item_st*));
+  jscon_item_st **tmp = realloc(item->comp->branch, (1+jscon_size(item)) * sizeof(jscon_item_st*));
   if (NULL == tmp) return NULL;
 
   item->comp->branch = tmp;
+
+  ++item->comp->num_branch;
 
   item->comp->branch[jscon_size(item)-1] = new_branch;
   new_branch->parent = item;
@@ -401,6 +402,7 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   return new_branch;
 }
 
+/* @todo test this */
 jscon_item_st*
 jscon_dettach(jscon_item_st *item)
 {
@@ -410,18 +412,18 @@ jscon_dettach(jscon_item_st *item)
   /* get the item index reference from its parent */
   jscon_item_st *item_parent = item->parent;
 
+  /* realloc parent references to match new size */
+  jscon_item_st **tmp = realloc(item_parent->comp->branch, jscon_size(item_parent) * sizeof(jscon_item_st*));
+  if (NULL == tmp) return NULL;
+
+  item_parent->comp->branch = tmp;
+
   /* dettach the item from its parent and reorder keys */
   for (size_t i = jscon_get_index(item_parent, item->key); i < jscon_size(item_parent)-1; ++i){
     item_parent->comp->branch[i] = item_parent->comp->branch[i+1]; 
   }
   item_parent->comp->branch[jscon_size(item_parent)-1] = NULL;
   --item_parent->comp->num_branch;
-
-  /* realloc parent references to match new size */
-  jscon_item_st **tmp = realloc(item_parent->comp->branch, (1+jscon_size(item_parent)) * sizeof(jscon_item_st*));
-  if (NULL == tmp) return NULL;
-
-  item_parent->comp->branch = tmp;
 
   /* parent hashtable has to be remade, to match reordered keys */
   _jscon_hashtable_remake(item_parent);

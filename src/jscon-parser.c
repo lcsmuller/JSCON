@@ -283,7 +283,7 @@ _jscon_count_property(char *buffer)
   } while ('\0' != *buffer);
 
   DEBUG_ERR("Bad formatting");
-  return -1;
+  abort();
 }
 
 static void
@@ -334,7 +334,7 @@ _jscon_count_element(char *buffer)
   } while ('\0' != *buffer);
 
   DEBUG_ERR("Bad formatting");
-  return -1;
+  abort();
 }
 
 static void
