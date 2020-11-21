@@ -596,7 +596,7 @@ jscon_strcpy(char *dest, const jscon_item_t *item)
   char *src = jscon_get_string(item);
   if (NULL == src) return NULL;
 
-  ssize_t ret = strscpy(dest, src, strlen(src));
+  ssize_t ret = strscpy(dest, src, sizeof(dest));
   DEBUG_ASSERT(ret != -1, "Overflow occured");
 
   return dest;

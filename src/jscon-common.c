@@ -93,7 +93,7 @@ Jscon_decode_double(char **p_buffer)
 
   /* 5th STEP: convert string to double and return its value */
   char numerical_string[MAX_DIGITS];
-  strscpy(numerical_string, start, end-start + 1);
+  strscpy(numerical_string, start, MAX_DIGITS);
 
   double set_double;
   sscanf(numerical_string,"%lf",&set_double);

@@ -170,12 +170,12 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
    {
         if (!STREQ(specifier, "js")){
           char reason[] = "char* or jscon_item_t**";
-          strscpy(err_typeis, reason, strlen(reason));
+          strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
         }
         
         char *string = Jscon_decode_string(&utils->buffer);
-        strscpy(value, string, strlen(string));
+        strscpy(value, string, sizeof(value));
         free(string);
         return;
    }
@@ -187,7 +187,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         }
         if (!STREQ(specifier, "jb")){
           char reason[] = "bool* or jscon_item_t**";
-          strscpy(err_typeis, reason, strlen(reason));
+          strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
         }
 
@@ -213,7 +213,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   case '[':/*ARRAY DETECTED*/
    {
         char reason[] = "jscon_item_t**";
-        strscpy(err_typeis, reason, strlen(reason));
+        strscpy(err_typeis, reason, sizeof(err_typeis));
         goto type_error;
    }
   default:
@@ -226,7 +226,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         if (DOUBLE_IS_INTEGER(tmp)){
           if (!STREQ(specifier, "jd")){
             char reason[] = "long long* or jscon_item_t**";
-            strscpy(err_typeis, reason, strlen(reason));
+            strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
           }
           long long *number_i = value;
@@ -234,7 +234,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         } else {
           if (!STREQ(specifier, "jf")){
             char reason[] = "double* or jscon_item_t**";
-            strscpy(err_typeis, reason, strlen(reason));
+            strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
           }
           double *number_d = value; 
