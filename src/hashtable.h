@@ -37,9 +37,9 @@ typedef struct hashtable_s {
 hashtable_t* hashtable_init();
 void hashtable_destroy(hashtable_t *hashtable);
 void hashtable_build(hashtable_t *hashtable, const size_t kNum_index);
-void *hashtable_get(hashtable_t *hashtable, const char *kKey);
-void *hashtable_set(hashtable_t *hashtable, const char *kKey, const void *kValue);
-void hashtable_remove(hashtable_t *hashtable, const char *kKey);
+void *hashtable_get(hashtable_t *hashtable, const char *key);
+void *hashtable_set(hashtable_t *hashtable, const char *key, const void *value);
+void hashtable_remove(hashtable_t *hashtable, const char *key);
 
 typedef struct dictionary_entry_s {
   char *key; //this entry key tag
@@ -62,11 +62,11 @@ void dictionary_destroy(dictionary_t *dictionary);
 
 #define dictionary_build(dict, num_index) hashtable_build((hashtable_t*)dict, num_index)
 #define dictionary_get(dict, key) hashtable_get((hashtable_t*)dict, key)
-void *dictionary_set(dictionary_t *dictionary, const char *kKey, const void *kValue, void (*free_cb)(void*));
-void dictionary_remove(dictionary_t *dictionary, const char *kKey);
-void *dictionary_replace(dictionary_t *dictionary, const char *kKey, void *new_value);
-long long dictionary_get_strtoll(dictionary_t *dictionary, const char *kKey);
-double dictionary_get_strtod(dictionary_t *dictionary, const char *kKey);
+void *dictionary_set(dictionary_t *dictionary, const char *key, const void *value, void (*free_cb)(void*));
+void dictionary_remove(dictionary_t *dictionary, const char *key);
+void *dictionary_replace(dictionary_t *dictionary, const char *key, void *new_value);
+long long dictionary_get_strtoll(dictionary_t *dictionary, const char *key);
+double dictionary_get_strtod(dictionary_t *dictionary, const char *key);
 
 
 #endif
