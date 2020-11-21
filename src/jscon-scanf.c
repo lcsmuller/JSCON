@@ -175,7 +175,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         }
         
         char *string = Jscon_decode_string(&utils->buffer);
-        strscpy(value, string, sizeof(value));
+        strscpy(value, string, strlen(string)+1);
         free(string);
         return;
    }
@@ -346,7 +346,7 @@ _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
     chunk = calloc(1, sizeof *chunk);
     DEBUG_ASSERT(NULL != chunk, "Out of memory");
 
-    strscpy(chunk->specifier, &str[strlen(str)+1], 4); //get specifier string
+    strscpy(chunk->specifier, &str[strlen(str)+1], sizeof(chunk->specifier)); //get specifier string
     chunk->value = va_arg(ap, void*);
 
     if ( STREQ("NaN", _jscon_format_info(chunk->specifier, NULL)) ){

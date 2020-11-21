@@ -48,7 +48,7 @@ Jscon_decode_string(char **p_buffer)
 
   *p_buffer = end + 1; //skips double quotes buffer position
 
-  char *set_str = strndup(start, end - start);
+  char *set_str = strndup(start, end-start);
   DEBUG_ASSERT(NULL != set_str, "Out of memory");
 
   return set_str;
@@ -92,11 +92,13 @@ Jscon_decode_double(char **p_buffer)
   }
 
   /* 5th STEP: convert string to double and return its value */
-  char numerical_string[MAX_DIGITS];
-  strscpy(numerical_string, start, MAX_DIGITS);
+  char numstr[MAX_DIGITS];
+  strscpy(numstr, start, ((size_t)(end-start+1) < sizeof(numstr)) 
+                            ? (size_t)(end-start+1)
+                            : sizeof(numstr));
 
   double set_double;
-  sscanf(numerical_string,"%lf",&set_double);
+  sscanf(numstr,"%lf",&set_double);
 
   *p_buffer = end; //skips entire length of number
 
