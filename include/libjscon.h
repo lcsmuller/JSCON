@@ -50,72 +50,72 @@ enum jscon_type {
 
 
 /* forwarding, definition at jscon-common.h */
-typedef struct jscon_item_s jscon_item_st;
-typedef struct jscon_list_s jscon_list_st;
+typedef struct jscon_item_s jscon_item_t;
+typedef struct jscon_list_s jscon_list_t;
 
-/* used for setting callbacks */
-typedef jscon_item_st* (jscon_callbacks_ft)(jscon_item_st*);
+/* used for setting callback */
+typedef jscon_item_t* (jscon_cb)(jscon_item_t*);
 
 
 /* JSCON INIT */
-jscon_item_st *jscon_null(const char *key);
-jscon_item_st *jscon_boolean(const char *key, bool boolean);
-jscon_item_st *jscon_integer(const char *key, long long i_number);
-jscon_item_st *jscon_double(const char *key, double d_number);
-jscon_item_st *jscon_number(const char *key, double d_number);
-jscon_item_st *jscon_string(const char *key, char *string);
+jscon_item_t *jscon_null(const char *key);
+jscon_item_t *jscon_boolean(const char *key, bool boolean);
+jscon_item_t *jscon_integer(const char *key, long long i_number);
+jscon_item_t *jscon_double(const char *key, double d_number);
+jscon_item_t *jscon_number(const char *key, double d_number);
+jscon_item_t *jscon_string(const char *key, char *string);
 
-jscon_list_st *jscon_list_init();
-jscon_item_st *jscon_object(const char *key, jscon_list_st *list);
-jscon_item_st *jscon_array(const char *key, jscon_list_st *list);
+jscon_list_t *jscon_list_init();
+jscon_item_t *jscon_object(const char *key, jscon_list_t *list);
+jscon_item_t *jscon_array(const char *key, jscon_list_t *list);
 
 /* JSCON DESTRUCTORS */
 /* clean up jscon item and global allocated keys */
-void jscon_destroy(jscon_item_st *item);
-void jscon_list_destroy(jscon_list_st *list);
+void jscon_destroy(jscon_item_t *item);
+void jscon_list_destroy(jscon_list_t *list);
 
 /* JSCON DECODING */
 /* parse buffer and returns a jscon item */
-jscon_item_st* jscon_parse(char *buffer);
-jscon_callbacks_ft* jscon_parser_callback(jscon_callbacks_ft *new_cb);
+jscon_item_t* jscon_parse(char *buffer);
+jscon_cb* jscon_parse_cb(jscon_cb *new_cb);
 /* only parse json values from given parameters */
 void jscon_scanf(char *buffer, char *format, ...);
  
 /* JSCON ENCODING */
-char* jscon_stringify(jscon_item_st *root, enum jscon_type type);
+char* jscon_stringify(jscon_item_t *root, enum jscon_type type);
 
 /* JSCON LIST MANIPULATION */
-void jscon_list_append(jscon_list_st *list, jscon_item_st *item);
+void jscon_list_append(jscon_list_t *list, jscon_item_t *item);
 
 /* JSCON UTILITIES */
-size_t jscon_size(const jscon_item_st* item);
-jscon_item_st* jscon_append(jscon_item_st *item, jscon_item_st *new_branch);
-jscon_item_st* jscon_dettach(jscon_item_st *item);
-void jscon_delete(jscon_item_st *item, const char *key);
-jscon_item_st* jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item);
-jscon_item_st* jscon_iter_next(jscon_item_st* item);
-jscon_item_st* jscon_clone(jscon_item_st *item);
-char* jscon_typeof(const jscon_item_st* item);
-char* jscon_strdup(const jscon_item_st* item);
-char* jscon_strcpy(char *dest, const jscon_item_st* item);
-int jscon_typecmp(const jscon_item_st* item, const enum jscon_type type);
-int jscon_keycmp(const jscon_item_st* item, const char *key);
-int jscon_doublecmp(const jscon_item_st* item, const double d_number);
-int jscon_intcmp(const jscon_item_st* item, const long long i_number);
+size_t jscon_size(const jscon_item_t* item);
+jscon_item_t* jscon_append(jscon_item_t *item, jscon_item_t *new_branch);
+jscon_item_t* jscon_dettach(jscon_item_t *item);
+void jscon_delete(jscon_item_t *item, const char *key);
+jscon_item_t* jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item);
+jscon_item_t* jscon_iter_next(jscon_item_t* item);
+jscon_item_t* jscon_clone(jscon_item_t *item);
+char* jscon_typeof(const jscon_item_t* item);
+char* jscon_strdup(const jscon_item_t* item);
+char* jscon_strcpy(char *dest, const jscon_item_t* item);
+int jscon_typecmp(const jscon_item_t* item, const enum jscon_type type);
+int jscon_keycmp(const jscon_item_t* item, const char *key);
+int jscon_doublecmp(const jscon_item_t* item, const double d_number);
+int jscon_intcmp(const jscon_item_t* item, const long long i_number);
 
 /* JSCON GETTERS */
-size_t jscon_get_depth(jscon_item_st *item);
-jscon_item_st* jscon_get_root(jscon_item_st* item);
-jscon_item_st* jscon_get_branch(jscon_item_st *item, const char *key);
-jscon_item_st* jscon_get_sibling(const jscon_item_st* origin, const size_t relative_index);
-jscon_item_st* jscon_get_parent(const jscon_item_st* item);
-jscon_item_st* jscon_get_byindex(const jscon_item_st* item, const size_t index);
-long jscon_get_index(const jscon_item_st* item, const char *key);
-enum jscon_type jscon_get_type(const jscon_item_st* item);
-char* jscon_get_key(const jscon_item_st* item);
-bool jscon_get_boolean(const jscon_item_st* item);
-char* jscon_get_string(const jscon_item_st* item);
-double jscon_get_double(const jscon_item_st* item);
-long long jscon_get_integer(const jscon_item_st* item);
+size_t jscon_get_depth(jscon_item_t *item);
+jscon_item_t* jscon_get_root(jscon_item_t* item);
+jscon_item_t* jscon_get_branch(jscon_item_t *item, const char *key);
+jscon_item_t* jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index);
+jscon_item_t* jscon_get_parent(const jscon_item_t* item);
+jscon_item_t* jscon_get_byindex(const jscon_item_t* item, const size_t index);
+long jscon_get_index(const jscon_item_t* item, const char *key);
+enum jscon_type jscon_get_type(const jscon_item_t* item);
+char* jscon_get_key(const jscon_item_t* item);
+bool jscon_get_boolean(const jscon_item_t* item);
+char* jscon_get_string(const jscon_item_t* item);
+double jscon_get_double(const jscon_item_t* item);
+long long jscon_get_integer(const jscon_item_t* item);
 
 #endif

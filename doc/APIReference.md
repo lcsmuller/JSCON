@@ -8,8 +8,8 @@ This document describes the public C API.
 
 | Struct | Flag |
 | :--- | :--- |
-|[**`jscon_item_st;`**](api/jscon_item_st.md)|`---`|
-|[**`jscon_list_st;`**](api/jscon_list_st.md)|`---`|
+|[**`jscon_item_t;`**](api/jscon_item_t.md)|`---`|
+|[**`jscon_list_t;`**](api/jscon_list_t.md)|`---`|
 
 ### Enums
 
@@ -17,14 +17,14 @@ This document describes the public C API.
 
 ### Callbacks
 
-* [`jscon_callbacks_ft;`](api/jscon_callbacks_ft.md)
+* [`jscon_cb;`](api/jscon_cb.md)
 
 ## Functions
 
 ### Decoding Functions
 
 * [`jscon_parse(buffer);`](api/jscon_parse.md)
-* [`jscon_parser_callback(new_cb);`](api/jscon_parser_callback.md)
+* [`jscon_parse_cb(new_cb);`](api/jscon_parse_cb.md)
 * [`jscon_scanf(buffer, format, ...);`](api/jscon_scanf.md)
 
 ### Encoding Functions

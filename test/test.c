@@ -31,7 +31,7 @@
 
 FILE *select_output(int argc, char *argv[]);
 char *get_json_text(char filename[]);
-jscon_item_st *callback_test(jscon_item_st *item);
+jscon_item_t *callback_test(jscon_item_t *item);
 
 int main(int argc, char *argv[])
 {
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
   char *json_text = get_json_text(argv[1]);
   char *buffer = NULL;
 
-  jscon_item_st *item[3] = {NULL};
+  jscon_item_t *item[3] = {NULL};
   int integer1=0, integer2=0;
   char str1[25] = {0};
   double double1 = 0.0;
@@ -75,11 +75,11 @@ int main(int argc, char *argv[])
   fprintf(stdout, "str1: %s\n", str1);
   fprintf(stdout, "double1: %f\n", double1);
 
-  //jscon_parser_callback(&callback_test);
-  jscon_item_st *root = jscon_parse(json_text);
+  //jscon_parse_cb(&callback_test);
+  jscon_item_t *root = jscon_parse(json_text);
   assert(NULL != root);
 
-  jscon_item_st *property1 = jscon_dettach(jscon_get_branch(root, "author"));
+  jscon_item_t *property1 = jscon_dettach(jscon_get_branch(root, "author"));
 
   if (NULL != property1){
     buffer = jscon_stringify(property1, JSCON_ANY);
@@ -94,8 +94,8 @@ int main(int argc, char *argv[])
   fprintf(stdout, "key: data, index: %ld\n", jscon_get_index(root, "data"));
   fprintf(stdout, "key: string, index: %ld\n", jscon_get_index(root, "string"));
 
-  jscon_item_st *current_item = NULL, *tmp;
-  jscon_item_st *walk = jscon_iter_composite_r(root, &current_item);
+  jscon_item_t *current_item = NULL, *tmp;
+  jscon_item_t *walk = jscon_iter_composite_r(root, &current_item);
   do {
     tmp = jscon_get_branch(walk, "m");
     if (NULL != tmp){
@@ -195,7 +195,7 @@ get_json_text(char filename[])
   return buffer;
 }
 
-jscon_item_st *callback_test(jscon_item_st *item)
+jscon_item_t *callback_test(jscon_item_t *item)
 {
   if (NULL != item && jscon_keycmp(item, "m")){
     fprintf(stdout, "%s\n", jscon_get_string(item));

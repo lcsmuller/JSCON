@@ -18,13 +18,13 @@ A format specifier for `jscon_scanf` follow this prototype:
 
 Where the 'key' should be replaced by the name of the key to be matched, and 'specifier' its expected type.
 'null' type items can't be specified, but in such case that the expected key is assigned to one, the value will be converted.
-| Specifier | Type | Qualifying Input | Null converts to |
+| Specifier | Datatype | Qualifying Input | Null converts to |
 | :--- | :--- | :--- | :--- |
-|**`jd`**|`jscon_integer_kt *`| Decimal integer. |`0`|
-|**`jf`**|`jscon_double_kt *`| Floating point: Decimal number containing a decimal point. |`0.0`|
-|**`js`**|`jscon_char_kt *`| String of characters. |`first char set to '\0'`|
-|**`jb`**|`jscon_boolean_kt *`| True or false. |`false`|
-|**`ji`**|`jscon_item_st **`| A [`jscon_item_st`](jscon_item_st.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
+|**`jd`**|`long long*`| Decimal integer. |`0`|
+|**`jf`**|`double*`| Floating point: Decimal number containing a decimal point. |`0.0`|
+|**`js`**|`char*`| String of characters. |`first char set to '\0'`|
+|**`jb`**|`bool*`| True or false. |`false`|
+|**`ji`**|`jscon_item_t**`| A [`jscon_item_t`](jscon_item_t.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
 
 ### Description
 
@@ -33,9 +33,9 @@ The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JS
 ### Example
 
 ```c
-jscon_item_st *item;
-jscon_char_kt *string;
-jscon_boolean_kt boolean;
+jscon_item_t *item;
+char *string;
+bool boolean;
 
 char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
 /* order of arguments doesn't have to be the same as the json string */
@@ -44,7 +44,7 @@ jscon_scanf(buffer, "#beta%js #gamma%jb #alpha%ji", string, &boolean, &item);
 
 ### See Also
 
-* [`jscon_items_st;`](jscon_item_st.md)
+* [`jscon_item_t;`](jscon_item_t.md)
 * [`enum jscon_type;`](jscon_type.md)
 * [`jscon_stringify(item, type);`](jscon_stringify.md)
 * [`jscon_destroy(item);`](jscon_destroy.md)

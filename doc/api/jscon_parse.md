@@ -12,11 +12,11 @@
 
 | Type | Description |
 | :--- | :--- |
-|[`jscon_item_st *`](jscon_item_st.md)| A pointer to the root item |
+|[`jscon_item_t *`](jscon_item_t.md)| A pointer to the root item |
 
 ### Description
 
-The function `jscon_parse()` returns the [`jscon_item_st`](jscon_item_st.md) root element obtained by decoding the JSON data. This call **MUST** have a corresponding call to [`jscon_destroy()`](jscon_destroy.md).
+The function `jscon_parse()` returns the [`jscon_item_t`](jscon_item_t.md) root element obtained by decoding the JSON data. This call **MUST** have a corresponding call to [`jscon_destroy()`](jscon_destroy.md).
 
 ### See Also
 

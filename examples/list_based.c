@@ -34,8 +34,8 @@ int main(void)
   char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
 
-  jscon_list_st *list = jscon_list_init();
-  jscon_list_st *main_list = jscon_list_init();
+  jscon_list_t *list = jscon_list_init();
+  jscon_list_t *main_list = jscon_list_init();
 
   jscon_list_append(list, jscon_string("0", "Dog"));
   jscon_list_append(list, jscon_string("1", "Cat"));
@@ -58,10 +58,10 @@ int main(void)
   jscon_list_append(list, jscon_boolean("married", false));
   jscon_list_append(main_list, jscon_object("person2", list));
 
-  jscon_item_st *root = jscon_object("root", main_list);
+  jscon_item_t *root = jscon_object("root", main_list);
 
-  jscon_item_st *curr_item = NULL;
-  jscon_item_st *item = jscon_iter_composite_r(root, &curr_item);
+  jscon_item_t *curr_item = NULL;
+  jscon_item_t *item = jscon_iter_composite_r(root, &curr_item);
   do {
     fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
   } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));

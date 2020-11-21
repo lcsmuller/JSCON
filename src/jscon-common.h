@@ -58,19 +58,19 @@ typedef struct jscon_htwrap_s {
   struct jscon_item_s *root; //points to root item (object or array)
   struct jscon_htwrap_s *next; //points to next composite item's htwrap
   struct jscon_htwrap_s *prev; //points to prev composite item's htwrap
-} jscon_htwrap_st;
+} jscon_htwrap_t;
 
-jscon_htwrap_st* Jscon_htwrap_init();
-void Jscon_htwrap_destroy(jscon_htwrap_st *htwrap);
-void Jscon_htwrap_link_r(struct jscon_item_s *item, jscon_htwrap_st **last_accessed_htwrap);
+jscon_htwrap_t* Jscon_htwrap_init();
+void Jscon_htwrap_destroy(jscon_htwrap_t *htwrap);
+void Jscon_htwrap_link_r(struct jscon_item_s *item, jscon_htwrap_t **last_accessed_htwrap);
 void Jscon_htwrap_build(struct jscon_item_s *item);
 struct jscon_item_s* Jscon_htwrap_get(const char *key, struct jscon_item_s *item);
 struct jscon_item_s* Jscon_htwrap_set(const char *key, struct jscon_item_s *item);
-void Jscon_htwrap_remake(jscon_item_st *item);
+void Jscon_htwrap_remake(jscon_item_t *item);
 
 /* JSCON COMPOSITE TYPES
   if jscon_item type is of composite type (object or array) it will
-  include a jscon_composite_st struct with the following attributes:
+  include a jscon_composite_t struct with the following attributes:
       branch: for sorting through object's properties/array elements
 
       num_branch: amount of enumerable properties/elements contained
@@ -91,7 +91,7 @@ typedef struct {
   size_t last_accessed_branch;
 
   struct jscon_htwrap_s *htwrap;
-} jscon_composite_st;
+} jscon_composite_t;
 
 /*
   key: item's jscon key (NULL if root)
@@ -104,7 +104,7 @@ typedef struct {
     string,d_number,i_number,boolean: item literal value, denoted by
       its type. 
     comp: if item type is object or array, it will contain a
-      jscon_composite_st struct datatype. */
+      jscon_composite_t struct datatype. */
 typedef struct jscon_item_s {
   char *key;
 
@@ -116,14 +116,14 @@ typedef struct jscon_item_s {
     double d_number;
     long long i_number;
     bool boolean;
-    jscon_composite_st *comp;
+    jscon_composite_t *comp;
   };
-} jscon_item_st;
+} jscon_item_t;
 
 /* linked list used for linking items to be assigned to a
     object or array via jscon_object() or jscon_array() */
 struct jscon_node_s {
-  jscon_item_st *item;
+  jscon_item_t *item;
   struct jscon_node_s *next;
   struct jscon_node_s *prev;
 };
@@ -132,6 +132,16 @@ typedef struct jscon_list_s {
   struct jscon_node_s *first;
   struct jscon_node_s *last;
   size_t num_node;
-} jscon_list_st;
+} jscon_list_t;
+
+/*
+ * jscon-common.c
+ */
+char* Jscon_decode_string(char **p_buffer);
+double Jscon_decode_double(char **p_buffer);
+bool Jscon_decode_boolean(char **p_buffer);
+void Jscon_decode_null(char **p_buffer);
+jscon_composite_t* Jscon_decode_composite(char **p_buffer, size_t n_branch);
+
 
 #endif

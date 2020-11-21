@@ -126,7 +126,7 @@ _jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
 /* walk jscon item, by traversing its branches recursively,
     and perform buffer_method callback on each branch */
 static void
-_jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jscon_utils_s *utils)
+_jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_utils_s *utils)
 {
   /* 1st STEP: stringify jscon item only if it match the type
       given as parameter or is a composite type item */
@@ -195,7 +195,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
   size_t first_index=0;
   while (first_index < item->comp->num_branch){
     if (jscon_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
-      _jscon_stringify_preorder(item->comp->branch[first_index], type, utils);
+      _jscon_traverse_preorder(item->comp->branch[first_index], type, utils);
       break;
     }
     ++first_index;
@@ -209,7 +209,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
       continue;
     }
     (*utils->method)(',',utils);
-    _jscon_stringify_preorder(item->comp->branch[j], type, utils);
+    _jscon_traverse_preorder(item->comp->branch[j], type, utils);
   }
 
   /* 7th STEP: write the composite's type item wrapper token */
@@ -227,7 +227,7 @@ _jscon_stringify_preorder(jscon_item_st *item, enum jscon_type type, struct jsco
 
 /* converts a jscon item to a json formatted text, and return it */
 char*
-jscon_stringify(jscon_item_st *root, enum jscon_type type)
+jscon_stringify(jscon_item_t *root, enum jscon_type type)
 {
   DEBUG_ASSERT(NULL != root, "Item is NULL");
 
@@ -239,13 +239,13 @@ jscon_stringify(jscon_item_st *root, enum jscon_type type)
       keys or parents) */
   char *hold_key = root->key;
   root->key = NULL;
-  jscon_item_st *hold_parent = root->parent;
+  jscon_item_t *hold_parent = root->parent;
   root->parent = NULL;
 
   /* 2nd STEP: count how many chars will fill the buffer with
       _jscon_utils_analyze, then allocate the buffer to that amount */
   utils.method = &_jscon_utils_analyze;
-  _jscon_stringify_preorder(root, type, &utils);
+  _jscon_traverse_preorder(root, type, &utils);
   utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
   if (NULL == utils.buffer_base) return NULL;
 
@@ -253,7 +253,7 @@ jscon_stringify(jscon_item_st *root, enum jscon_type type)
       _jscon_utils_encode to fill allocated buffer */
   utils.buffer_offset = 0;
   utils.method = &_jscon_utils_encode;
-  _jscon_stringify_preorder(root, type, &utils);
+  _jscon_traverse_preorder(root, type, &utils);
   utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
 
   /* 4th STEP: reattach key and parents from step 1 */

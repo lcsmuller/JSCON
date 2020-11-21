@@ -30,10 +30,10 @@
 #include "debug.h"
 
 
-jscon_item_st*
+jscon_item_t*
 jscon_null(const char *key)
 {
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key){
@@ -52,10 +52,10 @@ jscon_null(const char *key)
   return new_item;
 }
 
-jscon_item_st*
+jscon_item_t*
 jscon_boolean(const char *key, bool boolean)
 {
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key){
@@ -75,10 +75,10 @@ jscon_boolean(const char *key, bool boolean)
   return new_item;
 }
 
-jscon_item_st*
+jscon_item_t*
 jscon_integer(const char *key, long long i_number)
 {
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key){
@@ -98,10 +98,10 @@ jscon_integer(const char *key, long long i_number)
   return new_item;
 }
 
-jscon_item_st*
+jscon_item_t*
 jscon_double(const char *key, double d_number)
 {
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key){
@@ -121,7 +121,7 @@ jscon_double(const char *key, double d_number)
   return new_item;
 }
 
-jscon_item_st*
+jscon_item_t*
 jscon_number(const char *key, double d_number)
 {
   return DOUBLE_IS_INTEGER(d_number)
@@ -129,12 +129,12 @@ jscon_number(const char *key, double d_number)
           : jscon_double(key, d_number);
 }
 
-jscon_item_st*
+jscon_item_t*
 jscon_string(const char *key, char *string)
 {
   if (NULL == string) return jscon_null(key);
 
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key){
@@ -160,10 +160,10 @@ free_key:
   return NULL;
 }
 
-jscon_list_st*
+jscon_list_t*
 jscon_list_init()
 {
-  jscon_list_st *new_list = malloc(sizeof *new_list);
+  jscon_list_t *new_list = malloc(sizeof *new_list);
   if (NULL == new_list) return NULL;
 
   new_list->first = malloc(sizeof *new_list->first);
@@ -191,7 +191,7 @@ free_first:
 }
 
 void
-jscon_list_destroy(jscon_list_st *list)
+jscon_list_destroy(jscon_list_t *list)
 {
   struct jscon_node_s *node = list->first->next;
 
@@ -215,7 +215,7 @@ jscon_list_destroy(jscon_list_st *list)
 }
 
 void
-jscon_list_append(jscon_list_st *list, jscon_item_st *item)
+jscon_list_append(jscon_list_t *list, jscon_item_t *item)
 {
   DEBUG_ASSERT(NULL != item, "NULL Item");
 
@@ -239,7 +239,7 @@ jscon_list_append(jscon_list_st *list, jscon_item_st *item)
     going on, early break conditions etc. As it is now it will keep on
     going deeper and deeper recursively, even if not necessary */
 static void
-_jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed_htwrap)
+_jscon_htwrap_link_preorder(jscon_item_t *item, jscon_htwrap_t **last_accessed_htwrap)
 {
   Jscon_htwrap_link_r(item, last_accessed_htwrap);
 
@@ -250,10 +250,10 @@ _jscon_htwrap_link_preorder(jscon_item_st *item, jscon_htwrap_st **last_accessed
   }
 }
 
-inline static jscon_item_st*
-_jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
+inline static jscon_item_t*
+_jscon_composite(const char *key, jscon_list_t *list, enum jscon_type type)
 {
-  jscon_item_st *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   new_item->parent = NULL;
@@ -264,10 +264,10 @@ _jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
   new_item->comp->htwrap = Jscon_htwrap_init();
 
   if (NULL == list){ //empty object/array
-    new_item->comp->branch = malloc(sizeof(jscon_item_st*));
+    new_item->comp->branch = malloc(sizeof(jscon_item_t*));
     if (NULL == new_item->comp->branch) goto branch_free;
   } else {
-    new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_st*));
+    new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_t*));
     if (NULL == new_item->comp->branch) goto branch_free;
 
     struct jscon_node_s *node = list->first->next;
@@ -299,7 +299,7 @@ _jscon_composite(const char *key, jscon_list_st *list, enum jscon_type type)
     new_item->key = NULL;
   }
 
-  jscon_htwrap_st *last_accessed_htwrap = NULL;
+  jscon_htwrap_t *last_accessed_htwrap = NULL;
   _jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
 
   Jscon_htwrap_build(new_item);
@@ -318,32 +318,32 @@ comp_free:
   return NULL;
 }
 
-jscon_item_st*
-jscon_object(const char *key, jscon_list_st *list){
+jscon_item_t*
+jscon_object(const char *key, jscon_list_t *list){
   return _jscon_composite(key, list, JSCON_OBJECT);
 }
 
-jscon_item_st*
-jscon_array(const char *key, jscon_list_st *list){
+jscon_item_t*
+jscon_array(const char *key, jscon_list_t *list){
   return _jscon_composite(key, list, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns 0 if item type is primitive */
 size_t
-jscon_size(const jscon_item_st *item){
+jscon_size(const jscon_item_t *item){
   return IS_COMPOSITE(item) ? item->comp->num_branch : 0;
 } 
 
 /* get the last htwrap relative to the item */
-static jscon_htwrap_st*
-_jscon_get_last_htwrap(jscon_item_st *item)
+static jscon_htwrap_t*
+_jscon_get_last_htwrap(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   size_t item_depth = jscon_get_depth(item);
 
   /* get the deepest nested composite relative to item */
-  jscon_htwrap_st *htwrap_last = item->comp->htwrap;
+  jscon_htwrap_t *htwrap_last = item->comp->htwrap;
   while(NULL != htwrap_last->next && item_depth < jscon_get_depth(htwrap_last->next->root)){
     htwrap_last = htwrap_last->next;
   }
@@ -351,8 +351,8 @@ _jscon_get_last_htwrap(jscon_item_st *item)
   return htwrap_last;
 }
 
-jscon_item_st*
-jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
+jscon_item_t*
+jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
@@ -363,7 +363,7 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   }
 
   /* realloc parent references to match new size */
-  jscon_item_st **tmp = realloc(item->comp->branch, (1+jscon_size(item)) * sizeof(jscon_item_st*));
+  jscon_item_t **tmp = realloc(item->comp->branch, (1+jscon_size(item)) * sizeof(jscon_item_t*));
   if (NULL == tmp) return NULL;
 
   item->comp->branch = tmp;
@@ -382,7 +382,7 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
   if (IS_PRIMITIVE(new_branch)) return new_branch;
 
   /* get the last htwrap relative to item */
-  jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
+  jscon_htwrap_t *htwrap_last = _jscon_get_last_htwrap(item);
   htwrap_last->next = new_branch->comp->htwrap;
   new_branch->comp->htwrap->prev = htwrap_last;
 
@@ -390,17 +390,17 @@ jscon_append(jscon_item_st *item, jscon_item_st *new_branch)
 }
 
 /* @todo test this */
-jscon_item_st*
-jscon_dettach(jscon_item_st *item)
+jscon_item_t*
+jscon_dettach(jscon_item_t *item)
 {
   //can't dettach root from nothing
   if (NULL == item || IS_ROOT(item)) return item;
 
   /* get the item index reference from its parent */
-  jscon_item_st *item_parent = item->parent;
+  jscon_item_t *item_parent = item->parent;
 
   /* realloc parent references to match new size */
-  jscon_item_st **tmp = realloc(item_parent->comp->branch, jscon_size(item_parent) * sizeof(jscon_item_st*));
+  jscon_item_t **tmp = realloc(item_parent->comp->branch, jscon_size(item_parent) * sizeof(jscon_item_t*));
   if (NULL == tmp) return NULL;
 
   item_parent->comp->branch = tmp;
@@ -416,9 +416,9 @@ jscon_dettach(jscon_item_st *item)
   Jscon_htwrap_remake(item_parent);
 
   /* get the immediate previous htwrap relative to the item */
-  jscon_htwrap_st *htwrap_prev = item->comp->htwrap->prev;
+  jscon_htwrap_t *htwrap_prev = item->comp->htwrap->prev;
   /* get the last htwrap relative to item */
-  jscon_htwrap_st *htwrap_last = _jscon_get_last_htwrap(item);
+  jscon_htwrap_t *htwrap_last = _jscon_get_last_htwrap(item);
 
   /* remove tree references to the item */
   htwrap_prev->next = htwrap_last->next;
@@ -432,9 +432,9 @@ jscon_dettach(jscon_item_st *item)
 }
 
 void
-jscon_delete(jscon_item_st *item, const char *key)
+jscon_delete(jscon_item_t *item, const char *key)
 {
-  jscon_item_st *branch = jscon_get_branch(item, key);
+  jscon_item_t *branch = jscon_get_branch(item, key);
   if (NULL == branch) return;
 
   jscon_dettach(branch); 
@@ -449,8 +449,8 @@ jscon_delete(jscon_item_st *item, const char *key)
     
     p_current_item allows for thread safety reentrancy, it should not be
     modified outside of this routine*/
-jscon_item_st*
-jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
+jscon_item_t*
+jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
 {
   /* if item is not NULL, set p_current_item to item, otherwise
       fetch next iteration */ 
@@ -465,7 +465,7 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 
   /* get next htwrap in line, if NULL it means there are no more
       composite datatype items to iterate through */
-  jscon_htwrap_st *next_htwrap = (*p_current_item)->comp->htwrap->next;
+  jscon_htwrap_t *next_htwrap = (*p_current_item)->comp->htwrap->next;
   if (NULL == next_htwrap){
     *p_current_item = NULL;
     return NULL;
@@ -477,14 +477,14 @@ jscon_iter_composite_r(jscon_item_st *item, jscon_item_st **p_current_item)
 }
 
 /* return next (not yet accessed) item, by using item->comp->last_accessed_branch as the branch index */
-static inline jscon_item_st*
-_jscon_push(jscon_item_st *item)
+static inline jscon_item_t*
+_jscon_push(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
   DEBUG_ASSERT(item->comp->last_accessed_branch < jscon_size(item), "Overflow, trying to access forbidden memory");
 
   ++item->comp->last_accessed_branch; //update last_accessed_branch to next
-  jscon_item_st *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
+  jscon_item_t *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
 
   //resets incase its already set because of a different run
   if (IS_COMPOSITE(next_item)){
@@ -494,8 +494,8 @@ _jscon_push(jscon_item_st *item)
   return next_item; //return item from next branch in line
 }
 
-static inline jscon_item_st*
-_jscon_pop(jscon_item_st *item)
+static inline jscon_item_t*
+_jscon_pop(jscon_item_t *item)
 {
   //resets object's last_accessed_branch
   if (IS_COMPOSITE(item)){
@@ -508,8 +508,8 @@ _jscon_pop(jscon_item_st *item)
 /* this will simulate tree preorder traversal iteratively, by using 
     item->comp->last_accessed_branch like a stack frame. under no circumstance 
     should you modify last_accessed_branch value directly */
-jscon_item_st*
-jscon_iter_next(jscon_item_st *item)
+jscon_item_t*
+jscon_iter_next(jscon_item_t *item)
 {
   if (NULL == item) return NULL;
 
@@ -539,13 +539,13 @@ jscon_iter_next(jscon_item_st *item)
     (to be cloned) Item and then parsing the resulting string into
     a new clone Item, it's guaranteed that it will be a perfect 
     clone, with its unique hashtable, strings, etc */
-jscon_item_st*
-jscon_clone(jscon_item_st *item)
+jscon_item_t*
+jscon_clone(jscon_item_t *item)
 {
   if (NULL == item) return NULL;
 
   char *tmp_buffer = jscon_stringify(item, JSCON_ANY);
-  jscon_item_st *clone = jscon_parse(tmp_buffer);
+  jscon_item_t *clone = jscon_parse(tmp_buffer);
   free(tmp_buffer);
 
   if (NULL != item->key){
@@ -560,7 +560,7 @@ jscon_clone(jscon_item_st *item)
 }
 
 char*
-jscon_typeof(const jscon_item_st *item)
+jscon_typeof(const jscon_item_t *item)
 {
 
 /* if case matches, return token as string */
@@ -581,7 +581,7 @@ jscon_typeof(const jscon_item_st *item)
 }
 
 char*
-jscon_strdup(const jscon_item_st *item)
+jscon_strdup(const jscon_item_t *item)
 {
   char *src = jscon_get_string(item);
   if (NULL == src) return NULL;
@@ -591,7 +591,7 @@ jscon_strdup(const jscon_item_st *item)
 }
 
 char*
-jscon_strcpy(char *dest, const jscon_item_st *item)
+jscon_strcpy(char *dest, const jscon_item_t *item)
 {
   char *src = jscon_get_string(item);
   if (NULL == src) return NULL;
@@ -603,31 +603,31 @@ jscon_strcpy(char *dest, const jscon_item_st *item)
 }
 
 int
-jscon_typecmp(const jscon_item_st *item, const enum jscon_type type){
+jscon_typecmp(const jscon_item_t *item, const enum jscon_type type){
   return item->type & type; //BITMASK AND
 }
 
 int
-jscon_keycmp(const jscon_item_st *item, const char *key){
+jscon_keycmp(const jscon_item_t *item, const char *key){
   return (NULL != jscon_get_key(item)) ? STREQ(item->key, key) : 0;
 }
 
 int
-jscon_doublecmp(const jscon_item_st *item, const double d_number){
+jscon_doublecmp(const jscon_item_t *item, const double d_number){
   DEBUG_ASSERT(JSCON_DOUBLE == item->type, "Item type is not a Double");
 
   return item->d_number == d_number;
 }
 
 int
-jscon_intcmp(const jscon_item_st *item, const long long i_number){
+jscon_intcmp(const jscon_item_t *item, const long long i_number){
   DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
 
   return item->i_number == i_number;
 }
 
 size_t
-jscon_get_depth(jscon_item_st *item)
+jscon_get_depth(jscon_item_t *item)
 {
   size_t depth = 0;
   while (!IS_ROOT(item)){
@@ -638,8 +638,8 @@ jscon_get_depth(jscon_item_st *item)
   return depth;
 }
 
-jscon_item_st*
-jscon_get_root(jscon_item_st *item)
+jscon_item_t*
+jscon_get_root(jscon_item_t *item)
 {
   while (!IS_ROOT(item)){
     item = jscon_get_parent(item);
@@ -650,8 +650,8 @@ jscon_get_root(jscon_item_st *item)
 
 
 /* get item branch with given key */
-jscon_item_st*
-jscon_get_branch(jscon_item_st *item, const char *key)
+jscon_item_t*
+jscon_get_branch(jscon_item_t *item, const char *key)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
   /* search for entry with given key at item's htwrap,
@@ -660,12 +660,12 @@ jscon_get_branch(jscon_item_st *item, const char *key)
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
-jscon_item_st*
-jscon_get_sibling(const jscon_item_st* origin, const size_t relative_index)
+jscon_item_t*
+jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
 {
   DEBUG_ASSERT(!IS_ROOT(origin), "Origin is root (has no siblings)");
 
-  const jscon_item_st* parent = jscon_get_parent(origin);
+  const jscon_item_t* parent = jscon_get_parent(origin);
 
   //get parent's branch index of the origin item
   size_t origin_index = jscon_get_index(parent, origin->key);
@@ -679,24 +679,24 @@ jscon_get_sibling(const jscon_item_st* origin, const size_t relative_index)
   return NULL;
 }
 
-jscon_item_st*
-jscon_get_parent(const jscon_item_st *item){
-  return _jscon_pop((jscon_item_st*)item);
+jscon_item_t*
+jscon_get_parent(const jscon_item_t *item){
+  return _jscon_pop((jscon_item_t*)item);
 }
 
-jscon_item_st*
-jscon_get_byindex(const jscon_item_st *item, const size_t index)
+jscon_item_t*
+jscon_get_byindex(const jscon_item_t *item, const size_t index)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
   return (index < jscon_size(item)) ? item->comp->branch[index] : NULL;
 }
 
 long
-jscon_get_index(const jscon_item_st *item, const char *key)
+jscon_get_index(const jscon_item_t *item, const char *key)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
-  jscon_item_st *lookup_item = Jscon_htwrap_get(key, (jscon_item_st*)item);
+  jscon_item_t *lookup_item = Jscon_htwrap_get(key, (jscon_item_t*)item);
 
   if (NULL == lookup_item) return -1;
 
@@ -712,17 +712,17 @@ jscon_get_index(const jscon_item_st *item, const char *key)
 }
 
 enum jscon_type
-jscon_get_type(const jscon_item_st *item){
+jscon_get_type(const jscon_item_t *item){
   return item->type;
 }
 
 char*
-jscon_get_key(const jscon_item_st *item){
+jscon_get_key(const jscon_item_t *item){
   return item->key;
 }
 
 bool
-jscon_get_boolean(const jscon_item_st *item)
+jscon_get_boolean(const jscon_item_t *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return false;
 
@@ -731,7 +731,7 @@ jscon_get_boolean(const jscon_item_st *item)
 }
 
 char*
-jscon_get_string(const jscon_item_st *item)
+jscon_get_string(const jscon_item_t *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return NULL;
 
@@ -740,7 +740,7 @@ jscon_get_string(const jscon_item_st *item)
 }
 
 double
-jscon_get_double(const jscon_item_st *item)
+jscon_get_double(const jscon_item_t *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return 0.0;
 
@@ -749,7 +749,7 @@ jscon_get_double(const jscon_item_st *item)
 }
 
 long long
-jscon_get_integer(const jscon_item_st *item)
+jscon_get_integer(const jscon_item_t *item)
 {
   if (NULL == item || JSCON_NULL == item->type) return 0;
 
