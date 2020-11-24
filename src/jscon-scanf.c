@@ -116,13 +116,29 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
     n_bytes = &discard;
   }
 
-  if (STREQ(specifier, "s")){
-    *n_bytes = sizeof(char*);
+  if (STREQ(specifier, "c")){
+    *n_bytes = sizeof(char);
     return "char*";
+  }
+  if (STREQ(specifier, "s")){
+    *n_bytes = sizeof(char);
+    return "char*";
+  }
+  if (STREQ(specifier, "d")){
+    *n_bytes = sizeof(int);
+    return "int*";
+  }
+  if (STREQ(specifier, "ld")){
+    *n_bytes = sizeof(long);
+    return "long*";
   }
   if (STREQ(specifier, "lld")){
     *n_bytes = sizeof(long long);
     return "long long*";
+  }
+  if (STREQ(specifier, "f")){
+    *n_bytes = sizeof(float);
+    return "float*";
   }
   if (STREQ(specifier, "lf")){
     *n_bytes = sizeof(double);
@@ -167,34 +183,37 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   char err_typeis[50];
   switch (*utils->buffer){
   case '\"':/*STRING DETECTED*/
-   {
-        if (!STREQ(specifier, "s")){
+        if (STREQ(specifier, "c")){
+          char *string = Jscon_decode_string(&utils->buffer);
+          strscpy(value, string, sizeof(char));
+          free(string);
+        } else if (STREQ(specifier, "s")){
+          char *string = Jscon_decode_string(&utils->buffer);
+          strscpy(value, string, strlen(string)+1);
+          free(string);
+        } else {
           char reason[] = "char* or jscon_item_t**";
           strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
         }
-        
-        char *string = Jscon_decode_string(&utils->buffer);
-        strscpy(value, string, strlen(string)+1);
-        free(string);
+
         return;
-   }
   case 't':/*CHECK FOR*/
   case 'f':/* BOOLEAN */
-   {
         if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
           goto token_error;
         }
-        if (!STREQ(specifier, "b")){
+
+        if (STREQ(specifier, "b")){
+          bool *boolean = value;
+          *boolean = Jscon_decode_boolean(&utils->buffer);
+        } else {
           char reason[] = "bool* or jscon_item_t**";
           strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
         }
 
-        bool *boolean = value;
-        *boolean = Jscon_decode_boolean(&utils->buffer);
         return;
-   }
   case 'n':/*CHECK FOR NULL*/
    {
         if (!STRNEQ(utils->buffer,"null",4)){
@@ -224,22 +243,34 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         
         double tmp = Jscon_decode_double(&utils->buffer);
         if (DOUBLE_IS_INTEGER(tmp)){
-          if (!STREQ(specifier, "lld")){
-            char reason[] = "long long* or jscon_item_t**";
+          if (STREQ(specifier, "d")){
+            int *number_i = value;
+            *number_i = (int)tmp;
+          } else if (STREQ(specifier, "ld")){
+            long *number_i = value;
+            *number_i = (long)tmp;
+          } else if (STREQ(specifier, "lld")){
+            long long *number_i = value;
+            *number_i = (long long)tmp;
+          } else {
+            char reason[] = "short*, int*, long*, long long* or jscon_item_t**";
             strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
           }
-          long long *number_i = value;
-          *number_i = (long long)tmp;
         } else {
-          if (!STREQ(specifier, "lf")){
-            char reason[] = "double* or jscon_item_t**";
+          if (STREQ(specifier, "f")){
+            float *number_d = value; 
+            *number_d = (float)tmp;
+          } else if (STREQ(specifier, "lf")){
+            double *number_d = value; 
+            *number_d = tmp;
+          } else {
+            char reason[] = "float*, double* or jscon_item_t**";
             strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
           }
-          double *number_d = value; 
-          *number_d = tmp;
         }
+
         return;
    }
   }
