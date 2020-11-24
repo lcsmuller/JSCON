@@ -34,11 +34,11 @@ This document describes the public C API.
 ### Initialization Functions
 
 * [`jscon_null(key);`](api/jscon_null.md)
-* [`jscon_boolean(boolean, key);`](api/jscon_boolean.md)
-* [`jscon_integer(i_number, key);`](api/jscon_integer.md)
-* [`jscon_double(d_number, key);`](api/jscon_double.md)
-* [`jscon_number(d_number, key);`](api/jscon_number.md)
-* [`jscon_string(string, key);`](api/jscon_string.md)
+* [`jscon_boolean(key, boolean);`](api/jscon_boolean.md)
+* [`jscon_integer(key, i_number);`](api/jscon_integer.md)
+* [`jscon_double(key, d_number);`](api/jscon_double.md)
+* [`jscon_number(key, d_number);`](api/jscon_number.md)
+* [`jscon_string(key, string);`](api/jscon_string.md)
 
 * [`jscon_list_init();`](api/jscon_list_init.md)
 * [`jscon_object(list, key);`](api/jscon_object.md)
