@@ -6,10 +6,8 @@ This document describes the public C API.
 
 ### Structs
 
-| Struct | Flag |
-| :--- | :--- |
-|[**`jscon_item_t;`**](api/jscon_item_t.md)|`---`|
-|[**`jscon_list_t;`**](api/jscon_list_t.md)|`---`|
+* [`jscon_item_t;`](api/jscon_item_t.md)
+* [`jscon_list_t;`](api/jscon_list_t.md)
 
 ### Enums
 

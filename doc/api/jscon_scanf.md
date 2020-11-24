@@ -20,10 +20,10 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 'null' type items can't be specified, but in such case that the expected key is assigned to one, the value will be converted.
 | Specifier | Datatype | Qualifying Input | Null converts to |
 | :--- | :--- | :--- | :--- |
-|**`jd`**|`long long*`| Decimal integer. |`0`|
-|**`jf`**|`double*`| Floating point: Decimal number containing a decimal point. |`0.0`|
-|**`js`**|`char*`| String of characters. |`first char set to '\0'`|
-|**`jb`**|`bool*`| True or false. |`false`|
+|**`lld`**|`long long*`| Decimal integer. |`0`|
+|**`lf`**|`double*`| Floating point: Decimal number containing a decimal point. |`0.0`|
+|**`s`**|`char*`| String of characters. |`first char set to '\0'`|
+|**`b`**|`bool*`| True or false. |`false`|
 |**`ji`**|`jscon_item_t**`| A [`jscon_item_t`](jscon_item_t.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
 
 ### Description
@@ -39,7 +39,7 @@ bool boolean;
 
 char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
 /* order of arguments doesn't have to be the same as the json string */
-jscon_scanf(buffer, "#beta%js #gamma%jb #alpha%ji", string, &boolean, &item);
+jscon_scanf(buffer, "#beta%s #gamma%b #alpha%ji", string, &boolean, &item);
 ```
 
 ### See Also
