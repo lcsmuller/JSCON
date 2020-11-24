@@ -43,15 +43,14 @@ int main(int argc, char *argv[])
   char *buffer = NULL;
 
   jscon_item_t *item[3] = {NULL};
-  int integer1=0, integer2=0;
+  long long integer1=0, integer2=0;
   char str1[25] = {0};
-  double double1 = 0.0;
 
-  //jscon_scanf(json_text, "#meta%ji,#data%ji,#string%ji,#a%jd,#b%js,#c%jf", &item[0], &item[1], &item[2], &integer1, str1, &double1);
+  //jscon_scanf(json_text, "#meta%ji,#data%ji,#string%ji,#a%lld,#b%s,#c%lf", &item[0], &item[1], &item[2], &integer1, str1, &double1);
   jscon_scanf(json_text, 
-              "#t%js " \
-              "#s%jd " \
-              "#op%jd " \
+              "#t%s " \
+              "#s%lld " \
+              "#op%lld " \
               "#d%ji",
                str1,
                &integer1,
@@ -70,10 +69,9 @@ int main(int argc, char *argv[])
     jscon_destroy(item[i]);
   }
 
-  fprintf(stdout, "integer1: %d\n", integer1);
-  fprintf(stdout, "integer2: %d\n", integer2);
+  fprintf(stdout, "integer1: %lld\n", integer1);
+  fprintf(stdout, "integer2: %lld\n", integer2);
   fprintf(stdout, "str1: %s\n", str1);
-  fprintf(stdout, "double1: %f\n", double1);
 
   //jscon_parse_cb(&callback_test);
   jscon_item_t *root = jscon_parse(json_text);

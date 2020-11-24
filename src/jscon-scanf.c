@@ -116,19 +116,19 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
     n_bytes = &discard;
   }
 
-  if (STREQ(specifier, "js")){
+  if (STREQ(specifier, "s")){
     *n_bytes = sizeof(char*);
     return "char*";
   }
-  if (STREQ(specifier, "jd")){
+  if (STREQ(specifier, "lld")){
     *n_bytes = sizeof(long long);
     return "long long*";
   }
-  if (STREQ(specifier, "jf")){
+  if (STREQ(specifier, "lf")){
     *n_bytes = sizeof(double);
     return "double*";
   }
-  if (STREQ(specifier, "jb")){
+  if (STREQ(specifier, "b")){
     *n_bytes = sizeof(bool);
     return "bool*";
   }
@@ -168,7 +168,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
   switch (*utils->buffer){
   case '\"':/*STRING DETECTED*/
    {
-        if (!STREQ(specifier, "js")){
+        if (!STREQ(specifier, "s")){
           char reason[] = "char* or jscon_item_t**";
           strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
@@ -185,7 +185,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
           goto token_error;
         }
-        if (!STREQ(specifier, "jb")){
+        if (!STREQ(specifier, "b")){
           char reason[] = "bool* or jscon_item_t**";
           strscpy(err_typeis, reason, sizeof(err_typeis));
           goto type_error;
@@ -224,7 +224,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
         
         double tmp = Jscon_decode_double(&utils->buffer);
         if (DOUBLE_IS_INTEGER(tmp)){
-          if (!STREQ(specifier, "jd")){
+          if (!STREQ(specifier, "lld")){
             char reason[] = "long long* or jscon_item_t**";
             strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
@@ -232,7 +232,7 @@ _jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
           long long *number_i = value;
           *number_i = (long long)tmp;
         } else {
-          if (!STREQ(specifier, "jf")){
+          if (!STREQ(specifier, "lf")){
             char reason[] = "double* or jscon_item_t**";
             strscpy(err_typeis, reason, sizeof(err_typeis));
             goto type_error;
@@ -267,7 +267,7 @@ _jscon_format_analyze(char *format)
 
     /*1st STEP: check for key '#' prefix existence */
     if ('#' != c){
-      DEBUG_ASSERT('#' == c, "Missing format '#' key prefix"); //make sure key prefix is there
+      DEBUG_ASSERT('#' == c, "Missing format '#' key specifier prefix"); //make sure key prefix is there
     }
     c = *++format;
 
