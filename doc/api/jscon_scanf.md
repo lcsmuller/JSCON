@@ -20,9 +20,13 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 'null' type items can't be specified, but in such case that the expected key is assigned to one, the value will be converted.
 | Specifier | Datatype | Qualifying Input | Null converts to |
 | :--- | :--- | :--- | :--- |
+|**`d`**|`int*`| Decimal integer. |`0`|
+|**`ld`**|`long*`| Decimal integer. |`0`|
 |**`lld`**|`long long*`| Decimal integer. |`0`|
+|**`f`**|`float*`| Floating point: Decimal number containing a decimal point. |`0.0`|
 |**`lf`**|`double*`| Floating point: Decimal number containing a decimal point. |`0.0`|
-|**`s`**|`char*`| String of characters. |`first char set to '\0'`|
+|**`c`**|`char*`| The next character. |`char '\0'`|
+|**`s`**|`char*`| String of characters. |`empty string "\0"`|
 |**`b`**|`bool*`| True or false. |`false`|
 |**`ji`**|`jscon_item_t**`| A [`jscon_item_t`](jscon_item_t.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
 
