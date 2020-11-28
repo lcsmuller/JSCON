@@ -287,7 +287,6 @@ token_error:
 static size_t
 _jscon_format_analyze(char *format)
 {
-  /* count each "word" composed of allowed key characters */
   size_t num_keys = 0;
   char c;
   while (true) //run until end of string found
@@ -296,14 +295,24 @@ _jscon_format_analyze(char *format)
     CONSUME_BLANK_CHARS(format);
     c = *format;
 
-    /*1st STEP: check for key '#' prefix existence */
+    /*1st STEP: check if key's type is specified */
+    if ('%' != c){
+      DEBUG_ERR("Missing format '%%' type specifier prefix\n\tFound: '%c'", c);
+    }
+
+    /*@todo error check for available unknown characters */
+    do { /* consume type formatting characters */
+      c = *++format;
+    } while (isalpha(c));
+
+    /*2nd STEP: check for key '#' prefix existence */
     if ('#' != c){
-      DEBUG_ASSERT('#' == c, "Missing format '#' key specifier prefix"); //make sure key prefix is there
+      DEBUG_ERR("Missing format '#' key specifier prefix\n\tFound: '%c'", c);
     }
     c = *++format;
 
     /* @todo check for escaped characters */
-    /*2nd STEP: check if key matches a criteria for being a key */
+    /*3rd STEP: check if key matches a criteria for being a key */
     if (!ALLOWED_JSON_CHAR(c)){
       DEBUG_ERR("Key char not allowed: '%c'", c);
     }
@@ -313,84 +322,70 @@ _jscon_format_analyze(char *format)
       c = *++format;
     } while (ALLOWED_JSON_CHAR(c));
 
-    /*3rd STEP: check if key's type is specified */
-    if ('%' != c){
-      DEBUG_ASSERT('%' == c, "Missing format '%' type specifier prefix");
-    }
-
-    /*@todo error check for available unknown characters */
-    do { /* consume type formatting characters */
-      c = *++format;
-    } while (isalpha(c));
-
     if ('\0' == c) return num_keys; //return if found end of string
-
-    ++format; //start next key
   }
 }
 
 static void
 _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
 {
-  DEBUG_ASSERT('\0' != *format, "Empty String"); //can't be empty string
+  DEBUG_ASSERT('\0' != *format, "Empty String"); //can't decode empty string
 
   const size_t STR_LEN = 256;
   char str[STR_LEN];
 
   struct chunk_s *chunk;
 
-  /* split individual keys from specifiers and set them
-      to a hashtable */
+  /* split keys from its type specifier */
   char c;
-  size_t i = 0; //str char index
-  while (true) //run until end of string found
+  size_t i = 0; /* str char index */
+  while (true) /* run until end of string found */
   {
     CONSUME_BLANK_CHARS(format);
     c = *format;
 
-    DEBUG_ASSERT('#' == c, "Missing format '#' key prefix"); //make sure key prefix is there
-    c = *++format; //skip '#'
+    if ('%' != c){
+      DEBUG_ERR("Missing format '%%' type specifier prefix\n\tFound: '%c'", c);
+    }
+    c = *++format; /* skips '%' */
     
-    /* 1st STEP: build key specific characters */
-    while ('%' != c){
+    /* 1st STEP: fetch type specifier */
+    while ('#' != c){
       str[i] = c;
       ++i;
-      DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
+      DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
       
       c = *++format;
     }
-    str[i] = '\0'; //key is formed
     ++i;
-    DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
+    DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
+    str[i-1] = '\0'; //specifier is formed
 
-    /* 2nd STEP: key is formed, proceed to fetch the specifier */
-    //skips '%' char and fetch successive specifier characters
-    do { //isolate specifier characters
+    /* 2nd STEP: type specifier is formed, proceed to fetch the key
+        skips '#' char and fetch key characters */
+    do { /* isolate specifier characters */
       c = *++format;
       str[i] = c;
       ++i;
-      DEBUG_ASSERT(i <= STR_LEN, "Overflow buffer");
-    } while(isalpha(c));
-
-    str[i-1] = '\0';
+      DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
+    } while(ALLOWED_JSON_CHAR(c));
+    str[i-2] = '\0';
 
     chunk = calloc(1, sizeof *chunk);
     DEBUG_ASSERT(NULL != chunk, "Out of memory");
 
-    strscpy(chunk->specifier, &str[strlen(str)+1], sizeof(chunk->specifier)); //get specifier string
-
-    chunk->value = va_arg(ap, void*);
-
-    if ( STREQ("NaN", _jscon_format_info(chunk->specifier, NULL)) ){
+    strscpy(chunk->specifier, str, sizeof(chunk->specifier)); //get specifier string
+    if (STREQ("NaN", _jscon_format_info(chunk->specifier, NULL))){
       DEBUG_ERR("Unknown type specifier %%%s", chunk->specifier);
     }
 
-    dictionary_set(dictionary, str, chunk, &free);
+    chunk->value = va_arg(ap, void*);
+
+    dictionary_set(dictionary, &str[strlen(str)+1], chunk, &free);
 
     if ('\0' == c) return; //end of string, return
 
     i = 0; //resets i to start next key from scratch
-    ++format; //start of next key
   }
 }
 
