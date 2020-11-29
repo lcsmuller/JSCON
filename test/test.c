@@ -46,12 +46,11 @@ int main(int argc, char *argv[])
   int integer1=0, integer2=0;
   char str1[25] = {0};
 
-  //jscon_scanf(json_text, "#meta%ji,#data%ji,#string%ji,#a%lld,#b%s,#c%lf", &item[0], &item[1], &item[2], &integer1, str1, &double1);
   jscon_scanf(json_text, 
-              "%s#t " \
-              "%d#s " \
-              "%d#op " \
-              "%ji#d",
+              "%s[t]" \
+              "%d[s]" \
+              "%d[op]" \
+              "%ji[d]",
                str1,
                &integer1,
                &integer2,
@@ -72,6 +71,7 @@ int main(int argc, char *argv[])
   fprintf(stdout, "s: %d\n", integer1);
   fprintf(stdout, "op: %d\n", integer2);
   fprintf(stdout, "t: %s\n", str1);
+  fprintf(stdout, "d: %p\n", (void*)item[0]);
 
   //jscon_parse_cb(&callback_test);
   jscon_item_t *root = jscon_parse(json_text);

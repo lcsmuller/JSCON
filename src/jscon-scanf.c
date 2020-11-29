@@ -38,9 +38,9 @@ struct jscon_utils_s {
 };
 
 /* temp struct that will be stored at jscon_scanf dictionary */
-struct chunk_s {
-  void *value;
+struct jscon_pair_s {
   char specifier[5];
+  void *value;
 };
 
 inline static void
@@ -160,10 +160,10 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
 }
 
 static void
-_jscon_apply(struct jscon_utils_s *utils, struct chunk_s *chunk)
+_jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
 {
-  char *specifier = chunk->specifier;
-  void *value = chunk->value;
+  char *specifier = pair->specifier;
+  void *value = pair->value;
     
 
   /* if specifier is item, simply call jscon_parse at current buffer token */
@@ -288,104 +288,125 @@ static size_t
 _jscon_format_analyze(char *format)
 {
   size_t num_keys = 0;
-  char c;
   while (true) //run until end of string found
   {
-    //consume any space or control characters sequence
-    CONSUME_BLANK_CHARS(format);
-    c = *format;
+    /* 1st STEP: find % occurrence */
+    while (true){
+      if ('%' == *format){
+        ++format;
+        break;
+      }
+      if ('\0' == *format){
+        DEBUG_ASSERT(num_keys != 0, "No type specifiers from format");
+        return num_keys;
+      }
+      DEBUG_ASSERT(']' != *format, "Found extra ']' in key specifier");
 
-    /*1st STEP: check if key's type is specified */
-    if ('%' != c){
-      DEBUG_ERR("Missing format '%%' type specifier prefix\n\tFound: '%c'", c);
+      ++format;
+    }
+  
+    /* 2nd STEP: check specifier validity */
+    while (true){
+      if ('[' == *format){
+        ++format;
+        break;
+      }
+      if ('\0' == *format){
+        DEBUG_ERR("Missing format '[' key prefix\n\t"\
+                  "Found: '%c'", *format);
+      }
+      if (!isalpha(*format)){
+        DEBUG_ERR("Unknown type specifier character\n\t"
+                  "Found: '%c'", *format);
+      }
+      ++format;
     }
 
-    /*@todo error check for available unknown characters */
-    do { /* consume type formatting characters */
-      c = *++format;
-    } while (isalpha(c));
-
-    /*2nd STEP: check for key '#' prefix existence */
-    if ('#' != c){
-      DEBUG_ERR("Missing format '#' key specifier prefix\n\tFound: '%c'", c);
-    }
-    c = *++format;
-
-    /* @todo check for escaped characters */
-    /*3rd STEP: check if key matches a criteria for being a key */
-    if (!ALLOWED_JSON_CHAR(c)){
-      DEBUG_ERR("Key char not allowed: '%c'", c);
+    /* 3rd STEP: check key validity */
+    while (true){
+      if (']' == *format){
+        ++format;
+        break;
+      }
+      if ('\0' == *format){
+        DEBUG_ERR("Missing format ']' key suffix\n\t"\
+                  "Found: '%c'", *format);
+      }
+      ++format;
     }
 
-    ++num_keys; //found key, increment num_keys
-    do { //consume remaining key characters
-      c = *++format;
-    } while (ALLOWED_JSON_CHAR(c));
-
-    if ('\0' == c) return num_keys; //return if found end of string
+    ++num_keys;
   }
 }
 
 static void
 _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
 {
-  DEBUG_ASSERT('\0' != *format, "Empty String"); //can't decode empty string
+  /* Can't decode empty string */
+  DEBUG_ASSERT('\0' != *format, "Empty format");
 
-  const size_t STR_LEN = 256;
-  char str[STR_LEN];
+  char str[256];
 
-  struct chunk_s *chunk;
+  struct jscon_pair_s *pair;
 
   /* split keys from its type specifier */
-  char c;
-  size_t i = 0; /* str char index */
+  size_t i; /* str char index */
   while (true) /* run until end of string found */
   {
-    CONSUME_BLANK_CHARS(format);
-    c = *format;
-
-    if ('%' != c){
-      DEBUG_ERR("Missing format '%%' type specifier prefix\n\tFound: '%c'", c);
+    /* 1st STEP: find % occurrence */
+    while (true){
+      if ('%' == *format){
+        ++format;
+        break;
+      }
+      if ('\0' == *format){
+        return;
+      }
+      ++format;
     }
-    c = *++format; /* skips '%' */
-    
-    /* 1st STEP: fetch type specifier */
-    while ('#' != c){
-      str[i] = c;
+
+    i = 0;
+
+    /* 2nd STEP: fetch type specifier */
+    while (true){
       ++i;
-      DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
-      
-      c = *++format;
-    }
-    ++i;
-    DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
-    str[i-1] = '\0'; //specifier is formed
+      DEBUG_ASSERT(i <= sizeof(str), "Buffer overflow");
 
-    /* 2nd STEP: type specifier is formed, proceed to fetch the key
-        skips '#' char and fetch key characters */
-    do { /* isolate specifier characters */
-      c = *++format;
-      str[i] = c;
+      if ('[' == *format){
+        ++format;
+        str[i-1] = '\0';
+        break;
+      }
+
+      str[i-1] = *format++;
+    }
+
+    /* 3rd STEP: type specifier is formed, proceed to fetch the key */
+    while(true) {
+      if (']' == *format){
+        str[i] = '\0';
+        break;
+      }
+
+      str[i] = *format++;
       ++i;
-      DEBUG_ASSERT(i <= STR_LEN, "Buffer overflow");
-    } while(ALLOWED_JSON_CHAR(c));
-    str[i-2] = '\0';
-
-    chunk = calloc(1, sizeof *chunk);
-    DEBUG_ASSERT(NULL != chunk, "Out of memory");
-
-    strscpy(chunk->specifier, str, sizeof(chunk->specifier)); //get specifier string
-    if (STREQ("NaN", _jscon_format_info(chunk->specifier, NULL))){
-      DEBUG_ERR("Unknown type specifier %%%s", chunk->specifier);
+      DEBUG_ASSERT(i <= sizeof(str), "Buffer overflow");
     }
 
-    chunk->value = va_arg(ap, void*);
+    /* 4th STEP: store extracted specifier/value in a 
+     *  struct jscon_pair_s, then assign that pair with its matching
+     *  key and store it in a dictionary for later retrieval */
+    pair = malloc(sizeof *pair);
+    DEBUG_ASSERT(NULL != pair, "Out of memory");
 
-    dictionary_set(dictionary, &str[strlen(str)+1], chunk, &free);
+    strscpy(pair->specifier, str, sizeof(pair->specifier)); //get specifier string
+    if (STREQ("NaN", _jscon_format_info(pair->specifier, NULL))){
+      DEBUG_ERR("Unknown type specifier %%%s", pair->specifier);
+    }
 
-    if ('\0' == c) return; //end of string, return
+    pair->value = va_arg(ap, void*);
 
-    i = 0; //resets i to start next key from scratch
+    dictionary_set(dictionary, &str[strlen(str)+1], pair, &free);
   }
 }
 
@@ -433,9 +454,9 @@ jscon_scanf(char *buffer, char *format, ...)
       CONSUME_BLANK_CHARS(utils.buffer);
 
       /* check whether key found is specified */
-      struct chunk_s *chunk = dictionary_get(dictionary, utils.key);
-      if (NULL != chunk){
-        _jscon_apply(&utils, chunk);
+      struct jscon_pair_s *pair = dictionary_get(dictionary, utils.key);
+      if (NULL != pair){
+        _jscon_apply(&utils, pair);
       } else {
         _jscon_skip(&utils);
       }

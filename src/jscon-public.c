@@ -239,13 +239,13 @@ jscon_list_append(jscon_list_t *list, jscon_item_t *item)
     going on, early break conditions etc. As it is now it will keep on
     going deeper and deeper recursively, even if not necessary */
 static void
-_jscon_htwrap_link_preorder(jscon_item_t *item, jscon_htwrap_t **last_accessed_htwrap)
+_jscon_comp_link_preorder(jscon_item_t *item, jscon_composite_t **last_accessed_comp)
 {
-  Jscon_htwrap_link_r(item, last_accessed_htwrap);
+  Jscon_composite_link_r(item, last_accessed_comp);
 
   for (size_t i=0; i < jscon_size(item); ++i){
     if (IS_COMPOSITE(item->comp->branch[i])){
-      _jscon_htwrap_link_preorder(item->comp->branch[i], last_accessed_htwrap);
+      _jscon_comp_link_preorder(item->comp->branch[i], last_accessed_comp);
     }
   }
 }
@@ -261,7 +261,8 @@ _jscon_composite(const char *key, jscon_list_t *list, enum jscon_type type)
   new_item->comp = calloc(1, sizeof *new_item->comp);
   if (NULL == new_item->comp) goto comp_free;
 
-  new_item->comp->htwrap = Jscon_htwrap_init();
+  new_item->comp->hashtable = hashtable_init(); 
+  if (NULL == new_item->comp->hashtable) goto hashtable_free;
 
   if (NULL == list){ //empty object/array
     new_item->comp->branch = malloc(sizeof(jscon_item_t*));
@@ -299,10 +300,10 @@ _jscon_composite(const char *key, jscon_list_t *list, enum jscon_type type)
     new_item->key = NULL;
   }
 
-  jscon_htwrap_t *last_accessed_htwrap = NULL;
-  _jscon_htwrap_link_preorder(new_item, &last_accessed_htwrap);
+  jscon_composite_t *last_accessed_comp = NULL;
+  _jscon_comp_link_preorder(new_item, &last_accessed_comp);
 
-  Jscon_htwrap_build(new_item);
+  Jscon_composite_build(new_item);
 
   return new_item;
 
@@ -311,6 +312,8 @@ key_free:
   free(new_item->key);
   free(new_item->comp->branch);
 branch_free:
+  hashtable_destroy(new_item->comp->hashtable);
+hashtable_free:
   free(new_item->comp);
 comp_free:
   free(new_item);
@@ -334,21 +337,21 @@ jscon_size(const jscon_item_t *item){
   return IS_COMPOSITE(item) ? item->comp->num_branch : 0;
 } 
 
-/* get the last htwrap relative to the item */
-static jscon_htwrap_t*
-_jscon_get_last_htwrap(jscon_item_t *item)
+/* get the last comp relative to the item */
+static jscon_composite_t*
+_jscon_get_last_comp(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   size_t item_depth = jscon_get_depth(item);
 
   /* get the deepest nested composite relative to item */
-  jscon_htwrap_t *htwrap_last = item->comp->htwrap;
-  while(NULL != htwrap_last->next && item_depth < jscon_get_depth(htwrap_last->next->root)){
-    htwrap_last = htwrap_last->next;
+  jscon_composite_t *comp_last = item->comp;
+  while(NULL != comp_last->next && item_depth < jscon_get_depth(comp_last->next->p_item)){
+    comp_last = comp_last->next;
   }
 
-  return htwrap_last;
+  return comp_last;
 }
 
 jscon_item_t*
@@ -373,18 +376,18 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
   item->comp->branch[jscon_size(item)-1] = new_branch;
   new_branch->parent = item;
 
-  if (jscon_size(item) <= item->comp->htwrap->hashtable->num_bucket){
-    Jscon_htwrap_set(jscon_get_key(new_branch), new_branch);
+  if (jscon_size(item) <= item->comp->hashtable->num_bucket){
+    Jscon_composite_set(jscon_get_key(new_branch), new_branch);
   } else {
-    Jscon_htwrap_remake(item);
+    Jscon_composite_remake(item);
   }
 
   if (IS_PRIMITIVE(new_branch)) return new_branch;
 
-  /* get the last htwrap relative to item */
-  jscon_htwrap_t *htwrap_last = _jscon_get_last_htwrap(item);
-  htwrap_last->next = new_branch->comp->htwrap;
-  new_branch->comp->htwrap->prev = htwrap_last;
+  /* get the last comp relative to item */
+  jscon_composite_t *comp_last = _jscon_get_last_comp(item);
+  comp_last->next = new_branch->comp;
+  new_branch->comp->prev = comp_last;
 
   return new_branch;
 }
@@ -413,20 +416,20 @@ jscon_dettach(jscon_item_t *item)
   --item_parent->comp->num_branch;
 
   /* parent hashtable has to be remade, to match reordered keys */
-  Jscon_htwrap_remake(item_parent);
+  Jscon_composite_remake(item_parent);
 
-  /* get the immediate previous htwrap relative to the item */
-  jscon_htwrap_t *htwrap_prev = item->comp->htwrap->prev;
-  /* get the last htwrap relative to item */
-  jscon_htwrap_t *htwrap_last = _jscon_get_last_htwrap(item);
+  /* get the immediate previous comp relative to the item */
+  jscon_composite_t *comp_prev = item->comp->prev;
+  /* get the last comp relative to item */
+  jscon_composite_t *comp_last = _jscon_get_last_comp(item);
 
   /* remove tree references to the item */
-  htwrap_prev->next = htwrap_last->next;
+  comp_prev->next = comp_last->next;
 
   /* remove item references to the tree */
   item->parent = NULL;
-  htwrap_last->next = NULL;
-  item->comp->htwrap->prev = NULL;
+  comp_last->next = NULL;
+  item->comp->prev = NULL;
 
   return item;
 }
@@ -463,15 +466,15 @@ jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
   /* if p_current_item is NULL, it needs to be set back with item parameter */
   if (NULL == *p_current_item) return NULL;
 
-  /* get next htwrap in line, if NULL it means there are no more
+  /* get next comp in line, if NULL it means there are no more
       composite datatype items to iterate through */
-  jscon_htwrap_t *next_htwrap = (*p_current_item)->comp->htwrap->next;
-  if (NULL == next_htwrap){
+  jscon_composite_t *next_comp = (*p_current_item)->comp->next;
+  if (NULL == next_comp){
     *p_current_item = NULL;
     return NULL;
   }
 
-  *p_current_item = next_htwrap->root;
+  *p_current_item = next_comp->p_item;
 
   return *p_current_item;
 }
@@ -653,9 +656,9 @@ jscon_item_t*
 jscon_get_branch(jscon_item_t *item, const char *key)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
-  /* search for entry with given key at item's htwrap,
+  /* search for entry with given key at item's comp,
     and retrieve found or not found(NULL) item */
-  return Jscon_htwrap_get(key, item);
+  return Jscon_composite_get(key, item);
 }
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
@@ -695,7 +698,7 @@ jscon_get_index(const jscon_item_t *item, const char *key)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
-  jscon_item_t *lookup_item = Jscon_htwrap_get(key, (jscon_item_t*)item);
+  jscon_item_t *lookup_item = Jscon_composite_get(key, (jscon_item_t*)item);
 
   if (NULL == lookup_item) return -1;
 

@@ -35,7 +35,7 @@
 struct jscon_utils_s {
   char *buffer;
   char *key; //holds key ptr to be received by item
-  jscon_htwrap_t *last_accessed_htwrap; //holds last htwrap accessed
+  jscon_composite_t *last_accessed_comp; //holds last composite accessed
   jscon_cb* parse_cb; //parser callback
 };
 
@@ -71,7 +71,7 @@ _jscon_branch_init(jscon_item_t *item)
 static void
 _jscon_composite_destroy(jscon_item_t *item)
 {
-  Jscon_htwrap_destroy(item->comp->htwrap);
+  hashtable_destroy(item->comp->hashtable);
 
   free(item->comp->branch);
   item->comp->branch = NULL;
@@ -197,7 +197,7 @@ _jscon_value_set_object(jscon_item_t *item, struct jscon_utils_s *utils)
   item->type = JSCON_OBJECT;
 
   item->comp = Jscon_decode_composite(&utils->buffer, _jscon_count_property(utils->buffer));
-  Jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
+  Jscon_composite_link_r(item, &utils->last_accessed_comp);
 }
 
 inline static size_t
@@ -248,7 +248,7 @@ _jscon_value_set_array(jscon_item_t *item, struct jscon_utils_s *utils)
   item->type = JSCON_ARRAY;
 
   item->comp = Jscon_decode_composite(&utils->buffer, _jscon_count_element(utils->buffer));
-  Jscon_htwrap_link_r(item, &utils->last_accessed_htwrap);
+  Jscon_composite_link_r(item, &utils->last_accessed_comp);
 }
 
 /* create nested composite type (object/array) and return 
@@ -272,7 +272,7 @@ static jscon_item_t*
 _jscon_wrap_composite(jscon_item_t *item, struct jscon_utils_s *utils)
 {
   ++utils->buffer; //skips '}' or ']'
-  Jscon_htwrap_build(item);
+  Jscon_composite_build(item);
   return jscon_get_parent(item);
 }
 
