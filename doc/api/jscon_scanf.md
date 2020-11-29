@@ -14,7 +14,7 @@
 
 A format specifier for `jscon_scanf` follow this prototype:
 
-`%specifier#key`
+`%specifier[key]`
 
 Where the 'key' should be replaced by the name of the key to be matched, and 'specifier' its expected type.
 'null' type items can't be specified, but in such case that the expected key is assigned to one, the value will be converted.
@@ -43,7 +43,7 @@ bool boolean;
 
 char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
 /* order of arguments doesn't have to be the same as the json string */
-jscon_scanf(buffer, "%s#beta %b#gamma %ji#alpha", string, &boolean, &item);
+jscon_scanf(buffer, "%s[beta] %b[gamma] %ji[alpha]", string, &boolean, &item);
 ```
 
 ### See Also
