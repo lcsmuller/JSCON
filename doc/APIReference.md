@@ -75,7 +75,6 @@ This document describes the public C API.
 
 #### Getter Functions
 
-* [`jscon_get_depth(item);`](api/jscon_get_depth.md)
 * [`jscon_get_root(item);`](api/jscon_get_root.md)
 * [`jscon_get_branch(item, key);`](api/jscon_get_branch.md)
 * [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)
