@@ -28,6 +28,7 @@
 
 #include "jscon-common.h"
 #include "debug.h"
+#include "strscpy.h"
 
 
 jscon_item_t*
@@ -337,17 +338,29 @@ jscon_size(const jscon_item_t *item){
   return IS_COMPOSITE(item) ? item->comp->num_branch : 0;
 } 
 
+static size_t
+_jscon_depth(jscon_item_t *item)
+{
+  size_t depth = 0;
+  while (!IS_ROOT(item)){
+    item = item->parent;
+    ++depth;
+  }
+
+  return depth;
+}
+
 /* get the last comp relative to the item */
 static jscon_composite_t*
 _jscon_get_last_comp(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
-  size_t item_depth = jscon_get_depth(item);
+  size_t item_depth = _jscon_depth(item);
 
   /* get the deepest nested composite relative to item */
   jscon_composite_t *comp_last = item->comp;
-  while(NULL != comp_last->next && item_depth < jscon_get_depth(comp_last->next->p_item)){
+  while(NULL != comp_last->next && item_depth < _jscon_depth(comp_last->next->p_item)){
     comp_last = comp_last->next;
   }
 
@@ -626,18 +639,6 @@ jscon_intcmp(const jscon_item_t *item, const long long i_number){
   DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
 
   return item->i_number == i_number;
-}
-
-size_t
-jscon_get_depth(jscon_item_t *item)
-{
-  size_t depth = 0;
-  while (!IS_ROOT(item)){
-    item = item->parent;
-    ++depth;
-  }
-
-  return depth;
 }
 
 jscon_item_t*

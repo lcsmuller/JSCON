@@ -23,10 +23,8 @@
 #ifndef JSCON_PUBLIC_H_
 #define JSCON_PUBLIC_H_
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <stddef.h>
 #include <stdbool.h>
-#include <limits.h>
 
 
 #define DEBUG_MODE 1
@@ -45,15 +43,15 @@ enum jscon_type {
   JSCON_ARRAY            = 1 << 6,
   /* SUPERSET FLAGS */
   JSCON_NUMBER           = JSCON_INTEGER | JSCON_DOUBLE,
-  JSCON_ANY              = SHRT_MAX,
+  JSCON_ANY              = JSCON_NULL | JSCON_BOOLEAN | JSCON_NUMBER \
+                           | JSCON_STRING | JSCON_OBJECT | JSCON_ARRAY,
 };
 
 
 /* forwarding, definition at jscon-common.h */
 typedef struct jscon_item_s jscon_item_t;
 typedef struct jscon_list_s jscon_list_t;
-
-/* used for setting callback */
+/* jscon_parser() callback */
 typedef jscon_item_t* (jscon_cb)(jscon_item_t*);
 
 
@@ -69,13 +67,13 @@ jscon_list_t *jscon_list_init();
 jscon_item_t *jscon_object(const char *key, jscon_list_t *list);
 jscon_item_t *jscon_array(const char *key, jscon_list_t *list);
 
-/* JSCON DESTRUCTORS */
-/* clean up jscon item and global allocated keys */
+/* JSCON DESTRUCTORS
+ * clean up jscon item and global allocated keys */
 void jscon_destroy(jscon_item_t *item);
 void jscon_list_destroy(jscon_list_t *list);
 
-/* JSCON DECODING */
-/* parse buffer and returns a jscon item */
+/* JSCON DECODING
+ * parse buffer and returns a jscon item */
 jscon_item_t* jscon_parse(char *buffer);
 jscon_cb* jscon_parse_cb(jscon_cb *new_cb);
 /* only parse json values from given parameters */
@@ -104,7 +102,6 @@ int jscon_doublecmp(const jscon_item_t* item, const double d_number);
 int jscon_intcmp(const jscon_item_t* item, const long long i_number);
 
 /* JSCON GETTERS */
-size_t jscon_get_depth(jscon_item_t *item);
 jscon_item_t* jscon_get_root(jscon_item_t* item);
 jscon_item_t* jscon_get_branch(jscon_item_t *item, const char *key);
 jscon_item_t* jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index);

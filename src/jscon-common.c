@@ -27,8 +27,9 @@
 #include <ctype.h>
 
 #include <libjscon.h>
-
 #include "jscon-common.h"
+
+#include "strscpy.h"
 #include "debug.h"
 
 

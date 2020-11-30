@@ -399,9 +399,10 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
         return item;
   default:
         /*SKIPS IF CONTROL CHARACTER*/
-        if (!(isspace(*utils->buffer) || iscntrl(*utils->buffer))){
+        if (!IS_BLANK_CHAR(*utils->buffer)){
           DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
         }
+        CONSUME_BLANK_CHARS(utils->buffer);
         return item;
   }
 }
@@ -501,10 +502,10 @@ jscon_parse(char *buffer)
 
           break;
     default: //nothing else to build, check buffer for potential error
-          if (!(isspace(*utils.buffer) || iscntrl(*utils.buffer))){
+          if (!IS_BLANK_CHAR(*utils.buffer)){
             DEBUG_ERR("Invalid JSON Token: %c", *utils.buffer);
           }
-          ++utils.buffer; //moves if cntrl character found ('\n','\b',..)
+          CONSUME_BLANK_CHARS(utils.buffer);
           break;
     }
   }

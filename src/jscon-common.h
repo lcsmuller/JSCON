@@ -23,9 +23,38 @@
 #ifndef JSCON_COMMON_H_
 #define JSCON_COMMON_H_
 
-//#include "libjscon.h" << implicit
+#include <stddef.h>
+#include <inttypes.h>
+#include <stdint.h>
+#include <limits.h>
+
+//#include <libjscon.h> (implicit)
 #include "hashtable.h"
-#include "strscpy.h"
+
+
+#if SIZE_MAX == UINT_MAX
+typedef int ssize_t;
+#define SSIZE_MIN  INT_MIN
+#define SSIZE_MAX  INT_MAX
+#elif SIZE_MAX == ULONG_MAX
+typedef long ssize_t;
+#define SSIZE_MIN  LONG_MIN
+#define SSIZE_MAX  LONG_MAX
+#elif SIZE_MAX == ULLONG_MAX
+typedef long long ssize_t;
+#define SSIZE_MIN  LLONG_MIN
+#define SSIZE_MAX  LLONG_MAX
+#elif SIZE_MAX == USHRT_MAX
+typedef short ssize_t;
+#define SSIZE_MIN  SHRT_MIN
+#define SSIZE_MAX  SHRT_MAX
+#elif SIZE_MAX == UINTMAX_MAX
+typedef uintmax_t ssize_t;
+#define SSIZE_MIN  INTMAX_MIN
+#define SSIZE_MAX  INTMAX_MAX
+#else
+#error platform has exotic SIZE_MAX
+#endif
 
 #define JSCON_VERSION "0.0"
 
@@ -40,7 +69,8 @@
 #define DOUBLE_IS_INTEGER(d) \
   ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
 
-#define CONSUME_BLANK_CHARS(str) for( ; (isspace(*str) || iscntrl(*str)) ; ++str)
+#define IS_BLANK_CHAR(c) (isspace(c) || iscntrl(c))
+#define CONSUME_BLANK_CHARS(str) for( ; IS_BLANK_CHAR(*str) ; ++str)
 
 #define IS_COMPOSITE(item) ((item) && jscon_typecmp(item, JSCON_OBJECT|JSCON_ARRAY))
 #define IS_EMPTY_COMPOSITE(item) (IS_COMPOSITE(item) && 0 == jscon_size(item))

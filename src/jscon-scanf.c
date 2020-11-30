@@ -30,6 +30,7 @@
 
 #include "jscon-common.h"
 #include "debug.h"
+#include "strscpy.h"
 
 
 struct jscon_utils_s {
