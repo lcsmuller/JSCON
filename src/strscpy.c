@@ -22,8 +22,6 @@
 
 #include "strscpy.h"
 
-#include <limits.h>
-
 ssize_t strscpy(char *dest, const char *src, size_t n)
 {
   size_t i;
@@ -34,7 +32,7 @@ ssize_t strscpy(char *dest, const char *src, size_t n)
 
   if (0 == i) return 0;
 
-  dest[--i] = '\0';
+  dest[i-1] = '\0';
 
   return -1;
 }
