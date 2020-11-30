@@ -142,7 +142,7 @@ FILE *select_output(int argc, char *argv[])
   while (argc--){
     p_arg = *argv++;
     if ((*p_arg++ == '-') && (*p_arg++ == 'o') && (*p_arg == '\0')){
-      assert (argc == 1); //check if theres exactly one arg left
+      assert(1 == argc); //check if theres exactly one arg left
 
       char *file = *argv;
       assert(access(file, W_OK)); //check if file exists

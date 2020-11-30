@@ -36,7 +36,7 @@ struct jscon_utils_s {
   char *buffer;
   char *key; //holds key ptr to be received by item
   jscon_composite_t *last_accessed_comp; //holds last composite accessed
-  jscon_cb* parse_cb; //parser callback
+  jscon_cb *parse_cb; //parser callback
 };
 
 /* function pointers used while building json items, 
@@ -61,11 +61,11 @@ _jscon_branch_init(jscon_item_t *item)
 {
   ++item->comp->num_branch;
 
-  item->comp->branch[jscon_size(item)-1] = _jscon_item_init();
+  item->comp->branch[item->comp->num_branch-1] = _jscon_item_init();
 
-  item->comp->branch[jscon_size(item)-1]->parent = item;
+  item->comp->branch[item->comp->num_branch-1]->parent = item;
 
-  return item->comp->branch[jscon_size(item)-1];
+  return item->comp->branch[item->comp->num_branch-1];
 }
 
 static void
@@ -83,10 +83,10 @@ _jscon_composite_destroy(jscon_item_t *item)
 static void
 _jscon_destroy_preorder(jscon_item_t *item)
 {
-  switch (jscon_get_type(item)){
+  switch (item->type){
   case JSCON_OBJECT:
   case JSCON_ARRAY:
-        for (size_t i=0; i < jscon_size(item); ++i){
+        for (size_t i=0; i < item->comp->num_branch; ++i){
           _jscon_destroy_preorder(item->comp->branch[i]);
         }
         _jscon_composite_destroy(item);
@@ -273,7 +273,7 @@ _jscon_wrap_composite(jscon_item_t *item, struct jscon_utils_s *utils)
 {
   ++utils->buffer; //skips '}' or ']'
   Jscon_composite_build(item);
-  return jscon_get_parent(item);
+  return item->parent;
 }
 
 /* create a primitive data type branch. */
@@ -287,7 +287,7 @@ _jscon_append_primitive(jscon_item_t *item, struct jscon_utils_s *utils, jscon_c
   (*value_setter)(item, utils);
   item = (utils->parse_cb)(item);
 
-  return jscon_get_parent(item);
+  return item->parent;
 }
 
 /* this routine is called when setting a branch of a composite type
@@ -340,7 +340,7 @@ _jscon_branch_build(jscon_item_t *item, struct jscon_utils_s *utils)
 
 
 token_error:
-  DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+  DEBUG_ERR("Invalid '%c' token", *utils->buffer);
   abort();
 }
 
@@ -357,13 +357,12 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
   case ',': /*NEXT ELEMENT TOKEN*/
         ++utils->buffer; //skips ','
         CONSUME_BLANK_CHARS(utils->buffer);
-
-        return item;
+  /* fall through */
   default:
    {
-        //creates numerical key for the array element
+        /* creates numerical key for the array element */
         char numerical_key[MAX_DIGITS];
-        snprintf(numerical_key, MAX_DIGITS-1, "%ld", jscon_size(item));
+        snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
 
         DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
         utils->key = strdup(numerical_key);
@@ -386,6 +385,10 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
   switch (*utils->buffer){
   case '}':/*OBJECT WRAPPER DETECTED*/
         return _jscon_wrap_composite(item, utils);
+  case ',': /*NEXT PROPERTY TOKEN*/
+        ++utils->buffer; //skips ','
+        CONSUME_BLANK_CHARS(utils->buffer);
+  /* fall through */
   case '\"':/*KEY STRING DETECTED*/
         DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
         utils->key = Jscon_decode_string(&utils->buffer);
@@ -393,14 +396,9 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
         ++utils->buffer; //skips ':'
         CONSUME_BLANK_CHARS(utils->buffer);
         return _jscon_branch_build(item, utils);
-  case ',': /*NEXT PROPERTY TOKEN*/
-        ++utils->buffer; //skips ','
-        CONSUME_BLANK_CHARS(utils->buffer);
-        return item;
   default:
-        /*SKIPS IF CONTROL CHARACTER*/
         if (!IS_BLANK_CHAR(*utils->buffer)){
-          DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+          DEBUG_ERR("Invalid '%c' token", *utils->buffer);
         }
         CONSUME_BLANK_CHARS(utils->buffer);
         return item;
@@ -436,9 +434,8 @@ _jscon_entity_build(jscon_item_t *item, struct jscon_utils_s *utils)
         }
         _jscon_value_set_null(item, utils);
         break;
-  default:
+  default:/*CHECK FOR NUMBER*/
         CONSUME_BLANK_CHARS(utils->buffer);
-        /*CHECK FOR NUMBER*/
         if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
           goto token_error;
         }
@@ -450,7 +447,7 @@ _jscon_entity_build(jscon_item_t *item, struct jscon_utils_s *utils)
 
 
 token_error:
-  DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+  DEBUG_ERR("Invalid '%c' token", *utils->buffer);
   abort(); 
 }
 
@@ -494,19 +491,15 @@ jscon_parse(char *buffer)
     case JSCON_ARRAY:
           item = _jscon_array_build(item, &utils);
           break;
-    case JSCON_UNDEFINED://this should be true only at the first call
+    case JSCON_UNDEFINED:
+          /* this should be true only at the first iteration */
           item = _jscon_entity_build(item, &utils);
-
-          /* primitives can't have branches, skip the rest  */
           if (IS_PRIMITIVE(item)) return item;
 
           break;
-    default: //nothing else to build, check buffer for potential error
-          if (!IS_BLANK_CHAR(*utils.buffer)){
-            DEBUG_ERR("Invalid JSON Token: %c", *utils.buffer);
-          }
-          CONSUME_BLANK_CHARS(utils.buffer);
-          break;
+    default:
+          DEBUG_ERR("Unknown item->type found\n\t"
+                    "Code: %d", item->type);
     }
   }
 

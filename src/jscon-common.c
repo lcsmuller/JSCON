@@ -55,11 +55,11 @@ Jscon_composite_build(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
-  hashtable_build(item->comp->hashtable, 2 + jscon_size(item) * 1.3); //30% size increase to account for future expansions, and a default bucket size of 2
+  hashtable_build(item->comp->hashtable, 2 + (1.3 * item->comp->num_branch)); //30% size increase to account for future expansions, and a default bucket size of 2
 
   item->comp->p_item = item;
 
-  for (size_t i=0; i < jscon_size(item); ++i){
+  for (size_t i=0; i < item->comp->num_branch; ++i){
     Jscon_composite_set(item->comp->branch[i]->key, item->comp->branch[i]);
   }
 }

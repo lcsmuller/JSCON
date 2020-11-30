@@ -244,7 +244,7 @@ _jscon_comp_link_preorder(jscon_item_t *item, jscon_composite_t **last_accessed_
 {
   Jscon_composite_link_r(item, last_accessed_comp);
 
-  for (size_t i=0; i < jscon_size(item); ++i){
+  for (size_t i=0; i < item->comp->num_branch; ++i){
     if (IS_COMPOSITE(item->comp->branch[i])){
       _jscon_comp_link_preorder(item->comp->branch[i], last_accessed_comp);
     }
@@ -373,24 +373,24 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
 
   if (new_branch == item){
-    DEBUG_ASSERT(NULL != jscon_get_key(item), "Can't perform circular append of item without a key");
+    DEBUG_ASSERT(NULL != item->key, "Can't perform circular append of item without a key");
     new_branch = jscon_clone(item);
     if (NULL == new_branch) return NULL;
   }
 
   /* realloc parent references to match new size */
-  jscon_item_t **tmp = realloc(item->comp->branch, (1+jscon_size(item)) * sizeof(jscon_item_t*));
+  jscon_item_t **tmp = realloc(item->comp->branch, (1+item->comp->num_branch) * sizeof(jscon_item_t*));
   if (NULL == tmp) return NULL;
 
   item->comp->branch = tmp;
 
   ++item->comp->num_branch;
 
-  item->comp->branch[jscon_size(item)-1] = new_branch;
+  item->comp->branch[item->comp->num_branch-1] = new_branch;
   new_branch->parent = item;
 
-  if (jscon_size(item) <= item->comp->hashtable->num_bucket){
-    Jscon_composite_set(jscon_get_key(new_branch), new_branch);
+  if (item->comp->num_branch <= item->comp->hashtable->num_bucket){
+    Jscon_composite_set(new_branch->key, new_branch);
   } else {
     Jscon_composite_remake(item);
   }
@@ -497,7 +497,7 @@ static inline jscon_item_t*
 _jscon_push(jscon_item_t *item)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
-  DEBUG_ASSERT(item->comp->last_accessed_branch < jscon_size(item), "Overflow, trying to access forbidden memory");
+  DEBUG_ASSERT(item->comp->last_accessed_branch < item->comp->num_branch, "Overflow, trying to access forbidden memory");
 
   ++item->comp->last_accessed_branch; //update last_accessed_branch to next
   jscon_item_t *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
@@ -543,7 +543,7 @@ jscon_iter_next(jscon_item_t *item)
       if ((NULL == item) || (0 == item->comp->last_accessed_branch)){
         return NULL; //return NULL if exceeded root
       }
-     } while (jscon_size(item) == item->comp->last_accessed_branch);
+     } while (item->comp->num_branch == item->comp->last_accessed_branch);
   }
 
   return _jscon_push(item);
@@ -578,6 +578,7 @@ jscon_clone(jscon_item_t *item)
 char*
 jscon_typeof(const jscon_item_t *item)
 {
+  if (NULL == item) return "NaN";
 
 /* if case matches, return token as string */
 #define CASE_RETURN_STR(type) case type: return #type
@@ -624,7 +625,7 @@ jscon_typecmp(const jscon_item_t *item, const enum jscon_type type){
 
 int
 jscon_keycmp(const jscon_item_t *item, const char *key){
-  return (NULL != jscon_get_key(item)) ? STREQ(item->key, key) : 0;
+  return (NULL != item->key) ? STREQ(item->key, key) : 0;
 }
 
 int
@@ -645,7 +646,7 @@ jscon_item_t*
 jscon_get_root(jscon_item_t *item)
 {
   while (!IS_ROOT(item)){
-    item = jscon_get_parent(item);
+    item = item->parent;
   }
 
   return item;
@@ -668,7 +669,7 @@ jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
 {
   DEBUG_ASSERT(!IS_ROOT(origin), "Origin is root (has no siblings)");
 
-  const jscon_item_t* parent = jscon_get_parent(origin);
+  const jscon_item_t* parent = origin->parent;
 
   //get parent's branch index of the origin item
   size_t origin_index = jscon_get_index(parent, origin->key);
@@ -691,7 +692,7 @@ jscon_item_t*
 jscon_get_byindex(const jscon_item_t *item, const size_t index)
 {
   DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
-  return (index < jscon_size(item)) ? item->comp->branch[index] : NULL;
+  return (index < item->comp->num_branch) ? item->comp->branch[index] : NULL;
 }
 
 long
@@ -704,7 +705,7 @@ jscon_get_index(const jscon_item_t *item, const char *key)
   if (NULL == lookup_item) return -1;
 
   /* @todo can this be done differently? */
-  for (size_t i=0; i < jscon_size(item); ++i){
+  for (size_t i=0; i < item->comp->num_branch; ++i){
     if (lookup_item == item->comp->branch[i]){
       return i;
     }
