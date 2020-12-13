@@ -107,20 +107,6 @@ typedef struct jscon_item_s {
   struct jscon_item_s *parent;
 } jscon_item_t;
 
-/* linked list used for linking items to be assigned to a
-    object or array via jscon_object() or jscon_array() */
-struct jscon_node_s {
-  jscon_item_t *item;
-  struct jscon_node_s *next;
-  struct jscon_node_s *prev;
-};
-
-typedef struct jscon_list_s {
-  struct jscon_node_s *first;
-  struct jscon_node_s *last;
-  size_t num_node;
-} jscon_list_t;
-
 /*
  * jscon-common.c
  */

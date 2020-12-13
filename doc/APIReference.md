@@ -7,7 +7,6 @@ This document describes the public C API.
 ### Structs
 
 * [`jscon_item_t;`](api/jscon_item_t.md)
-* [`jscon_list_t;`](api/jscon_list_t.md)
 
 ### Enums
 
@@ -38,15 +37,13 @@ This document describes the public C API.
 * [`jscon_number(key, d_number);`](api/jscon_number.md)
 * [`jscon_string(key, string);`](api/jscon_string.md)
 
-* [`jscon_list_init();`](api/jscon_list_init.md)
-* [`jscon_object(list, key);`](api/jscon_object.md)
-* [`jscon_array(list, key);`](api/jscon_array.md)
+* [`jscon_object(key);`](api/jscon_object.md)
+* [`jscon_array(key);`](api/jscon_array.md)
 
 ### Destructor Functions
 
 * [`jscon_delete(item, key);`](api/jscon_delete.md)
 * [`jscon_destroy(item);`](api/jscon_destroy.md)
-* [`jscon_list_destroy(list);`](api/jscon_list_destroy.md)
 
 ### Manipulation Functions
 
@@ -57,7 +54,6 @@ This document describes the public C API.
 
 #### Utility Functions
 
-* [`jscon_list_append(list, item);`](api/jscon_list_append.md)
 * [`jscon_size(item);`](api/jscon_size.md)
 * [`jscon_append(item, new_branch);`](api/jscon_append.md)
 * [`jscon_dettach(item);`](api/jscon_dettach.md)

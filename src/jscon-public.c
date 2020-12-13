@@ -161,79 +161,6 @@ free_key:
   return NULL;
 }
 
-jscon_list_t*
-jscon_list_init()
-{
-  jscon_list_t *new_list = malloc(sizeof *new_list);
-  if (NULL == new_list) return NULL;
-
-  new_list->first = malloc(sizeof *new_list->first);
-  if (NULL == new_list->first) goto free_first;
-
-  new_list->last = malloc(sizeof *new_list->last);
-  if (NULL == new_list->last) goto free_last;
-
-  new_list->first->next = new_list->last;
-  new_list->first->prev = NULL;
-
-  new_list->last->prev = new_list->first;
-  new_list->last->next = NULL;
-
-  new_list->num_node = 0;
-
-  return new_list;
-
-free_last:
-  free(new_list->first);
-free_first:
-  free(new_list);
-
-  return NULL;
-}
-
-void
-jscon_list_destroy(jscon_list_t *list)
-{
-  struct jscon_node_s *node = list->first->next;
-
-  for (size_t i=0; i < list->num_node; ++i){
-    node = node->next;
-
-    jscon_destroy(node->item);
-    node->item = NULL;
-
-    free(node->prev);
-    node->prev = NULL;
-  }
-  free(list->first);
-  list->first = NULL;
-
-  free(list->last);
-  list->last = NULL;
-
-  free(list);
-  list = NULL;
-}
-
-void
-jscon_list_append(jscon_list_t *list, jscon_item_t *item)
-{
-  DEBUG_ASSERT(NULL != item, "NULL Item");
-
-  struct jscon_node_s *new_node = malloc(sizeof *new_node);
-  DEBUG_ASSERT(NULL != new_node, "Out of memory");
-
-  new_node->item = item;
-
-  ++list->num_node;
-
-  new_node->next = list->last;
-  new_node->prev = list->last->prev;
-
-  list->last->prev->next = new_node;
-  list->last->prev = new_node;
-}
-
 /* @todo add condition to stop if after linking item hwrap to a already
     formed composite. This is far from ideal, I should probably try to
     make this iteratively just so that I have a better control on whats
@@ -252,7 +179,7 @@ _jscon_comp_link_preorder(jscon_item_t *item, jscon_composite_t **last_accessed_
 }
 
 inline static jscon_item_t*
-_jscon_composite(const char *key, jscon_list_t *list, enum jscon_type type)
+_jscon_composite(const char *key, enum jscon_type type)
 {
   jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
@@ -265,34 +192,8 @@ _jscon_composite(const char *key, jscon_list_t *list, enum jscon_type type)
   new_item->comp->hashtable = hashtable_init(); 
   if (NULL == new_item->comp->hashtable) goto hashtable_free;
 
-  if (NULL == list){ //empty object/array
-    new_item->comp->branch = malloc(sizeof(jscon_item_t*));
-    if (NULL == new_item->comp->branch) goto branch_free;
-  } else {
-    new_item->comp->branch = malloc((1+list->num_node) * sizeof(jscon_item_t*));
-    if (NULL == new_item->comp->branch) goto branch_free;
-
-    struct jscon_node_s *node = list->first->next;
-    for (size_t i=0; i < list->num_node; ++i){
-      new_item->comp->branch[i] = node->item;
-      node->item->parent = new_item;
-
-      node = node->next;
-
-      free(node->prev);
-      node->prev = NULL;
-    }
-
-    new_item->comp->num_branch = list->num_node;
-
-    list->num_node = 0;
-
-    list->first->next = list->last;
-    list->first->prev = NULL;
-
-    list->last->prev = list->first;
-    list->last->next = NULL;
-  }
+  new_item->comp->branch = malloc(sizeof(jscon_item_t*));
+  if (NULL == new_item->comp->branch) goto branch_free;
 
   if (NULL != key){
     new_item->key = strdup(key);
@@ -323,13 +224,13 @@ comp_free:
 }
 
 jscon_item_t*
-jscon_object(const char *key, jscon_list_t *list){
-  return _jscon_composite(key, list, JSCON_OBJECT);
+jscon_object(const char *key){
+  return _jscon_composite(key, JSCON_OBJECT);
 }
 
 jscon_item_t*
-jscon_array(const char *key, jscon_list_t *list){
-  return _jscon_composite(key, list, JSCON_ARRAY);
+jscon_array(const char *key){
+  return _jscon_composite(key, JSCON_ARRAY);
 }
 
 /* total branches the item possess, returns 0 if item type is primitive */

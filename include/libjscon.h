@@ -50,12 +50,13 @@ enum jscon_type {
 
 /* forwarding, definition at jscon-common.h */
 typedef struct jscon_item_s jscon_item_t;
-typedef struct jscon_list_s jscon_list_t;
 /* jscon_parser() callback */
 typedef jscon_item_t* (jscon_cb)(jscon_item_t*);
 
 
 /* JSCON INIT */
+jscon_item_t *jscon_object(const char *key);
+jscon_item_t *jscon_array(const char *key);
 jscon_item_t *jscon_null(const char *key);
 jscon_item_t *jscon_boolean(const char *key, bool boolean);
 jscon_item_t *jscon_integer(const char *key, long long i_number);
@@ -63,14 +64,9 @@ jscon_item_t *jscon_double(const char *key, double d_number);
 jscon_item_t *jscon_number(const char *key, double d_number);
 jscon_item_t *jscon_string(const char *key, char *string);
 
-jscon_list_t *jscon_list_init();
-jscon_item_t *jscon_object(const char *key, jscon_list_t *list);
-jscon_item_t *jscon_array(const char *key, jscon_list_t *list);
-
 /* JSCON DESTRUCTORS
  * clean up jscon item and global allocated keys */
 void jscon_destroy(jscon_item_t *item);
-void jscon_list_destroy(jscon_list_t *list);
 
 /* JSCON DECODING
  * parse buffer and returns a jscon item */
@@ -81,9 +77,6 @@ void jscon_scanf(char *buffer, char *format, ...);
  
 /* JSCON ENCODING */
 char* jscon_stringify(jscon_item_t *root, enum jscon_type type);
-
-/* JSCON LIST MANIPULATION */
-void jscon_list_append(jscon_list_t *list, jscon_item_t *item);
 
 /* JSCON UTILITIES */
 size_t jscon_size(const jscon_item_t* item);
