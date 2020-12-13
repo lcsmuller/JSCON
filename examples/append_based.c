@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <locale.h>
@@ -33,15 +34,15 @@ int main(void)
   char *locale = setlocale(LC_CTYPE, "");
   assert(locale);
 
-  jscon_item_t *root = jscon_object("root", NULL);
+  jscon_item_t *root = jscon_object("root");
   jscon_item_t *tmp1, *tmp2;
 
-  tmp1 = jscon_array("pets", NULL);
+  tmp1 = jscon_array("pets");
   jscon_append(tmp1, jscon_string("0", "Dog"));
   jscon_append(tmp1, jscon_string("1", "Cat"));
   jscon_append(tmp1, jscon_string("2", "Fish"));
 
-  tmp2 = jscon_object("person1", NULL);
+  tmp2 = jscon_object("person1");
   jscon_append(tmp2, tmp1);
   jscon_append(tmp2, jscon_string("name", "Mario"));
   jscon_append(tmp2, jscon_number("age", 28));
@@ -49,11 +50,11 @@ int main(void)
   jscon_append(tmp2, jscon_boolean("married", true));
   jscon_append(root, tmp2);
 
-  tmp1 = jscon_array("pets", NULL);
+  tmp1 = jscon_array("pets");
   jscon_append(tmp1, jscon_string("0", "Moose"));
   jscon_append(tmp1, jscon_string("1", "Mouse"));
 
-  tmp2 = jscon_object("person2", NULL);
+  tmp2 = jscon_object("person2");
   jscon_append(tmp2, tmp1);
   jscon_append(tmp2, jscon_string("name", "Joana"));
   jscon_append(tmp2, jscon_number("age", 58));
