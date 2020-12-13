@@ -31,8 +31,8 @@
 #include "strscpy.h"
 
 
-jscon_item_t*
-jscon_null(const char *key)
+static inline jscon_item_t*
+_jscon_new(const char *key, enum jscon_type type)
 {
   jscon_item_t *new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
@@ -48,29 +48,22 @@ jscon_null(const char *key)
   }
 
   new_item->parent = NULL;
-  new_item->type = JSCON_NULL;
+  new_item->type = type;
 
   return new_item;
 }
 
 jscon_item_t*
+jscon_null(const char *key){
+  return _jscon_new(key, JSCON_NULL);
+}
+
+jscon_item_t*
 jscon_boolean(const char *key, bool boolean)
 {
-  jscon_item_t *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = _jscon_new(key, JSCON_BOOLEAN);
   if (NULL == new_item) return NULL;
 
-  if (NULL != key){
-    new_item->key = strdup(key);
-    if (NULL == new_item->key){
-      free(new_item);
-      return NULL;
-    }
-  } else {
-    new_item->key = NULL;
-  }
-
-  new_item->parent = NULL;
-  new_item->type = JSCON_BOOLEAN;
   new_item->boolean = boolean;
 
   return new_item;
@@ -79,21 +72,9 @@ jscon_boolean(const char *key, bool boolean)
 jscon_item_t*
 jscon_integer(const char *key, long long i_number)
 {
-  jscon_item_t *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = _jscon_new(key, JSCON_INTEGER);
   if (NULL == new_item) return NULL;
 
-  if (NULL != key){
-    new_item->key = strdup(key);
-    if (NULL == new_item->key){
-      free(new_item);
-      return NULL;
-    }
-  } else {
-    new_item->key = NULL;
-  }
-
-  new_item->parent = NULL;
-  new_item->type = JSCON_INTEGER;
   new_item->i_number = i_number;
 
   return new_item;
@@ -102,21 +83,9 @@ jscon_integer(const char *key, long long i_number)
 jscon_item_t*
 jscon_double(const char *key, double d_number)
 {
-  jscon_item_t *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = _jscon_new(key, JSCON_DOUBLE);
   if (NULL == new_item) return NULL;
 
-  if (NULL != key){
-    new_item->key = strdup(key);
-    if (NULL == new_item->key){
-      free(new_item);
-      return NULL;
-    }
-  } else {
-    new_item->key = NULL;
-  }
-
-  new_item->parent = NULL;
-  new_item->type = JSCON_DOUBLE;
   new_item->d_number = d_number;
 
   return new_item;
@@ -135,18 +104,8 @@ jscon_string(const char *key, char *string)
 {
   if (NULL == string) return jscon_null(key);
 
-  jscon_item_t *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = _jscon_new(key, JSCON_STRING);
   if (NULL == new_item) return NULL;
-
-  if (NULL != key){
-    new_item->key = strdup(key);
-    if (NULL == new_item->key) goto free_key;
-  } else {
-    new_item->key = NULL;
-  }
-
-  new_item->parent = NULL;
-  new_item->type = JSCON_STRING;
 
   new_item->string = strdup(string);
   if (NULL == new_item->string) goto free_string;
@@ -155,7 +114,6 @@ jscon_string(const char *key, char *string)
 
 free_string:
   free(new_item->key);
-free_key:
   free(new_item);
 
   return NULL;
@@ -181,11 +139,9 @@ _jscon_comp_link_preorder(jscon_item_t *item, jscon_composite_t **last_accessed_
 inline static jscon_item_t*
 _jscon_composite(const char *key, enum jscon_type type)
 {
-  jscon_item_t *new_item = malloc(sizeof *new_item);
+  jscon_item_t *new_item = _jscon_new(key, type);
   if (NULL == new_item) return NULL;
 
-  new_item->parent = NULL;
-  new_item->type = type;
   new_item->comp = calloc(1, sizeof *new_item->comp);
   if (NULL == new_item->comp) goto comp_free;
 
@@ -195,13 +151,6 @@ _jscon_composite(const char *key, enum jscon_type type)
   new_item->comp->branch = malloc(sizeof(jscon_item_t*));
   if (NULL == new_item->comp->branch) goto branch_free;
 
-  if (NULL != key){
-    new_item->key = strdup(key);
-    if (NULL == new_item->key) goto key_free;
-  } else {
-    new_item->key = NULL;
-  }
-
   jscon_composite_t *last_accessed_comp = NULL;
   _jscon_comp_link_preorder(new_item, &last_accessed_comp);
 
@@ -210,14 +159,12 @@ _jscon_composite(const char *key, enum jscon_type type)
   return new_item;
 
 
-key_free:
-  free(new_item->key);
-  free(new_item->comp->branch);
 branch_free:
   hashtable_destroy(new_item->comp->hashtable);
 hashtable_free:
   free(new_item->comp);
 comp_free:
+  free(new_item->key);
   free(new_item);
 
   return NULL;
@@ -660,4 +607,52 @@ jscon_get_integer(const jscon_item_t *item)
 
   DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
   return item->i_number;
+}
+/*
+static inline void
+_jscon_trychange_type(jscon_item_t *item, enum jscon_type type)
+{
+  if (type == item->type) return;
+
+  jscon_item_t *tmp;
+  switch (item->type){
+  case JSCON_OBJECT:
+  case JSCON_ARRAY:
+  case JSCON_STRING:
+        jscon_dettach(item);
+        //@todo do stuff here, clean if object/array/string
+        jscon_append(item, tmp);
+  // fall through
+  default:
+        item->type = type;
+        break;
+  }
+}
+*/
+bool
+jscon_set_boolean(jscon_item_t *item, bool boolean)
+{
+  return item->boolean = boolean;
+}
+
+char*
+jscon_set_string(jscon_item_t *item, char *string)
+{
+  if (item->string){
+    free(item->string);
+  }
+
+  return item->string = strdup(string);
+}
+
+double
+jscon_set_double(jscon_item_t *item, double d_number)
+{
+  return item->d_number = d_number;
+}
+
+long long
+jscon_set_integer(jscon_item_t *item, long long i_number)
+{
+  return item->i_number = i_number;
 }
