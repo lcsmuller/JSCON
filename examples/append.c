@@ -31,53 +31,53 @@
 
 int main(void)
 {
-	char *locale = setlocale(LC_CTYPE, "");
-	assert(locale);
+    char *locale = setlocale(LC_CTYPE, "");
+    assert(locale);
 
-	jscon_item_t *root = jscon_object("root");
-	jscon_item_t *tmp1, *tmp2;
+    jscon_item_t *root = jscon_object("root");
+    jscon_item_t *tmp1, *tmp2;
 
-	tmp1 = jscon_array("pets");
-	jscon_append(tmp1, jscon_string("0", "Dog"));
-	jscon_append(tmp1, jscon_string("1", "Cat"));
-	jscon_append(tmp1, jscon_string("2", "Fish"));
+    tmp1 = jscon_array("pets");
+    jscon_append(tmp1, jscon_string("0", "Dog"));
+    jscon_append(tmp1, jscon_string("1", "Cat"));
+    jscon_append(tmp1, jscon_string("2", "Fish"));
 
-	tmp2 = jscon_object("person1");
-	jscon_append(tmp2, tmp1);
-	jscon_append(tmp2, jscon_string("name", "Mario"));
-	jscon_append(tmp2, jscon_number("age", 28));
-	jscon_append(tmp2, jscon_boolean("retired", false));
-	jscon_append(tmp2, jscon_boolean("married", true));
-	jscon_append(root, tmp2);
+    tmp2 = jscon_object("person1");
+    jscon_append(tmp2, tmp1);
+    jscon_append(tmp2, jscon_string("name", "Mario"));
+    jscon_append(tmp2, jscon_number("age", 28));
+    jscon_append(tmp2, jscon_boolean("retired", false));
+    jscon_append(tmp2, jscon_boolean("married", true));
+    jscon_append(root, tmp2);
 
-	tmp1 = jscon_array("pets");
-	jscon_append(tmp1, jscon_string("0", "Moose"));
-	jscon_append(tmp1, jscon_string("1", "Mouse"));
+    tmp1 = jscon_array("pets");
+    jscon_append(tmp1, jscon_string("0", "Moose"));
+    jscon_append(tmp1, jscon_string("1", "Mouse"));
 
-	tmp2 = jscon_object("person2");
-	jscon_append(tmp2, tmp1);
-	jscon_append(tmp2, jscon_string("name", "Joana"));
-	jscon_append(tmp2, jscon_number("age", 58));
-	jscon_append(tmp2, jscon_boolean("retired", true));
-	jscon_append(tmp2, jscon_boolean("married", false));
-	jscon_append(root, tmp2);
+    tmp2 = jscon_object("person2");
+    jscon_append(tmp2, tmp1);
+    jscon_append(tmp2, jscon_string("name", "Joana"));
+    jscon_append(tmp2, jscon_number("age", 58));
+    jscon_append(tmp2, jscon_boolean("retired", true));
+    jscon_append(tmp2, jscon_boolean("married", false));
+    jscon_append(root, tmp2);
 
 
-	//circular references won't conflict, uncommment to test
-	//jscon_append(root, root);
+    //circular references won't conflict, uncommment to test
+    //jscon_append(root, root);
 
-	jscon_item_t *curr_item = NULL;
-	jscon_item_t *item = jscon_iter_composite_r(root, &curr_item);
-	do {
+    jscon_item_t *curr_item = NULL;
+    jscon_item_t *item = jscon_iter_composite_r(root, &curr_item);
+    do {
         fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
-	} while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
+    } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
-	char *buffer = jscon_stringify(root, JSCON_ANY);
-	fprintf(stderr, "%s\n", buffer);
+    char *buffer = jscon_stringify(root, JSCON_ANY);
+    fprintf(stderr, "%s\n", buffer);
 
-	free(buffer);
-	jscon_destroy(root);
+    free(buffer);
+    jscon_destroy(root);
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 

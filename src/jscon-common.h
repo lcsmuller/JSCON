@@ -39,7 +39,7 @@
 #define IN_RANGE(n,lo,hi) (((n) > (lo)) && ((n) < (hi)))
 
 #define DOUBLE_IS_INTEGER(d) \
-	((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
+    ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
 
 #define IS_BLANK_CHAR(c) (isspace(c) || iscntrl(c))
 #define CONSUME_BLANK_CHARS(str) for( ; IS_BLANK_CHAR(*str) ; ++str)
@@ -68,14 +68,14 @@
  *      next: points to next composite
  *      prev: points to previous composite */
 typedef struct jscon_composite_s {
-	struct jscon_item_s **branch;
-	size_t num_branch;
-	size_t last_accessed_branch;
+    struct jscon_item_s **branch;
+    size_t num_branch;
+    size_t last_accessed_branch;
 
-	struct hashtable_s *hashtable;
-	struct jscon_item_s *p_item;
-	struct jscon_composite_s *next;
-	struct jscon_composite_s *prev;
+    struct hashtable_s *hashtable;
+    struct jscon_item_s *p_item;
+    struct jscon_composite_s *next;
+    struct jscon_composite_s *prev;
 } jscon_composite_t;
 
 
@@ -94,17 +94,17 @@ void Jscon_composite_remake(jscon_item_t *item);
  *      string,d_number,i_number,boolean: item literal value, denoted 
  *      by its type.  */
 typedef struct jscon_item_s {
-	union {
+    union {
         char *string;
         double d_number;
         long long i_number;
         bool boolean;
         jscon_composite_t *comp;
-	};
-	enum jscon_type type;
+    };
+    enum jscon_type type;
 
-	char *key;
-	struct jscon_item_s *parent;
+    char *key;
+    struct jscon_item_s *parent;
 } jscon_item_t;
 
 /*

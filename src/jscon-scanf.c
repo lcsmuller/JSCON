@@ -34,39 +34,39 @@
 
 
 struct jscon_utils_s {
-	char *buffer;
-	char *key; //holds key ptr to be received by item
+    char *buffer;
+    char *key; //holds key ptr to be received by item
 };
 
 /* temp struct that will be stored at jscon_scanf dictionary */
 struct jscon_pair_s {
-	char specifier[5];
-	void *value;
+    char specifier[5];
+    void *value;
 };
 
 inline static void
 _jscon_skip_string(struct jscon_utils_s *utils)
 {
-	/* loops until null terminator or end of string are found */
-	do {
+    /* loops until null terminator or end of string are found */
+    do {
         /* skips escaped characters */
         if ('\\' == *utils->buffer++){
             ++utils->buffer;
         }
-	} while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-	DEBUG_ASSERT('\"' == *utils->buffer, "Not a String");
-	++utils->buffer; //skip double quotes
+    } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
+    DEBUG_ASSERT('\"' == *utils->buffer, "Not a String");
+    ++utils->buffer; //skip double quotes
 }
 
 inline static void
 _jscon_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
 {
-	/* skips the item and all of its nests, special care is taken for any
-	    inner string is found, as it might contain a delim character that
-	    if not treated as a string will incorrectly trigger 
-	    depth action*/
-	size_t depth = 0;
-	do {
+    /* skips the item and all of its nests, special care is taken for any
+        inner string is found, as it might contain a delim character that
+        if not treated as a string will incorrectly trigger 
+        depth action*/
+    size_t depth = 0;
+    do {
         if (ldelim == *utils->buffer){
             ++depth;
             ++utils->buffer; //skips ldelim char
@@ -81,94 +81,94 @@ _jscon_skip_composite(int ldelim, int rdelim, struct jscon_utils_s *utils)
 
         if (0 == depth) return; //entire item has been skipped, return
 
-	} while ('\0' != *utils->buffer);
+    } while ('\0' != *utils->buffer);
 }
 
 static void
 _jscon_skip(struct jscon_utils_s *utils)
 {
-	switch (*utils->buffer){
-	case '{':/*OBJECT DETECTED*/
+    switch (*utils->buffer){
+    case '{':/*OBJECT DETECTED*/
         _jscon_skip_composite('{', '}', utils);
         return;
-	case '[':/*ARRAY DETECTED*/
+    case '[':/*ARRAY DETECTED*/
         _jscon_skip_composite('[', ']', utils);
         return;
-	case '\"':/*STRING DETECTED*/
+    case '\"':/*STRING DETECTED*/
         _jscon_skip_string(utils);
         return;
-	default:
+    default:
         //consume characters while not end of string or not new key
         while ('\0' != *utils->buffer && ',' != *utils->buffer){
             ++utils->buffer;
         }
         return;
-	}
+    }
 }
 
 static char*
 _jscon_format_info(char *specifier, size_t *p_tmp)
 {
-	size_t *n_bytes;
-	size_t discard; //throw values here if p_tmp is NULL
-	if (NULL != p_tmp){
+    size_t *n_bytes;
+    size_t discard; //throw values here if p_tmp is NULL
+    if (NULL != p_tmp){
         n_bytes = p_tmp;
-	} else {
+    } else {
         n_bytes = &discard;
-	}
+    }
 
-	if (STREQ(specifier, "c")){
+    if (STREQ(specifier, "c")){
         *n_bytes = sizeof(char);
         return "char*";
-	}
-	if (STREQ(specifier, "s")){
+    }
+    if (STREQ(specifier, "s")){
         *n_bytes = sizeof(char);
         return "char*";
-	}
-	if (STREQ(specifier, "d")){
+    }
+    if (STREQ(specifier, "d")){
         *n_bytes = sizeof(int);
         return "int*";
-	}
-	if (STREQ(specifier, "ld")){
+    }
+    if (STREQ(specifier, "ld")){
         *n_bytes = sizeof(long);
         return "long*";
-	}
-	if (STREQ(specifier, "lld")){
+    }
+    if (STREQ(specifier, "lld")){
         *n_bytes = sizeof(long long);
         return "long long*";
-	}
-	if (STREQ(specifier, "f")){
+    }
+    if (STREQ(specifier, "f")){
         *n_bytes = sizeof(float);
         return "float*";
-	}
-	if (STREQ(specifier, "lf")){
+    }
+    if (STREQ(specifier, "lf")){
         *n_bytes = sizeof(double);
         return "double*";
-	}
-	if (STREQ(specifier, "b")){
+    }
+    if (STREQ(specifier, "b")){
         *n_bytes = sizeof(bool);
         return "bool*";
-	}
-	if (STREQ(specifier, "ji")){
+    }
+    if (STREQ(specifier, "ji")){
         /* this will never get validated at _jscon_apply(),
           but it doesn't matter, a JSCON_NULL item is created either way */
         *n_bytes = sizeof(jscon_item_t*);
         return "jscon_item_t**";
-	}
+    }
 
-	*n_bytes = 0;
-	return "NaN";
+    *n_bytes = 0;
+    return "NaN";
 }
 
 static void
 _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
 {
-	char *specifier = pair->specifier;
-	void *value = pair->value;
-	  
+    char *specifier = pair->specifier;
+    void *value = pair->value;
+      
 
-	/* if specifier is item, simply call jscon_parse at current buffer token */
-	if (STREQ(specifier, "ji")){
+    /* if specifier is item, simply call jscon_parse at current buffer token */
+    if (STREQ(specifier, "ji")){
         jscon_item_t **item = value;
         *item = jscon_parse(utils->buffer);
         _jscon_skip(utils); //skip characters parsed by jscon_parse
@@ -178,12 +178,12 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
         (*item)->key = utils->key;
         utils->key = NULL;
         return;
-	}
+    }
 
-	/* specifier must be a primitive */
-	char err_typeis[50];
-	switch (*utils->buffer){
-	case '\"':/*STRING DETECTED*/
+    /* specifier must be a primitive */
+    char err_typeis[50];
+    switch (*utils->buffer){
+    case '\"':/*STRING DETECTED*/
         if (STREQ(specifier, "c")){
             char *string = Jscon_decode_string(&utils->buffer);
             strscpy(value, string, sizeof(char));
@@ -199,8 +199,8 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
         }
 
         return;
-	case 't':/*CHECK FOR*/
-	case 'f':/* BOOLEAN */
+    case 't':/*CHECK FOR*/
+    case 'f':/* BOOLEAN */
         if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
             goto token_error;
         }
@@ -215,8 +215,8 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
         }
 
         return;
-	case 'n':/*CHECK FOR NULL*/
-	 {
+    case 'n':/*CHECK FOR NULL*/
+     {
         if (!STRNEQ(utils->buffer,"null",4)){
             goto token_error; 
         }
@@ -228,16 +228,16 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
         _jscon_format_info(specifier, &n_bytes);
         memset(value, 0, n_bytes);
         return;
-	 }
-	case '{':/*OBJECT DETECTED*/
-	case '[':/*ARRAY DETECTED*/
-	 {
+     }
+    case '{':/*OBJECT DETECTED*/
+    case '[':/*ARRAY DETECTED*/
+     {
         char reason[] = "jscon_item_t**";
         strscpy(err_typeis, reason, sizeof(err_typeis));
         goto type_error;
-	 }
-	default:
-	 { /*CHECK FOR NUMBER*/
+     }
+    default:
+     { /*CHECK FOR NUMBER*/
         if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
             goto token_error;
         }
@@ -273,23 +273,23 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
         }
 
         return;
-	 }
-	}
+     }
+    }
 
 
 type_error:
-	DEBUG_ERR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_format_info(specifier, NULL), specifier);
+    DEBUG_ERR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_format_info(specifier, NULL), specifier);
 
 token_error:
-	DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+    DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
 }
 
 /* count amount of keys and check for formatting errors */
 static size_t
 _jscon_format_analyze(char *format)
 {
-	size_t num_keys = 0;
-	while (true) //run until end of string found
+    size_t num_keys = 0;
+    while (true) //run until end of string found
     {
         /* 1st STEP: find % occurrence */
         while (true){
@@ -343,17 +343,17 @@ _jscon_format_analyze(char *format)
 static void
 _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
 {
-	/* Can't decode empty string */
-	DEBUG_ASSERT('\0' != *format, "Empty format");
+    /* Can't decode empty string */
+    DEBUG_ASSERT('\0' != *format, "Empty format");
 
-	char str[256];
+    char str[256];
 
-	struct jscon_pair_s *pair;
+    struct jscon_pair_s *pair;
 
-	/* split keys from its type specifier */
-	size_t i; /* str char index */
-	while (true) /* run until end of string found */
-	{
+    /* split keys from its type specifier */
+    size_t i; /* str char index */
+    while (true) /* run until end of string found */
+    {
         /* 1st STEP: find % occurrence */
         while (true){
             if ('%' == *format){
@@ -408,44 +408,44 @@ _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
         pair->value = va_arg(ap, void*);
 
         dictionary_set(dictionary, &str[strlen(str)+1], pair, &free);
-	}
+    }
 }
 
 /* works like sscanf, will parse stuff only for the keys specified to the format string parameter. the variables assigned to ... must be in
 the correct order, and type, as the requested keys.
 
-	every key found that doesn't match any of the requested keys will be
-	ignored along with all its contents. */
+    every key found that doesn't match any of the requested keys will be
+    ignored along with all its contents. */
 void
 jscon_scanf(char *buffer, char *format, ...)
 {
-	DEBUG_ASSERT(NULL != buffer, "Missing JSON text");
+    DEBUG_ASSERT(NULL != buffer, "Missing JSON text");
 
-	CONSUME_BLANK_CHARS(buffer);
+    CONSUME_BLANK_CHARS(buffer);
 
-	if ('{' != *buffer){
+    if ('{' != *buffer){
         DEBUG_ERR("Item type must be a JSCON_OBJECT");
-	}
+    }
 
-	struct jscon_utils_s utils = {
+    struct jscon_utils_s utils = {
         .buffer = buffer,
-	};
+    };
 
-	va_list ap;
-	va_start(ap, format);
+    va_list ap;
+    va_start(ap, format);
 
-	size_t num_key = _jscon_format_analyze(format);
+    size_t num_key = _jscon_format_analyze(format);
 
-	/* key/value dictionary fetched from format */
-	dictionary_t *dictionary = dictionary_init();
-	dictionary_build(dictionary, num_key);
+    /* key/value dictionary fetched from format */
+    dictionary_t *dictionary = dictionary_init();
+    dictionary_build(dictionary, num_key);
 
-	//return keys for freeing later
-	_jscon_format_decode(format, dictionary, ap);
-	DEBUG_ASSERT(num_key == dictionary->len, "Number of keys encountered is different than allocated");
+    //return keys for freeing later
+    _jscon_format_decode(format, dictionary, ap);
+    DEBUG_ASSERT(num_key == dictionary->len, "Number of keys encountered is different than allocated");
 
-	while ('\0' != *utils.buffer)
-	{
+    while ('\0' != *utils.buffer)
+    {
         if ('\"' == *utils.buffer){
             DEBUG_ASSERT(NULL == utils.key, "utils.key wasn't freed");
             utils.key = Jscon_decode_string(&utils.buffer);
@@ -469,9 +469,9 @@ jscon_scanf(char *buffer, char *format, ...)
         } else {
             ++utils.buffer;
         }
-	}
+    }
 
-	dictionary_destroy(dictionary);
+    dictionary_destroy(dictionary);
 
-	va_end(ap);
+    va_end(ap);
 }

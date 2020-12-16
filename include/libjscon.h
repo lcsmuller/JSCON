@@ -32,19 +32,19 @@
 
 /* All of the possible jscon datatypes */
 enum jscon_type {
-	/* DATATYPE FLAGS */
-	JSCON_UNDEFINED        = 0,
-	JSCON_NULL             = 1 << 0,
-	JSCON_BOOLEAN          = 1 << 1,
-	JSCON_INTEGER          = 1 << 2,
-	JSCON_DOUBLE           = 1 << 3,
-	JSCON_STRING           = 1 << 4,
-	JSCON_OBJECT           = 1 << 5,
-	JSCON_ARRAY            = 1 << 6,
-	/* SUPERSET FLAGS */
-	JSCON_NUMBER           = JSCON_INTEGER | JSCON_DOUBLE,
-	JSCON_ANY              = JSCON_NULL | JSCON_BOOLEAN | JSCON_NUMBER \
-	                         | JSCON_STRING | JSCON_OBJECT | JSCON_ARRAY,
+    /* DATATYPE FLAGS */
+    JSCON_UNDEFINED        = 0,
+    JSCON_NULL             = 1 << 0,
+    JSCON_BOOLEAN          = 1 << 1,
+    JSCON_INTEGER          = 1 << 2,
+    JSCON_DOUBLE           = 1 << 3,
+    JSCON_STRING           = 1 << 4,
+    JSCON_OBJECT           = 1 << 5,
+    JSCON_ARRAY            = 1 << 6,
+    /* SUPERSET FLAGS */
+    JSCON_NUMBER           = JSCON_INTEGER | JSCON_DOUBLE,
+    JSCON_ANY              = JSCON_NULL | JSCON_BOOLEAN | JSCON_NUMBER \
+                             | JSCON_STRING | JSCON_OBJECT | JSCON_ARRAY,
 };
 
 
