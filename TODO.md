@@ -4,9 +4,6 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
-- `jscon_scanf()`
-  - BUG - the last specifier only works if its last character is a space
-  - Allow for more integer datatypes such as `short`, `int` and `long`, instead of just `long long`, to avoid alignment issues
 - `jscon_composite()`
   - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
@@ -14,11 +11,9 @@ This document describes features to be incorporated in the future.
 ## MEDIUM
 
 - Activate debug mode with Makefile
-- Make structs that shouldn't be accessed publically private
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
 - Create a `jscon_printf()` functions following `jscon_scanf()` format rules
 - Create a jscon function that open a json text file and converts it to a string automatically.
-- Replace public function's out of memory memory asserts with a NULL return, so that the user may decide himself how to deal with the error.
 - Add Unicode support
 - Add more example codes
 - Add stringify formatting options
