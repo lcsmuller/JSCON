@@ -61,8 +61,8 @@ static void
 _jscon_utils_apply_string(char *string, struct jscon_utils_s *utils)
 {
 	while ('\0' != *string){
-	  (*utils->method)(*string,utils);
-	  ++string;
+        (*utils->method)(*string,utils);
+        ++string;
 	}
 }
 
@@ -72,8 +72,8 @@ static void
 _jscon_double_tostr(const double d_number, char *p_str, const int digits)
 {
 	if (DOUBLE_IS_INTEGER(d_number)){
-	  sprintf(p_str,"%.lf",d_number); //convert integer to string
-	  return;
+        sprintf(p_str,"%.lf",d_number); //convert integer to string
+        return;
 	}
 
 	int decimal=0, sign=0;
@@ -81,25 +81,25 @@ _jscon_double_tostr(const double d_number, char *p_str, const int digits)
 
 	int i=0;
 	if (0 > sign){ //negative sign detected
-	  p_str[i++] = '-';
+        p_str[i++] = '-';
 	}
 
 	if (IN_RANGE(decimal,-7,17)){
-	  //print scientific notation
-	  sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
-	  return;
+        //print scientific notation
+        sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
+        return;
 	}
 
 	char format[100];
 	if (0 < decimal){
-	  sprintf(format,"%%.%ds.%%.7s",decimal);
-	  sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
+        sprintf(format,"%%.%ds.%%.7s",decimal);
+        sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
 	} else if (0 > decimal) {
-	  sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
-	  sprintf(i + p_str, format, tmp_str);
+        sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
+        sprintf(i + p_str, format, tmp_str);
 	} else {
-	  sprintf(format,"0.%%.7s");
-	  sprintf(i + p_str, format, tmp_str);
+        sprintf(format,"0.%%.7s");
+        sprintf(i + p_str, format, tmp_str);
 	}
 }
 
@@ -131,97 +131,97 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
 	/* 1st STEP: stringify jscon item only if it match the type
 	    given as parameter or is a composite type item */
 	if (!jscon_typecmp(item, type) && !IS_COMPOSITE(item))
-	  return;
+        return;
 
 	/* 2nd STEP: prints item key only if its a object's property
 	    (array's numerical keys printing doesn't conform to standard)*/
 	if (!IS_ROOT(item) && IS_PROPERTY(item)){
-	  (*utils->method)('\"', utils);
-	  _jscon_utils_apply_string(item->key, utils);
-	  (*utils->method)('\"', utils);
-	  (*utils->method)(':', utils);
+        (*utils->method)('\"', utils);
+        _jscon_utils_apply_string(item->key, utils);
+        (*utils->method)('\"', utils);
+        (*utils->method)(':', utils);
 	}
 	
 	/* 3rd STEP: converts item to its string format and append to buffer */
 	switch (item->type){
 	case JSCON_NULL:
-	      _jscon_utils_apply_string("null", utils);
-	      break;
+        _jscon_utils_apply_string("null", utils);
+        break;
 	case JSCON_BOOLEAN:
-	      if (true == item->boolean){
-	        _jscon_utils_apply_string("true", utils);
-	        break;
-	      }
-	      _jscon_utils_apply_string("false", utils);
-	      break;
+        if (true == item->boolean){
+            _jscon_utils_apply_string("true", utils);
+            break;
+        }
+        _jscon_utils_apply_string("false", utils);
+        break;
 	case JSCON_DOUBLE:
-	      _jscon_utils_apply_double(item->d_number, utils);
-	      break;
+        _jscon_utils_apply_double(item->d_number, utils);
+        break;
 	case JSCON_INTEGER:
-	      _jscon_utils_apply_integer(item->i_number, utils);
-	      break;
+        _jscon_utils_apply_integer(item->i_number, utils);
+        break;
 	case JSCON_STRING:
-	      (*utils->method)('\"', utils);
-	      _jscon_utils_apply_string(item->string, utils);
-	      (*utils->method)('\"', utils);
-	      break;
+        (*utils->method)('\"', utils);
+        _jscon_utils_apply_string(item->string, utils);
+        (*utils->method)('\"', utils);
+        break;
 	case JSCON_OBJECT:
-	      (*utils->method)('{', utils);
-	      break;
+        (*utils->method)('{', utils);
+        break;
 	case JSCON_ARRAY:
-	      (*utils->method)('[', utils);
-	      break;
+        (*utils->method)('[', utils);
+        break;
 	default:
-	      DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
-	}
+        DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
+    }
 
 	/* 4th STEP: if item is is a branch's leaf (defined at macros.h),
 	    the 5th step can be ignored and returned */
 	if (IS_LEAF(item)){
-	  switch(item->type){
-	  case JSCON_OBJECT:
-	        (*utils->method)('}', utils);
-	        return;
-	  case JSCON_ARRAY:
-	        (*utils->method)(']', utils);
-	        return;
-	  default: //is a primitive, just return
-	        return;
-	  }
+        switch(item->type){
+        case JSCON_OBJECT:
+            (*utils->method)('}', utils);
+            return;
+        case JSCON_ARRAY:
+            (*utils->method)(']', utils);
+            return;
+        default: //is a primitive, just return
+            return;
+        }
 	}
 
 	/* 5th STEP: find first item's branch that matches the given type, and 
 	    calls the write function on it */
 	size_t first_index=0;
 	while (first_index < item->comp->num_branch){
-	  if (jscon_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
-	    _jscon_traverse_preorder(item->comp->branch[first_index], type, utils);
-	    break;
-	  }
-	  ++first_index;
+        if (jscon_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
+            _jscon_traverse_preorder(item->comp->branch[first_index], type, utils);
+            break;
+        }
+        ++first_index;
 	}
 
 	/* 6th STEP: calls the write function on every consecutive branch
 	    that matches the type criteria, with an added comma before it */
 	for (size_t j = first_index+1; j < item->comp->num_branch; ++j){
-	  /* skips branch that don't fit the criteria */
-	  if (!jscon_typecmp(item, type) && !IS_COMPOSITE(item)){
-	    continue;
-	  }
-	  (*utils->method)(',',utils);
-	  _jscon_traverse_preorder(item->comp->branch[j], type, utils);
+        /* skips branch that don't fit the criteria */
+        if (!jscon_typecmp(item, type) && !IS_COMPOSITE(item)){
+            continue;
+        }
+        (*utils->method)(',',utils);
+        _jscon_traverse_preorder(item->comp->branch[j], type, utils);
 	}
 
 	/* 7th STEP: write the composite's type item wrapper token */
 	switch(item->type){
 	case JSCON_OBJECT:
-	      (*utils->method)('}', utils);
-	      break;
+        (*utils->method)('}', utils);
+        break;
 	case JSCON_ARRAY:
-	      (*utils->method)(']', utils);
-	      break;
+        (*utils->method)(']', utils);
+        break;
 	default: /* this shouldn't ever happen, but just in case */
-	      DEBUG_ERR("Item is not an Object or Array");
+        DEBUG_ERR("Item is not an Object or Array");
 	}
 }
 

@@ -69,7 +69,7 @@ int main(void)
 	jscon_item_t *curr_item = NULL;
 	jscon_item_t *item = jscon_iter_composite_r(root, &curr_item);
 	do {
-	  fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
+        fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
 	} while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
 	char *buffer = jscon_stringify(root, JSCON_ANY);

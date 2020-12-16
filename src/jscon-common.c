@@ -41,8 +41,8 @@ Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_c
 
 	jscon_composite_t *last_accessed_comp = *p_last_accessed_comp;
 	if (NULL != last_accessed_comp){
-	  last_accessed_comp->next = item->comp; //item is not root
-	  item->comp->prev = last_accessed_comp;
+        last_accessed_comp->next = item->comp; //item is not root
+        item->comp->prev = last_accessed_comp;
 	}
 
 	last_accessed_comp = item->comp;
@@ -60,7 +60,7 @@ Jscon_composite_build(jscon_item_t *item)
 	item->comp->p_item = item;
 
 	for (size_t i=0; i < item->comp->num_branch; ++i){
-	  Jscon_composite_set(item->comp->branch[i]->key, item->comp->branch[i]);
+        Jscon_composite_set(item->comp->branch[i]->key, item->comp->branch[i]);
 	}
 }
 
@@ -118,9 +118,9 @@ Jscon_decode_string(char **p_buffer)
 
 	char *end = ++start;
 	while (('\0' != *end) && ('\"' != *end)){
-	  if ('\\' == *end++){ //skips escaped characters
-	    ++end;
-	  }
+        if ('\\' == *end++){ //skips escaped characters
+            ++end;
+        }
 	}
 	DEBUG_ASSERT('\"' == *end, "Not a string"); //makes sure end of string exists
 
@@ -140,33 +140,30 @@ Jscon_decode_double(char **p_buffer)
 
 	/* 1st STEP: check for a minus sign and skip it */
 	if ('-' == *end){
-	  ++end; //skips minus sign
+        ++end; //skips minus sign
 	}
 
 	/* 2nd STEP: skips until a non digit char found */
 	DEBUG_ASSERT(isdigit(*end), "Not a number"); //interrupt if char isn't digit
-	while (isdigit(*++end)){
-	  continue; //skips while char is digit
-	}
+	while (isdigit(*++end))
+        continue; //skips while char is digit
 
 	/* 3rd STEP: if non-digit char is not a comma then it must be
 	    an integer*/
 	if ('.' == *end){
-	  while (isdigit(*++end)){
-	    continue;
-	  }
+        while (isdigit(*++end))
+            continue;
 	}
 
 	/* 4th STEP: if exponent found skips its tokens */
 	if (('e' == *end) || ('E' == *end)){
-	  ++end;
-	  if (('+' == *end) || ('-' == *end)){ 
-	    ++end;
-	  }
-	  DEBUG_ASSERT(isdigit(*end), "Not a number");
-	  while (isdigit(*++end)){
-	    continue;
-	  }
+        ++end;
+        if (('+' == *end) || ('-' == *end)){ 
+            ++end;
+        }
+        DEBUG_ASSERT(isdigit(*end), "Not a number");
+        while (isdigit(*++end))
+            continue;
 	}
 
 	/* 5th STEP: convert string to double and return its value */
@@ -185,8 +182,8 @@ bool
 Jscon_decode_boolean(char **p_buffer)
 {
 	if ('t' == **p_buffer){
-	  *p_buffer += 4; //skips length of "true"
-	  return true;
+        *p_buffer += 4; //skips length of "true"
+        return true;
 	}
 	*p_buffer += 5; //skips length of "false"
 	return false;

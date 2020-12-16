@@ -26,8 +26,8 @@ ssize_t strscpy(char *dest, const char *src, size_t n)
 {
 	size_t i;
 	for (i = 0; i < n; ++i){
-	  if ('\0' == (dest[i] = src[i])) 
-	    return i > SSIZE_MAX ? -1 : (ssize_t) i;
+        if ('\0' == (dest[i] = src[i])) 
+            return i > SSIZE_MAX ? -1 : (ssize_t) i;
 	}
 
 	if (0 == i) return 0;

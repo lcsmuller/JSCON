@@ -16,17 +16,19 @@
 #       define __DEBUG_NOTOP_PRINT(fmt, ...) fprintf(DEBUG_OUT, "\t"fmt"\n%s", __VA_ARGS__)
 #       define DEBUG_NOTOP_PRINT(...) __DEBUG_NOTOP_PRINT(__VA_ARGS__, "")
 #       define __DEBUG_ERR(fmt, ...) fprintf(DEBUG_OUT, DEBUG_FMT_PREFIX "ERROR:\t"fmt"\n%s", DEBUG_FMT_ARGS, __VA_ARGS__)
-#       define DEBUG_ERR(...) do { \
-              __DEBUG_ERR(__VA_ARGS__, ""); \
-              abort(); \
-          } while (0)
+#       define DEBUG_ERR(...) \
+        do { \
+            __DEBUG_ERR(__VA_ARGS__, ""); \
+            abort(); \
+        } while (0)
 /* @param expr to be checked for its validity
    @param msg to be printed in case of invalidity */
-#       define DEBUG_ASSERT(expr, msg) do { \
-              if (!(expr)){ \
+#       define DEBUG_ASSERT(expr, msg) \
+        do { \
+            if (!(expr)){ \
                 DEBUG_ERR("Assert Failed:\t%s\n\tExpected:\t%s", msg, #expr); \
-              } \
-          } while(0)
+            } \
+        } while(0)
 #       define DEBUG_ONLY_ASSERT(expr, msg) DEBUG_ASSERT(expr, msg)
 /* @param snippet to be executed if debug mode is active */
 #       define DEBUG_ONLY(arg) (arg)

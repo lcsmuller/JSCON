@@ -59,15 +59,15 @@ int main(int argc, char *argv[])
 	             &item[0]);
 	
 	for (size_t i=0; i<3; ++i){
-	  if (NULL == item[i])
-	  continue;
+        if (NULL == item[i])
+        continue;
 
-	  buffer = jscon_stringify(item[i], JSCON_ANY);
-	  assert(NULL != buffer);
+        buffer = jscon_stringify(item[i], JSCON_ANY);
+        assert(NULL != buffer);
 
-	  //fprintf(stdout, "%s: %s\n", jscon_get_key(item[i]), buffer);
-	  free(buffer);
-	  jscon_destroy(item[i]);
+        //fprintf(stdout, "%s: %s\n", jscon_get_key(item[i]), buffer);
+        free(buffer);
+        jscon_destroy(item[i]);
 	}
 
 	fprintf(stdout, "s: %d\n", integer1);
@@ -82,12 +82,12 @@ int main(int argc, char *argv[])
 	jscon_item_t *property1 = jscon_dettach(jscon_get_branch(root, "author"));
 
 	if (NULL != property1){
-	  buffer = jscon_stringify(property1, JSCON_ANY);
-	  assert(NULL != buffer);
+        buffer = jscon_stringify(property1, JSCON_ANY);
+        assert(NULL != buffer);
 
-	  fprintf(stdout, "%s: %s\n", jscon_get_key(property1), buffer);
-	  free(buffer);
-	  jscon_destroy(property1);
+        fprintf(stdout, "%s: %s\n", jscon_get_key(property1), buffer);
+        free(buffer);
+        jscon_destroy(property1);
 	}
 
 	fprintf(stdout, "key: meta, index: %ld\n", jscon_get_index(root, "meta"));
@@ -97,29 +97,29 @@ int main(int argc, char *argv[])
 	jscon_item_t *current_item = NULL, *tmp;
 	jscon_item_t *walk = jscon_iter_composite_r(root, &current_item);
 	do {
-	  tmp = jscon_get_branch(walk, "m");
-	  if (NULL != tmp){
-	    buffer = jscon_stringify(tmp, JSCON_ANY);
-	    assert(NULL != buffer);
+        tmp = jscon_get_branch(walk, "m");
+        if (NULL != tmp){
+            buffer = jscon_stringify(tmp, JSCON_ANY);
+            assert(NULL != buffer);
 
-	    fwrite(buffer, 1, strlen(buffer), stderr);
-	    fputc('\n', stderr);
-	    free(buffer);
-	  }
+            fwrite(buffer, 1, strlen(buffer), stderr);
+            fputc('\n', stderr);
+            free(buffer);
+        }
 
-	  walk = jscon_iter_composite_r(NULL, &current_item);
+        walk = jscon_iter_composite_r(NULL, &current_item);
 	} while (NULL != walk);
 
 	walk = root;
 	for (int i=0; i < 5 && walk; ++i){
-	  fprintf(stderr, "%s\n", jscon_get_key(walk));
-	  walk = jscon_iter_next(walk);
+        fprintf(stderr, "%s\n", jscon_get_key(walk));
+        walk = jscon_iter_next(walk);
 	}
 
 	walk = root;
 	do {
-	  fprintf(stderr, "%s\n", jscon_get_key(walk));
-	  walk = jscon_iter_next(walk);
+        fprintf(stderr, "%s\n", jscon_get_key(walk));
+        walk = jscon_iter_next(walk);
 	} while (NULL != walk);
 
 	buffer = jscon_stringify(root, JSCON_ANY);
@@ -140,15 +140,15 @@ FILE *select_output(int argc, char *argv[])
 {
 	char *p_arg=NULL;
 	while (argc--){
-	  p_arg = *argv++;
-	  if ((*p_arg++ == '-') && (*p_arg++ == 'o') && (*p_arg == '\0')){
-	    assert(1 == argc); //check if theres exactly one arg left
+        p_arg = *argv++;
+        if ((*p_arg++ == '-') && (*p_arg++ == 'o') && (*p_arg == '\0')){
+            assert(1 == argc); //check if theres exactly one arg left
 
-	    char *file = *argv;
-	    assert(access(file, W_OK)); //check if file exists
+            char *file = *argv;
+            assert(access(file, W_OK)); //check if file exists
 
-	    return fopen(file, "w");
-	  }
+            return fopen(file, "w");
+        }
 	}
 
 	return fopen("data.txt", "w");
@@ -198,7 +198,7 @@ get_json_text(char filename[])
 jscon_item_t *callback_test(jscon_item_t *item)
 {
 	if (NULL != item && jscon_keycmp(item, "m")){
-	  fprintf(stdout, "%s\n", jscon_get_string(item));
+        fprintf(stdout, "%s\n", jscon_get_string(item));
 	}
 	  
 	return item;

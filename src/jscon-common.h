@@ -95,11 +95,11 @@ void Jscon_composite_remake(jscon_item_t *item);
  *      by its type.  */
 typedef struct jscon_item_s {
 	union {
-	  char *string;
-	  double d_number;
-	  long long i_number;
-	  bool boolean;
-	  jscon_composite_t *comp;
+        char *string;
+        double d_number;
+        long long i_number;
+        bool boolean;
+        jscon_composite_t *comp;
 	};
 	enum jscon_type type;
 
