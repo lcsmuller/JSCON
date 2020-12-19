@@ -49,7 +49,7 @@ static jscon_item_t*
 _jscon_item_init()
 {
     jscon_item_t *new_item = calloc(1, sizeof *new_item);
-    DEBUG_ASSERT(NULL != new_item, "Out of memory");
+    ASSERT_S(NULL != new_item, "Out of memory");
 
     return new_item;
 }
@@ -177,7 +177,7 @@ _jscon_count_property(char *buffer)
                     ++buffer;
                 }
             } while ('\0' != *buffer && '\"' != *buffer);
-            DEBUG_ASSERT('\"' == *buffer, "Not a string");
+            ASSERT_S('\"' == *buffer, "Not a string");
             break;
         }
 
@@ -187,7 +187,7 @@ _jscon_count_property(char *buffer)
 
     } while ('\0' != *buffer);
 
-    DEBUG_ERR("Bad formatting");
+    ERROR("Bad formatting");
     abort();
 }
 
@@ -228,7 +228,7 @@ _jscon_count_element(char *buffer)
                     ++buffer;
                 }
             } while ('\0' != *buffer && '\"' != *buffer);
-            DEBUG_ASSERT('\"' == *buffer, "Not a String");
+            ASSERT_S('\"' == *buffer, "Not a String");
             break;
         }
 
@@ -238,7 +238,7 @@ _jscon_count_element(char *buffer)
 
     } while ('\0' != *buffer);
 
-    DEBUG_ERR("Bad formatting");
+    ERROR("Bad formatting");
     abort();
 }
 
@@ -340,7 +340,7 @@ _jscon_branch_build(jscon_item_t *item, struct jscon_utils_s *utils)
 
 
 token_error:
-    DEBUG_ERR("Invalid '%c' token", *utils->buffer);
+    ERROR("Invalid '%c' token", *utils->buffer);
     abort();
 }
 
@@ -364,9 +364,9 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
         char numerical_key[MAX_DIGITS];
         snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
 
-        DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
+        ASSERT_S(NULL == utils->key, "utils->key wasn't freed");
         utils->key = strdup(numerical_key);
-        DEBUG_ASSERT(NULL != utils->key, "Out of memory");
+        ASSERT_S(NULL != utils->key, "Out of memory");
 
         return _jscon_branch_build(item, utils);
      }
@@ -390,15 +390,15 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
         CONSUME_BLANK_CHARS(utils->buffer);
     /* fall through */
     case '\"':/*KEY STRING DETECTED*/
-        DEBUG_ASSERT(NULL == utils->key, "utils->key wasn't freed");
+        ASSERT_S(NULL == utils->key, "utils->key wasn't freed");
         utils->key = Jscon_decode_string(&utils->buffer);
-        DEBUG_ASSERT(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
+        ASSERT_S(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
         ++utils->buffer; //skips ':'
         CONSUME_BLANK_CHARS(utils->buffer);
         return _jscon_branch_build(item, utils);
     default:
         if (!IS_BLANK_CHAR(*utils->buffer)){
-            DEBUG_ERR("Invalid '%c' token", *utils->buffer);
+            ERROR("Invalid '%c' token", *utils->buffer);
         }
         CONSUME_BLANK_CHARS(utils->buffer);
         return item;
@@ -447,7 +447,7 @@ _jscon_entity_build(jscon_item_t *item, struct jscon_utils_s *utils)
 
 
 token_error:
-    DEBUG_ERR("Invalid '%c' token", *utils->buffer);
+    ERROR("Invalid '%c' token", *utils->buffer);
     abort(); 
 }
 
@@ -498,7 +498,7 @@ jscon_parse(char *buffer)
 
             break;
         default:
-            DEBUG_ERR("Unknown item->type found\n\t"
+            ERROR("Unknown item->type found\n\t"
                       "Code: %d", item->type);
         }
     }

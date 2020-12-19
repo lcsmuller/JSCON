@@ -172,7 +172,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
         (*utils->method)('[', utils);
         break;
     default:
-        DEBUG_ERR("Can't stringify undefined datatype, code: %d", item->type);
+        ERROR("Can't stringify undefined datatype, code: %d", item->type);
     }
 
     /* 4th STEP: if item is is a branch's leaf (defined at macros.h),
@@ -221,7 +221,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
         (*utils->method)(']', utils);
         break;
     default: /* this shouldn't ever happen, but just in case */
-        DEBUG_ERR("Item is not an Object or Array");
+        ERROR("Item is not an Object or Array");
     }
 }
 
@@ -229,7 +229,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
 char*
 jscon_stringify(jscon_item_t *root, enum jscon_type type)
 {
-    DEBUG_ASSERT(NULL != root, "Item is NULL");
+    ASSERT_S(NULL != root, "Item is NULL");
 
     struct jscon_utils_s utils = {0};
 

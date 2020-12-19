@@ -202,7 +202,7 @@ _jscon_depth(jscon_item_t *item)
 static jscon_composite_t*
 _jscon_get_last_comp(jscon_item_t *item)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
     size_t item_depth = _jscon_depth(item);
 
@@ -218,10 +218,10 @@ _jscon_get_last_comp(jscon_item_t *item)
 jscon_item_t*
 jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
     if (new_branch == item){
-        DEBUG_ASSERT(NULL != item->key, "Can't perform circular append of item without a key");
+        ASSERT_S(NULL != item->key, "Can't perform circular append of item without a key");
         new_branch = jscon_clone(item);
         if (NULL == new_branch) return NULL;
     }
@@ -319,7 +319,7 @@ jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
     /* if item is not NULL, set p_current_item to item, otherwise
         fetch next iteration */ 
     if (NULL != item){
-        DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+        ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
         *p_current_item = item;
         return item;
     }
@@ -344,8 +344,8 @@ jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
 static inline jscon_item_t*
 _jscon_push(jscon_item_t *item)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
-    DEBUG_ASSERT(item->comp->last_accessed_branch < item->comp->num_branch, "Overflow, trying to access forbidden memory");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(item->comp->last_accessed_branch < item->comp->num_branch, "Overflow, trying to access forbidden memory");
 
     ++item->comp->last_accessed_branch; //update last_accessed_branch to next
     jscon_item_t *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
@@ -478,14 +478,14 @@ jscon_keycmp(const jscon_item_t *item, const char *key){
 
 int
 jscon_doublecmp(const jscon_item_t *item, const double d_number){
-    DEBUG_ASSERT(JSCON_DOUBLE == item->type, "Item type is not a Double");
+    ASSERT_S(JSCON_DOUBLE == item->type, "Item type is not a Double");
 
     return item->d_number == d_number;
 }
 
 int
 jscon_intcmp(const jscon_item_t *item, const long long i_number){
-    DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
+    ASSERT_S(JSCON_INTEGER == item->type, "Item type is not a Integer");
 
     return item->i_number == i_number;
 }
@@ -505,7 +505,7 @@ jscon_get_root(jscon_item_t *item)
 jscon_item_t*
 jscon_get_branch(jscon_item_t *item, const char *key)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
     /* search for entry with given key at item's comp,
       and retrieve found or not found(NULL) item */
     return Jscon_composite_get(key, item);
@@ -515,7 +515,7 @@ jscon_get_branch(jscon_item_t *item, const char *key)
 jscon_item_t*
 jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
 {
-    DEBUG_ASSERT(!IS_ROOT(origin), "Origin is root (has no siblings)");
+    ASSERT_S(!IS_ROOT(origin), "Origin is root (has no siblings)");
 
     const jscon_item_t* parent = origin->parent;
 
@@ -539,14 +539,14 @@ jscon_get_parent(const jscon_item_t *item){
 jscon_item_t*
 jscon_get_byindex(const jscon_item_t *item, const size_t index)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
     return (index < item->comp->num_branch) ? item->comp->branch[index] : NULL;
 }
 
 long
 jscon_get_index(const jscon_item_t *item, const char *key)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
     jscon_item_t *lookup_item = Jscon_composite_get(key, (jscon_item_t*)item);
 
@@ -559,7 +559,7 @@ jscon_get_index(const jscon_item_t *item, const char *key)
         }
     }
 
-    DEBUG_ERR("Item exists in hashtable but is not referenced by parent");
+    ERROR("Item exists in hashtable but is not referenced by parent");
     abort();
 }
 
@@ -578,7 +578,7 @@ jscon_get_boolean(const jscon_item_t *item)
 {
     if (NULL == item || JSCON_NULL == item->type) return false;
 
-    DEBUG_ASSERT(JSCON_BOOLEAN == item->type, "Item type is not a Boolean");
+    ASSERT_S(JSCON_BOOLEAN == item->type, "Item type is not a Boolean");
     return item->boolean;
 }
 
@@ -587,7 +587,7 @@ jscon_get_string(const jscon_item_t *item)
 {
     if (NULL == item || JSCON_NULL == item->type) return NULL;
 
-    DEBUG_ASSERT(JSCON_STRING == item->type, "Item type is not a String");
+    ASSERT_S(JSCON_STRING == item->type, "Item type is not a String");
     return item->string;
 }
 
@@ -596,7 +596,7 @@ jscon_get_double(const jscon_item_t *item)
 {
     if (NULL == item || JSCON_NULL == item->type) return 0.0;
 
-    DEBUG_ASSERT(JSCON_DOUBLE == item->type, "Item type is not a Double");
+    ASSERT_S(JSCON_DOUBLE == item->type, "Item type is not a Double");
     return item->d_number;
 }
 
@@ -605,7 +605,7 @@ jscon_get_integer(const jscon_item_t *item)
 {
     if (NULL == item || JSCON_NULL == item->type) return 0;
 
-    DEBUG_ASSERT(JSCON_INTEGER == item->type, "Item type is not a Integer");
+    ASSERT_S(JSCON_INTEGER == item->type, "Item type is not a Integer");
     return item->i_number;
 }
 /*

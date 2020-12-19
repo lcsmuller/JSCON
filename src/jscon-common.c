@@ -37,7 +37,7 @@
 void
 Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_comp)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
     jscon_composite_t *last_accessed_comp = *p_last_accessed_comp;
     if (NULL != last_accessed_comp){
@@ -53,7 +53,7 @@ Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_c
 void
 Jscon_composite_build(jscon_item_t *item)
 {
-    DEBUG_ASSERT(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
     hashtable_build(item->comp->hashtable, 2 + (1.3 * item->comp->num_branch)); //30% size increase to account for future expansions, and a default bucket size of 2
 
@@ -76,7 +76,7 @@ Jscon_composite_get(const char *key, jscon_item_t *item)
 jscon_item_t*
 Jscon_composite_set(const char *key, jscon_item_t *item)
 {
-    DEBUG_ASSERT(!IS_ROOT(item), "Can't add to parent hashtable if Item is root");
+    ASSERT_S(!IS_ROOT(item), "Can't add to parent hashtable if Item is root");
 
     jscon_composite_t *comp = item->parent->comp;
     return hashtable_set(comp->hashtable, key, item);
@@ -89,7 +89,7 @@ Jscon_composite_remake(jscon_item_t *item)
     hashtable_destroy(item->comp->hashtable);
 
     item->comp->hashtable = hashtable_init();
-    DEBUG_ASSERT(NULL != item->comp->hashtable, "Out of memory");
+    ASSERT_S(NULL != item->comp->hashtable, "Out of memory");
 
     Jscon_composite_build(item);
 }
@@ -97,13 +97,13 @@ Jscon_composite_remake(jscon_item_t *item)
 jscon_composite_t*
 Jscon_decode_composite(char **p_buffer, size_t n_branch){
     jscon_composite_t *new_comp = calloc(1, sizeof *new_comp);
-    DEBUG_ASSERT(NULL != new_comp, "Out of memory");
+    ASSERT_S(NULL != new_comp, "Out of memory");
 
     new_comp->hashtable = hashtable_init(); 
-    DEBUG_ASSERT(NULL != new_comp->hashtable, "Out of memory");
+    ASSERT_S(NULL != new_comp->hashtable, "Out of memory");
 
     new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_t*));
-    DEBUG_ASSERT(NULL != new_comp->branch, "Out of memory");
+    ASSERT_S(NULL != new_comp->branch, "Out of memory");
 
     ++*p_buffer; //skips composite's '{' or '[' delim
 
@@ -114,7 +114,7 @@ char*
 Jscon_decode_string(char **p_buffer)
 {
     char *start = *p_buffer;
-    DEBUG_ASSERT('\"' == *start, "Not a string"); //makes sure a string is given
+    ASSERT_S('\"' == *start, "Not a string"); //makes sure a string is given
 
     char *end = ++start;
     while (('\0' != *end) && ('\"' != *end)){
@@ -122,12 +122,12 @@ Jscon_decode_string(char **p_buffer)
             ++end;
         }
     }
-    DEBUG_ASSERT('\"' == *end, "Not a string"); //makes sure end of string exists
+    ASSERT_S('\"' == *end, "Not a string"); //makes sure end of string exists
 
     *p_buffer = end + 1; //skips double quotes buffer position
 
     char *set_str = strndup(start, end-start);
-    DEBUG_ASSERT(NULL != set_str, "Out of memory");
+    ASSERT_S(NULL != set_str, "Out of memory");
 
     return set_str;
 }
@@ -144,7 +144,7 @@ Jscon_decode_double(char **p_buffer)
     }
 
     /* 2nd STEP: skips until a non digit char found */
-    DEBUG_ASSERT(isdigit(*end), "Not a number"); //interrupt if char isn't digit
+    ASSERT_S(isdigit(*end), "Not a number"); //interrupt if char isn't digit
     while (isdigit(*++end))
         continue; //skips while char is digit
 
@@ -161,7 +161,7 @@ Jscon_decode_double(char **p_buffer)
         if (('+' == *end) || ('-' == *end)){ 
             ++end;
         }
-        DEBUG_ASSERT(isdigit(*end), "Not a number");
+        ASSERT_S(isdigit(*end), "Not a number");
         while (isdigit(*++end))
             continue;
     }

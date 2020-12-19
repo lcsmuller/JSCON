@@ -28,6 +28,10 @@
 //#include <libjscon.h> (implicit)
 #include "hashtable.h"
 
+
+#define DEBUG_MODE 1
+
+
 #define JSCON_VERSION "0.0"
 
 #define MAX_DIGITS 17

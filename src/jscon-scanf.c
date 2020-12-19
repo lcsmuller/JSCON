@@ -54,7 +54,7 @@ _jscon_skip_string(struct jscon_utils_s *utils)
             ++utils->buffer;
         }
     } while ('\0' != *utils->buffer && '\"' != *utils->buffer);
-    DEBUG_ASSERT('\"' == *utils->buffer, "Not a String");
+    ASSERT_S('\"' == *utils->buffer, "Not a String");
     ++utils->buffer; //skip double quotes
 }
 
@@ -278,10 +278,10 @@ _jscon_apply(struct jscon_utils_s *utils, struct jscon_pair_s *pair)
 
 
 type_error:
-    DEBUG_ERR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_format_info(specifier, NULL), specifier);
+    ERROR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_format_info(specifier, NULL), specifier);
 
 token_error:
-    DEBUG_ERR("Invalid JSON Token: %c", *utils->buffer);
+    ERROR("Invalid JSON Token: %c", *utils->buffer);
 }
 
 /* count amount of keys and check for formatting errors */
@@ -298,10 +298,10 @@ _jscon_format_analyze(char *format)
                 break;
             }
             if ('\0' == *format){
-                DEBUG_ASSERT(num_keys != 0, "No type specifiers from format");
+                ASSERT_S(num_keys != 0, "No type specifiers from format");
                 return num_keys;
             }
-            DEBUG_ASSERT(']' != *format, "Found extra ']' in key specifier");
+            ASSERT_S(']' != *format, "Found extra ']' in key specifier");
 
             ++format;
         }
@@ -313,11 +313,11 @@ _jscon_format_analyze(char *format)
                 break;
             }
             if ('\0' == *format){
-                DEBUG_ERR("Missing format '[' key prefix\n\t"\
+                ERROR("Missing format '[' key prefix\n\t"\
                         "Found: '%c'", *format);
             }
             if (!isalpha(*format)){
-                DEBUG_ERR("Unknown type specifier character\n\t"
+                ERROR("Unknown type specifier character\n\t"
                         "Found: '%c'", *format);
             }
             ++format;
@@ -330,7 +330,7 @@ _jscon_format_analyze(char *format)
                 break;
             }
             if ('\0' == *format){
-                DEBUG_ERR("Missing format ']' key suffix\n\t"\
+                ERROR("Missing format ']' key suffix\n\t"\
                         "Found: '%c'", *format);
             }
             ++format;
@@ -344,7 +344,7 @@ static void
 _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
 {
     /* Can't decode empty string */
-    DEBUG_ASSERT('\0' != *format, "Empty format");
+    ASSERT_S('\0' != *format, "Empty format");
 
     char str[256];
 
@@ -371,7 +371,7 @@ _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
         /* 2nd STEP: fetch type specifier */
         while (true){
             ++i;
-            DEBUG_ASSERT(i <= sizeof(str), "Buffer overflow");
+            ASSERT_S(i <= sizeof(str), "Buffer overflow");
 
             if ('[' == *format){
                 ++format;
@@ -391,18 +391,18 @@ _jscon_format_decode(char *format, dictionary_t *dictionary, va_list ap)
 
             str[i] = *format++;
             ++i;
-            DEBUG_ASSERT(i <= sizeof(str), "Buffer overflow");
+            ASSERT_S(i <= sizeof(str), "Buffer overflow");
         }
 
         /* 4th STEP: store extracted specifier/value in a 
         *  struct jscon_pair_s, then assign that pair with its matching
         *  key and store it in a dictionary for later retrieval */
         pair = malloc(sizeof *pair);
-        DEBUG_ASSERT(NULL != pair, "Out of memory");
+        ASSERT_S(NULL != pair, "Out of memory");
 
         strscpy(pair->specifier, str, sizeof(pair->specifier)); //get specifier string
         if (STREQ("NaN", _jscon_format_info(pair->specifier, NULL))){
-            DEBUG_ERR("Unknown type specifier %%%s", pair->specifier);
+            ERROR("Unknown type specifier %%%s", pair->specifier);
         }
 
         pair->value = va_arg(ap, void*);
@@ -419,12 +419,12 @@ the correct order, and type, as the requested keys.
 void
 jscon_scanf(char *buffer, char *format, ...)
 {
-    DEBUG_ASSERT(NULL != buffer, "Missing JSON text");
+    ASSERT_S(NULL != buffer, "Missing JSON text");
 
     CONSUME_BLANK_CHARS(buffer);
 
     if ('{' != *buffer){
-        DEBUG_ERR("Item type must be a JSCON_OBJECT");
+        ERROR("Item type must be a JSCON_OBJECT");
     }
 
     struct jscon_utils_s utils = {
@@ -442,14 +442,14 @@ jscon_scanf(char *buffer, char *format, ...)
 
     //return keys for freeing later
     _jscon_format_decode(format, dictionary, ap);
-    DEBUG_ASSERT(num_key == dictionary->len, "Number of keys encountered is different than allocated");
+    ASSERT_S(num_key == dictionary->len, "Number of keys encountered is different than allocated");
 
     while ('\0' != *utils.buffer)
     {
         if ('\"' == *utils.buffer){
-            DEBUG_ASSERT(NULL == utils.key, "utils.key wasn't freed");
+            ASSERT_S(NULL == utils.key, "utils.key wasn't freed");
             utils.key = Jscon_decode_string(&utils.buffer);
-            DEBUG_ASSERT(':' == *utils.buffer, "Missing ':' token after key"); //check for key's assign token 
+            ASSERT_S(':' == *utils.buffer, "Missing ':' token after key"); //check for key's assign token 
 
             ++utils.buffer; //consume ':'
             CONSUME_BLANK_CHARS(utils.buffer);
