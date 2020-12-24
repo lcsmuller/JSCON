@@ -119,23 +119,6 @@ free_string:
     return NULL;
 }
 
-/* @todo add condition to stop if after linking item hwrap to a already
-      formed composite. This is far from ideal, I should probably try to
-      make this iteratively just so that I have a better control on whats
-      going on, early break conditions etc. As it is now it will keep on
-      going deeper and deeper recursively, even if not necessary */
-static void
-_jscon_comp_link_preorder(jscon_item_t *item, jscon_composite_t **last_accessed_comp)
-{
-    Jscon_composite_link_r(item, last_accessed_comp);
-
-    for (size_t i=0; i < item->comp->num_branch; ++i){
-        if (IS_COMPOSITE(item->comp->branch[i])){
-            _jscon_comp_link_preorder(item->comp->branch[i], last_accessed_comp);
-        }
-    }
-}
-
 inline static jscon_item_t*
 _jscon_composite(const char *key, enum jscon_type type)
 {
@@ -150,9 +133,6 @@ _jscon_composite(const char *key, enum jscon_type type)
 
     new_item->comp->branch = malloc(sizeof(jscon_item_t*));
     if (NULL == new_item->comp->branch) goto branch_free;
-
-    jscon_composite_t *last_accessed_comp = NULL;
-    _jscon_comp_link_preorder(new_item, &last_accessed_comp);
 
     Jscon_composite_build(new_item);
 
@@ -200,7 +180,7 @@ _jscon_depth(jscon_item_t *item)
 
 /* get the last comp relative to the item */
 static jscon_composite_t*
-_jscon_get_last_comp(jscon_item_t *item)
+_jscon_get_deepest(jscon_item_t *item)
 {
     ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
@@ -208,7 +188,10 @@ _jscon_get_last_comp(jscon_item_t *item)
 
     /* get the deepest nested composite relative to item */
     jscon_composite_t *comp_last = item->comp;
-    while(NULL != comp_last->next && item_depth < _jscon_depth(comp_last->next->p_item)){
+    while(NULL != comp_last->next){
+        if (item_depth > _jscon_depth(comp_last->next->p_item)){
+            break;
+        }
         comp_last = comp_last->next;
     }
 
@@ -218,12 +201,33 @@ _jscon_get_last_comp(jscon_item_t *item)
 jscon_item_t*
 jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 {
-    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(new_branch != item, "Can't perform circular append");
 
-    if (new_branch == item){
-        ASSERT_S(NULL != item->key, "Can't perform circular append of item without a key");
-        new_branch = jscon_clone(item);
-        if (NULL == new_branch) return NULL;
+    switch (item->type){
+    case JSCON_ARRAY:
+     {
+        char *hold_key = new_branch->key; /* hold new_branch->key incase we can't allocate memory for new numerical key */
+
+        char numerical_key[MAX_DIGITS];
+        snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
+
+        new_branch->key = strdup(numerical_key);
+        if (NULL == new_branch->key){
+            /* Out of memory, reattach its old key
+             *  and return NULL */
+            new_branch->key = hold_key;
+            return NULL;
+        }
+
+        if (hold_key != NULL){
+            free(hold_key);
+        }
+     }
+    /* fall through */
+    case JSCON_OBJECT:
+        break;
+    default:
+        ERROR("Item is not an Object or Array (can't append to)");
     }
 
     /* realloc parent references to match new size */
@@ -246,7 +250,7 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
     if (IS_PRIMITIVE(new_branch)) return new_branch;
 
     /* get the last comp relative to item */
-    jscon_composite_t *comp_last = _jscon_get_last_comp(item);
+    jscon_composite_t *comp_last = _jscon_get_deepest(item);
     comp_last->next = new_branch->comp;
     new_branch->comp->prev = comp_last;
 
@@ -257,7 +261,7 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 jscon_item_t*
 jscon_dettach(jscon_item_t *item)
 {
-    //can't dettach root from nothing
+    /* can't dettach root from nothing */
     if (NULL == item || IS_ROOT(item)) return item;
 
     /* get the item index reference from its parent */
@@ -282,7 +286,7 @@ jscon_dettach(jscon_item_t *item)
     /* get the immediate previous comp relative to the item */
     jscon_composite_t *comp_prev = item->comp->prev;
     /* get the last comp relative to item */
-    jscon_composite_t *comp_last = _jscon_get_last_comp(item);
+    jscon_composite_t *comp_last = _jscon_get_deepest(item);
 
     /* remove tree references to the item */
     comp_prev->next = comp_last->next;
@@ -307,37 +311,37 @@ jscon_delete(jscon_item_t *item, const char *key)
 
 
 /* reentrant function, works similar to strtok. the starting point is set
-      by doing the function call before the main iteration loop, then
-      consecutive function calls inside the loop will continue the iteration
-      from then on if item is then set to NULL.
-      
-      p_current_item allows for thread safety reentrancy, it should not be
-      modified outside of this routine*/
+ *  by doing the function call before the main iteration loop, then
+ *  consecutive function calls inside the loop will continue the iteration
+ *  from then on if item is then set to NULL.  
+ *  p_current_item allows for thread safety reentrancy, it should not be
+ *  modified outside of this routine*/
 jscon_item_t*
 jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
 {
-    /* if item is not NULL, set p_current_item to item, otherwise
-        fetch next iteration */ 
     if (NULL != item){
+        /* set p_current_item to item, otherwise fetch next iteration */ 
         ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
         *p_current_item = item;
         return item;
     }
 
-    /* if p_current_item is NULL, it needs to be set back with item parameter */
-    if (NULL == *p_current_item) return NULL;
+    if (NULL == *p_current_item){
+        /* p_current_item needs to be set with non-NULL item parameter */
+        return NULL;
+    }
 
     /* get next comp in line, if NULL it means there are no more
-        composite datatype items to iterate through */
+     *  composite datatype items to iterate through */
     jscon_composite_t *next_comp = (*p_current_item)->comp->next;
     if (NULL == next_comp){
+        /* reach end of composite items */
         *p_current_item = NULL;
         return NULL;
     }
 
-    *p_current_item = next_comp->p_item;
-
-    return *p_current_item;
+    /* update current_item and return next composite */
+    return *p_current_item = next_comp->p_item;
 }
 
 /* return next (not yet accessed) item, by using item->comp->last_accessed_branch as the branch index */
@@ -347,31 +351,31 @@ _jscon_push(jscon_item_t *item)
     ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
     ASSERT_S(item->comp->last_accessed_branch < item->comp->num_branch, "Overflow, trying to access forbidden memory");
 
-    ++item->comp->last_accessed_branch; //update last_accessed_branch to next
+    ++item->comp->last_accessed_branch; /* update last_accessed_branch to next */
     jscon_item_t *next_item = item->comp->branch[item->comp->last_accessed_branch-1];
 
-    //resets incase its already set because of a different run
     if (IS_COMPOSITE(next_item)){
+        /* resets next_item that might have been set from a different run */
         next_item->comp->last_accessed_branch = 0;
     }
 
-    return next_item; //return item from next branch in line
+    return next_item;
 }
 
 static inline jscon_item_t*
 _jscon_pop(jscon_item_t *item)
 {
-    //resets object's last_accessed_branch
     if (IS_COMPOSITE(item)){
+        /* resets object's last_accessed_branch */
         item->comp->last_accessed_branch = 0;
     }
 
-    return item->parent; //return item's parent
+    return item->parent;
 }
 
 /* this will simulate tree preorder traversal iteratively, by using 
-      item->comp->last_accessed_branch like a stack frame. under no circumstance 
-      should you modify last_accessed_branch value directly */
+ *  item->comp->last_accessed_branch like a stack frame. under no circumstance 
+ *  should you modify last_accessed_branch value directly */
 jscon_item_t*
 jscon_iter_next(jscon_item_t *item)
 {
@@ -382,14 +386,16 @@ jscon_iter_next(jscon_item_t *item)
         item->comp->last_accessed_branch = 0;
     }
 
-    /* item is a leaf, fetch parent until found a item with any branch
-        left to be accessed */
     if (IS_LEAF(item)){
-        /* fetch parent until a item with available branch is found */
+        /* item is a leaf, fetch parent until found a item with any branch
+         *  left to be accessed */
         do {
+            /* fetch parent until a item with unacessed branch is found */
             item = _jscon_pop(item);
             if ((NULL == item) || (0 == item->comp->last_accessed_branch)){
-                return NULL; //return NULL if exceeded root
+                /* item is unexistent (root's parent) or all of 
+                 *  its branches have been accessed */
+                return NULL;
             }
         } while (item->comp->num_branch == item->comp->last_accessed_branch);
     }
@@ -398,11 +404,11 @@ jscon_iter_next(jscon_item_t *item)
 }
 
 /* This is not the most effective way to clone a item, but it is
-      the most reliable, because it automatically accounts for any
-      new feature that might added in the future. By first stringfying the
-      (to be cloned) Item and then parsing the resulting string into
-      a new clone Item, it's guaranteed that it will be a perfect 
-      clone, with its unique hashtable, strings, etc */
+ *  the most reliable, because it automatically accounts for any
+ *  new feature that might added in the future. By first stringfying the
+ *  (to be cloned) Item and then parsing the resulting string into
+ *  a new clone Item, it's guaranteed that it will be a perfect 
+ *  clone, with its unique hashtable, strings, etc */
 jscon_item_t*
 jscon_clone(jscon_item_t *item)
 {
@@ -426,10 +432,10 @@ jscon_clone(jscon_item_t *item)
 char*
 jscon_typeof(const jscon_item_t *item)
 {
-    if (NULL == item) return "NaN";
-
 /* if case matches, return token as string */
 #define CASE_RETURN_STR(type) case type: return #type
+
+    if (NULL == item) return "NaN";
 
     switch (item->type){
     CASE_RETURN_STR(JSCON_DOUBLE);
@@ -452,6 +458,7 @@ jscon_strdup(const jscon_item_t *item)
     if (NULL == src) return NULL;
 
     char *dest = strdup(src);
+
     return dest;
 }
 
@@ -468,7 +475,7 @@ jscon_strcpy(char *dest, const jscon_item_t *item)
 
 int
 jscon_typecmp(const jscon_item_t *item, const enum jscon_type type){
-    return item->type & type; //BITMASK AND
+    return item->type & type; /* BITMASK AND */
 }
 
 int
@@ -506,6 +513,9 @@ jscon_item_t*
 jscon_get_branch(jscon_item_t *item, const char *key)
 {
     ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
+
+    if (NULL == key) return NULL;
+
     /* search for entry with given key at item's comp,
       and retrieve found or not found(NULL) item */
     return Jscon_composite_get(key, item);
@@ -519,12 +529,12 @@ jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
 
     const jscon_item_t* parent = origin->parent;
 
-    //get parent's branch index of the origin item
+    /* get parent's branch index of the origin item */
     size_t origin_index = jscon_get_index(parent, origin->key);
 
-    /* if relative index given doesn't exceed parent branch amount,
-      or dropped below 0, return branch at given relative index */
-    if ((0 <= (int)(origin_index + relative_index)) && jscon_size(parent) > (origin_index + relative_index)){
+    if ((0 <= (int)(origin_index + relative_index)) 
+        && jscon_size(parent) > (origin_index + relative_index)){
+        /* relative index given doesn't exceed parent's total branches, and is greater than 0 */
         return jscon_get_byindex(parent, origin_index + relative_index);
     }
 
@@ -552,7 +562,8 @@ jscon_get_index(const jscon_item_t *item, const char *key)
 
     if (NULL == lookup_item) return -1;
 
-    /* @todo can this be done differently? */
+    /* @todo currently this is O(n), a possible alternative
+     *  is adding a new attribute that stores the item's index */
     for (size_t i=0; i < item->comp->num_branch; ++i){
         if (lookup_item == item->comp->branch[i]){
             return i;
@@ -565,12 +576,12 @@ jscon_get_index(const jscon_item_t *item, const char *key)
 
 enum jscon_type
 jscon_get_type(const jscon_item_t *item){
-    return item->type;
+    return (NULL != item) ? item->type : JSCON_NULL;
 }
 
 char*
 jscon_get_key(const jscon_item_t *item){
-    return item->key;
+    return (NULL != item) ? item->key : NULL;
 }
 
 bool
@@ -608,27 +619,7 @@ jscon_get_integer(const jscon_item_t *item)
     ASSERT_S(JSCON_INTEGER == item->type, "Item type is not a Integer");
     return item->i_number;
 }
-/*
-static inline void
-_jscon_trychange_type(jscon_item_t *item, enum jscon_type type)
-{
-    if (type == item->type) return;
 
-    jscon_item_t *tmp;
-    switch (item->type){
-    case JSCON_OBJECT:
-    case JSCON_ARRAY:
-    case JSCON_STRING:
-          jscon_dettach(item);
-          //@todo do stuff here, clean if object/array/string
-          jscon_append(item, tmp);
-    // fall through
-    default:
-          item->type = type;
-          break;
-    }
-}
-*/
 bool
 jscon_set_boolean(jscon_item_t *item, bool boolean)
 {

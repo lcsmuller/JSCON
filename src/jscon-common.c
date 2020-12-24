@@ -78,8 +78,8 @@ Jscon_composite_set(const char *key, jscon_item_t *item)
 {
     ASSERT_S(!IS_ROOT(item), "Can't add to parent hashtable if Item is root");
 
-    jscon_composite_t *comp = item->parent->comp;
-    return hashtable_set(comp->hashtable, key, item);
+    jscon_composite_t *parent_comp = item->parent->comp;
+    return hashtable_set(parent_comp->hashtable, key, item);
 }
 
 /* remake hashtable on functions that deal with increasing branches */
