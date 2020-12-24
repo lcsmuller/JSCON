@@ -35,14 +35,14 @@ CFLAGS	:= -Wall -Werror -Wextra -pedantic -g
 
 .PHONY : clean purge
 
-all : append_based
+all : run
 
-append_based : append_based.c $(LIBDIR) Makefile
+run : append.c $(LIBDIR) Makefile
 	$(CC) $(CFLAGS) $(LIBS_CFLAGS) \
-	      append_based.c -o $@ $(LIBS_LDFLAGS)
+	      append.c -o $@ $(LIBS_LDFLAGS)
 
 $(LIBDIR) :
 	$(MAKE) -C $(TOP)
 
 clean :
-	rm -rf append_based *.txt
+	rm -rf run *.txt

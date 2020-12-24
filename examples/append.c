@@ -29,18 +29,22 @@
 
 #include "libjscon.h"
 
+
+#define EXPECTED_OUT "{\"person1\":{\"pets\":[\"Dog\",\"Cat\",\"Fish\"],\"name\":\"Mario\",\"age\":28,\"retired\":false,\"married\":true},\"person2\":{\"pets\":[\"Moose\",\"Mouse\"],\"name\":\"Joana\",\"age\":58,\"retired\":true,\"married\":false}}"
+
+
 int main(void)
 {
     char *locale = setlocale(LC_CTYPE, "");
     assert(locale);
 
-    jscon_item_t *root = jscon_object("root");
+    jscon_item_t *root = jscon_object(NULL);
     jscon_item_t *tmp1, *tmp2;
 
     tmp1 = jscon_array("pets");
-    jscon_append(tmp1, jscon_string("0", "Dog"));
-    jscon_append(tmp1, jscon_string("1", "Cat"));
-    jscon_append(tmp1, jscon_string("2", "Fish"));
+    jscon_append(tmp1, jscon_string(NULL, "Dog"));
+    jscon_append(tmp1, jscon_string(NULL, "Cat"));
+    jscon_append(tmp1, jscon_string(NULL, "Fish"));
 
     tmp2 = jscon_object("person1");
     jscon_append(tmp2, tmp1);
@@ -51,8 +55,8 @@ int main(void)
     jscon_append(root, tmp2);
 
     tmp1 = jscon_array("pets");
-    jscon_append(tmp1, jscon_string("0", "Moose"));
-    jscon_append(tmp1, jscon_string("1", "Mouse"));
+    jscon_append(tmp1, jscon_string(NULL, "Moose"));
+    jscon_append(tmp1, jscon_string(NULL, "Mouse"));
 
     tmp2 = jscon_object("person2");
     jscon_append(tmp2, tmp1);
@@ -63,21 +67,36 @@ int main(void)
     jscon_append(root, tmp2);
 
 
-    //circular references won't conflict, uncommment to test
-    //jscon_append(root, root);
-
-    jscon_item_t *curr_item = NULL;
-    jscon_item_t *item = jscon_iter_composite_r(root, &curr_item);
+    /* test normal json iteration */
+    jscon_item_t *item = root;
     do {
-        fprintf(stderr, "Hey, a composite %s!\n", jscon_get_key(item));
+        fprintf(stderr, "Hey, an item '%s'! ... which is a %s!!\n", 
+                jscon_get_key(item),
+                jscon_typeof(item));
+    } while (NULL != (item = jscon_iter_next(item)));
+
+    fputc('\n', stderr);
+
+    /* test composite only (array or object) json iteration */
+    jscon_item_t *curr_item = NULL;
+    item = jscon_iter_composite_r(root, &curr_item);
+    do {
+        fprintf(stderr, "Hey, a composite item '%s'! ... which is a %s!!\n", 
+                jscon_get_key(item),
+                jscon_typeof(item));
     } while (NULL != (item = jscon_iter_composite_r(NULL, &curr_item)));
 
+
+    fputc('\n', stderr);
+
+    /* test stringify */
     char *buffer = jscon_stringify(root, JSCON_ANY);
-    fprintf(stderr, "%s\n", buffer);
+    fprintf(stdout, "%s\n", buffer);
+
+    assert(0 == strcmp(buffer, EXPECTED_OUT));
 
     free(buffer);
     jscon_destroy(root);
 
     return EXIT_SUCCESS;
 }
-
