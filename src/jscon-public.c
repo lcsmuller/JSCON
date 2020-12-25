@@ -92,11 +92,11 @@ jscon_double(const char *key, double d_number)
 }
 
 jscon_item_t*
-jscon_number(const char *key, double d_number)
+jscon_number(const char *key, double number)
 {
-    return DOUBLE_IS_INTEGER(d_number)
-            ? jscon_integer(key, (long long)d_number)
-            : jscon_double(key, d_number);
+    return DOUBLE_IS_INTEGER(number)
+            ? jscon_integer(key, (long long)number)
+            : jscon_double(key, number);
 }
 
 jscon_item_t*
@@ -132,14 +132,14 @@ _jscon_composite(const char *key, enum jscon_type type)
     if (NULL == new_item->comp->hashtable) goto hashtable_free;
 
     new_item->comp->branch = malloc(sizeof(jscon_item_t*));
-    if (NULL == new_item->comp->branch) goto branch_free;
+    if (NULL == new_item->comp->branch) goto free_branch;
 
     Jscon_composite_build(new_item);
 
     return new_item;
 
 
-branch_free:
+free_branch:
     hashtable_destroy(new_item->comp->hashtable);
 hashtable_free:
     free(new_item->comp);
@@ -203,25 +203,17 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 {
     ASSERT_S(new_branch != item, "Can't perform circular append");
 
+    char *hold_key = NULL; /* hold new_branch->key incase we can't allocate memory for new numerical key */
     switch (item->type){
     case JSCON_ARRAY:
      {
-        char *hold_key = new_branch->key; /* hold new_branch->key incase we can't allocate memory for new numerical key */
+        hold_key = new_branch->key; 
 
         char numerical_key[MAX_DIGITS];
         snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
 
         new_branch->key = strdup(numerical_key);
-        if (NULL == new_branch->key){
-            /* Out of memory, reattach its old key
-             *  and return NULL */
-            new_branch->key = hold_key;
-            return NULL;
-        }
-
-        if (hold_key != NULL){
-            free(hold_key);
-        }
+        if (NULL == new_branch->key) goto free_numkey; /* Out of memory, reattach its old key and return NULL */
      }
     /* fall through */
     case JSCON_OBJECT:
@@ -232,7 +224,7 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
 
     /* realloc parent references to match new size */
     jscon_item_t **tmp = realloc(item->comp->branch, (1+item->comp->num_branch) * sizeof(jscon_item_t*));
-    if (NULL == tmp) return NULL;
+    if (NULL == tmp) goto free_branch;
 
     item->comp->branch = tmp;
 
@@ -247,14 +239,27 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
         Jscon_composite_remake(item);
     }
 
-    if (IS_PRIMITIVE(new_branch)) return new_branch;
+    if (IS_COMPOSITE(new_branch)){
+        /* get the last comp relative to item */
+        jscon_composite_t *comp_last = _jscon_get_deepest(item);
+        comp_last->next = new_branch->comp;
+        new_branch->comp->prev = comp_last;
+    }
 
-    /* get the last comp relative to item */
-    jscon_composite_t *comp_last = _jscon_get_deepest(item);
-    comp_last->next = new_branch->comp;
-    new_branch->comp->prev = comp_last;
+    if (hold_key != NULL){
+        free(hold_key);
+    }
 
     return new_branch;
+
+free_branch:
+    if (hold_key != NULL){
+        free(new_branch->key);
+    }
+free_numkey:
+    new_branch->key = hold_key;
+
+    return NULL;
 }
 
 /* @todo test this */
@@ -319,11 +324,10 @@ jscon_delete(jscon_item_t *item, const char *key)
 jscon_item_t*
 jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
 {
-    if (NULL != item){
+    if (item != NULL){
         /* set p_current_item to item, otherwise fetch next iteration */ 
         ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
-        *p_current_item = item;
-        return item;
+        return *p_current_item = item;
     }
 
     if (NULL == *p_current_item){
@@ -336,8 +340,7 @@ jscon_iter_composite_r(jscon_item_t *item, jscon_item_t **p_current_item)
     jscon_composite_t *next_comp = (*p_current_item)->comp->next;
     if (NULL == next_comp){
         /* reach end of composite items */
-        *p_current_item = NULL;
-        return NULL;
+        return *p_current_item = NULL;
     }
 
     /* update current_item and return next composite */
@@ -523,19 +526,17 @@ jscon_get_branch(jscon_item_t *item, const char *key)
 
 /* get origin item sibling by the relative index, if origin item is of index 3 (from parent's perspective), and relative index is -1, then this function will return item of index 2 (from parent's perspective) */
 jscon_item_t*
-jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
+jscon_get_sibling(const jscon_item_t* item, const size_t relative_index)
 {
-    ASSERT_S(!IS_ROOT(origin), "Origin is root (has no siblings)");
-
-    const jscon_item_t* parent = origin->parent;
+    ASSERT_S(!IS_ROOT(item), "Item is root (has no siblings)");
 
     /* get parent's branch index of the origin item */
-    size_t origin_index = jscon_get_index(parent, origin->key);
+    size_t item_index = jscon_get_index(item->parent, item->key);
 
-    if ((0 <= (int)(origin_index + relative_index)) 
-        && jscon_size(parent) > (origin_index + relative_index)){
+    if ((0 <= (int)(item_index + relative_index)) 
+        && jscon_size(item->parent) > (item_index + relative_index)){
         /* relative index given doesn't exceed parent's total branches, and is greater than 0 */
-        return jscon_get_byindex(parent, origin_index + relative_index);
+        return jscon_get_byindex(item->parent, item_index + relative_index);
     }
 
     return NULL;
@@ -543,7 +544,7 @@ jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index)
 
 jscon_item_t*
 jscon_get_parent(const jscon_item_t *item){
-    return _jscon_pop((jscon_item_t*)item);
+    return item->parent;
 }
 
 jscon_item_t*
@@ -576,7 +577,7 @@ jscon_get_index(const jscon_item_t *item, const char *key)
 
 enum jscon_type
 jscon_get_type(const jscon_item_t *item){
-    return (NULL != item) ? item->type : JSCON_NULL;
+    return (NULL != item) ? item->type : JSCON_UNDEFINED;
 }
 
 char*

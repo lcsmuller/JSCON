@@ -66,7 +66,7 @@ _hashtable_genhash(const char *key, const size_t num_bucket)
     size_t slot = 0;
     size_t key_len = strlen(key);
 
-    //@todo learn different implementations and improvements
+    /* @todo learn different implementations and improvements */
     for (size_t i=0; i < key_len; ++i){
         slot = slot * 37 + key[i];
     }
@@ -105,7 +105,7 @@ _hashtable_get_entry(hashtable_t *hashtable, const char *key)
     size_t slot = _hashtable_genhash(key, hashtable->num_bucket);
 
     hashtable_entry_t *entry = hashtable->bucket[slot];
-    while (NULL != entry){ //try to find key and return it
+    while (NULL != entry){ /* try to find key and return it */
         if (0 == strcmp(entry->key, key)){
             return entry;
         }
@@ -201,7 +201,7 @@ dictionary_destroy(dictionary_t *dictionary)
             free(entry_prev->key);
             entry_prev->key = NULL;
 
-            //free value if its tagged for freeing
+            /* free value if its tagged for freeing */
             if (entry_prev->free_cb && NULL != entry_prev->value){
                 (*entry_prev->free_cb)(entry_prev->value);
             }
@@ -289,7 +289,7 @@ dictionary_remove(dictionary_t *dictionary, const char *key)
             free(entry->key);
             entry->key = NULL;
 
-            //free value if its tagged for freeing
+            /* free value if its tagged for freeing */
             if (entry->free_cb && NULL != entry->value){
                 (*entry->free_cb)(entry->value);
             }

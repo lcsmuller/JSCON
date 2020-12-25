@@ -34,9 +34,9 @@
 
 struct jscon_utils_s {
     char *buffer;
-    char *key; //holds key ptr to be received by item
-    jscon_composite_t *last_accessed_comp; //holds last composite accessed
-    jscon_cb *parse_cb; //parser callback
+    char *key; /* holds key ptr to be received by item */
+    jscon_composite_t *last_accessed_comp; /* holds last composite accessed */
+    jscon_cb *parse_cb; /* parser callback */
 };
 
 /* function pointers used while building json items, 
@@ -181,9 +181,9 @@ _jscon_count_property(char *buffer)
             break;
         }
 
-        ++buffer; //skips whatever char
+        ++buffer; /* skips whatever char */
 
-        if (0 == depth) return num_branch; //entire item has been skipped, return
+        if (0 == depth) return num_branch; /* entire item has been skipped, return */
 
     } while ('\0' != *buffer);
 
@@ -232,9 +232,9 @@ _jscon_count_element(char *buffer)
             break;
         }
 
-        ++buffer; //skips whatever char
+        ++buffer; /* skips whatever char */
 
-        if (0 == depth) return num_branch; //entire item has been skipped, return
+        if (0 == depth) return num_branch; /* entire item has been skipped, return */
 
     } while ('\0' != *buffer);
 
@@ -271,7 +271,7 @@ _jscon_composite_init(jscon_item_t *item, struct jscon_utils_s *utils, jscon_cre
 static jscon_item_t*
 _jscon_wrap_composite(jscon_item_t *item, struct jscon_utils_s *utils)
 {
-    ++utils->buffer; //skips '}' or ']'
+    ++utils->buffer; /* skips '}' or ']' */
     Jscon_composite_build(item);
     return item->parent;
 }
@@ -313,24 +313,24 @@ _jscon_branch_build(jscon_item_t *item, struct jscon_utils_s *utils)
         break;
     case 't':/*CHECK FOR*/
     case 'f':/* BOOLEAN */
-        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5))
             goto token_error;
-        }
+
         item_setter = &_jscon_append_primitive;
         value_setter = &_jscon_value_set_boolean;
         break;
     case 'n':/*CHECK FOR NULL*/
-        if (!STRNEQ(utils->buffer,"null",4)){
+        if (!STRNEQ(utils->buffer,"null",4))
             goto token_error; 
-        }
+        
         item_setter = &_jscon_append_primitive;
         value_setter = &_jscon_value_set_null;
         break;
     default:
         /*CHECK FOR NUMBER*/
-        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer))
             goto token_error;
-        }
+        
         item_setter = &_jscon_append_primitive;
         value_setter = &_jscon_value_set_number;
         break;
@@ -355,7 +355,7 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
     case ']':/*ARRAY WRAPPER DETECTED*/
         return _jscon_wrap_composite(item, utils);
     case ',': /*NEXT ELEMENT TOKEN*/
-        ++utils->buffer; //skips ','
+        ++utils->buffer; /* skips ',' */
         CONSUME_BLANK_CHARS(utils->buffer);
     /* fall through */
     default:
@@ -372,7 +372,7 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
      }
     }
 
-    //token error checking done inside _jscon_branch_build
+    /* token error checking done inside _jscon_branch_build */
 }
 
 /* this will be active if the current item is of object type jscon,
@@ -386,14 +386,14 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
     case '}':/*OBJECT WRAPPER DETECTED*/
         return _jscon_wrap_composite(item, utils);
     case ',': /*NEXT PROPERTY TOKEN*/
-        ++utils->buffer; //skips ','
+        ++utils->buffer; /* skips ',' */
         CONSUME_BLANK_CHARS(utils->buffer);
     /* fall through */
     case '\"':/*KEY STRING DETECTED*/
         ASSERT_S(NULL == utils->key, "utils->key wasn't freed");
         utils->key = Jscon_decode_string(&utils->buffer);
-        ASSERT_S(':' == *utils->buffer, "Missing ':' token after key"); //check for key's assign token 
-        ++utils->buffer; //skips ':'
+        ASSERT_S(':' == *utils->buffer, "Missing ':' token after key"); /* check for key's assign token  */
+        ++utils->buffer; /* skips ':' */
         CONSUME_BLANK_CHARS(utils->buffer);
         return _jscon_branch_build(item, utils);
     default:
@@ -423,22 +423,22 @@ _jscon_entity_build(jscon_item_t *item, struct jscon_utils_s *utils)
         break;
     case 't':/*CHECK FOR*/
     case 'f':/* BOOLEAN */
-        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5)){
+        if (!STRNEQ(utils->buffer,"true",4) && !STRNEQ(utils->buffer,"false",5))
             goto token_error;
-        }
+
         _jscon_value_set_boolean(item, utils);
         break;
     case 'n':/*CHECK FOR NULL*/
-        if (!STRNEQ(utils->buffer,"null",4)){
+        if (!STRNEQ(utils->buffer,"null",4))
             goto token_error;
-        }
+
         _jscon_value_set_null(item, utils);
         break;
     default:/*CHECK FOR NUMBER*/
         CONSUME_BLANK_CHARS(utils->buffer);
-        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer)){
+        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer))
             goto token_error;
-        }
+
         _jscon_value_set_number(item, utils);
         break;
     }
@@ -481,7 +481,7 @@ jscon_parse(char *buffer)
         .parse_cb = jscon_parse_cb(NULL),
     };
     
-    //build while item and buffer aren't nulled
+    /* build while item and buffer aren't nulled */
     jscon_item_t *item = root;
     while ((NULL != item) && ('\0' != *utils.buffer)){
         switch(item->type){
@@ -491,14 +491,14 @@ jscon_parse(char *buffer)
         case JSCON_ARRAY:
             item = _jscon_array_build(item, &utils);
             break;
-        case JSCON_UNDEFINED:
-            /* this should be true only at the first iteration */
+        case JSCON_UNDEFINED: /* this should be true only at the first iteration */
             item = _jscon_entity_build(item, &utils);
+
             if (IS_PRIMITIVE(item)) return item;
 
             break;
         default:
-            ERROR("Unknown item->type found\n\t"
+            ERROR("Unknown item->type found\n\t" \
                       "Code: %d", item->type);
         }
     }

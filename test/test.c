@@ -110,8 +110,6 @@ int main(int argc, char *argv[])
         walk = jscon_iter_composite_r(NULL, &current_item);
     } while (NULL != walk);
 
-    abort();
-
     walk = root;
     for (int i=0; i < 5 && walk; ++i){
         fprintf(stderr, "%s\n", jscon_get_key(walk));

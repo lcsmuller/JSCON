@@ -57,7 +57,7 @@ jscon_item_t *jscon_array(const char *key);
 jscon_item_t *jscon_null(const char *key);
 jscon_item_t *jscon_boolean(const char *key, bool boolean);
 jscon_item_t *jscon_integer(const char *key, long long i_number);
-jscon_item_t *jscon_double(const char *key, double d_number);
+jscon_item_t *jscon_double(const char *key, double number);
 jscon_item_t *jscon_number(const char *key, double d_number);
 jscon_item_t *jscon_string(const char *key, char *string);
 
@@ -93,8 +93,8 @@ int jscon_intcmp(const jscon_item_t* item, const long long i_number);
 
 /* JSCON GETTERS */
 jscon_item_t* jscon_get_root(jscon_item_t* item);
-jscon_item_t* jscon_get_branch(jscon_item_t *item, const char *key);
-jscon_item_t* jscon_get_sibling(const jscon_item_t* origin, const size_t relative_index);
+jscon_item_t* jscon_get_branch(jscon_item_t* item, const char *key);
+jscon_item_t* jscon_get_sibling(const jscon_item_t* item, const size_t relative_index);
 jscon_item_t* jscon_get_parent(const jscon_item_t* item);
 jscon_item_t* jscon_get_byindex(const jscon_item_t* item, const size_t index);
 long jscon_get_index(const jscon_item_t* item, const char *key);

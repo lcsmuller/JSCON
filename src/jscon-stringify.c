@@ -31,8 +31,8 @@
 #include "debug.h"
 
 struct jscon_utils_s {
-    char *buffer_base; //buffer's base (first position)
-    size_t buffer_offset; //current distance to buffer's base (aka length)
+    char *buffer_base; /* buffer's base (first position) */
+    size_t buffer_offset; /* current distance to buffer's base (aka length) */
     /*a setter method that can be either _jscon_utils_analyze or
        _jscon_utils_encode*/
     void (*method)(char get_char, struct jscon_utils_s* utils);
@@ -67,12 +67,12 @@ _jscon_utils_apply_string(char *string, struct jscon_utils_s *utils)
 }
 
 /* converts double to string and store it in p_str */
-//@todo make this more readable
+/* @todo make this more readable */
 static void 
 _jscon_double_tostr(const double d_number, char *p_str, const int digits)
 {
     if (DOUBLE_IS_INTEGER(d_number)){
-        sprintf(p_str,"%.lf",d_number); //convert integer to string
+        sprintf(p_str,"%.lf",d_number); /* convert integer to string */
         return;
     }
 
@@ -80,12 +80,12 @@ _jscon_double_tostr(const double d_number, char *p_str, const int digits)
     char *tmp_str = fcvt(d_number,digits-1,&decimal,&sign);
 
     int i=0;
-    if (0 > sign){ //negative sign detected
+    if (0 > sign){ /* negative sign detected */
         p_str[i++] = '-';
     }
 
     if (IN_RANGE(decimal,-7,17)){
-        //print scientific notation
+        /* print scientific notation */
         sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
         return;
     }
@@ -110,7 +110,7 @@ _jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
     char get_strnum[MAX_DIGITS];
     _jscon_double_tostr(d_number, get_strnum, MAX_DIGITS);
 
-    _jscon_utils_apply_string(get_strnum,utils); //store value in utils
+    _jscon_utils_apply_string(get_strnum,utils); /* store value in utils */
 }
 
 /* get int converted to string and then perform buffer method calls */
@@ -120,13 +120,13 @@ _jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
     char get_strnum[MAX_DIGITS];
     snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
 
-    _jscon_utils_apply_string(get_strnum,utils); //store value in utils
+    _jscon_utils_apply_string(get_strnum,utils); /* store value in utils */
 }
 
 /* walk jscon item, by traversing its branches recursively,
       and perform buffer_method callback on each branch */
 static void
-_jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_utils_s *utils)
+_jscon_stringify_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_utils_s *utils)
 {
     /* 1st STEP: stringify jscon item only if it match the type
         given as parameter or is a composite type item */
@@ -185,7 +185,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
         case JSCON_ARRAY:
             (*utils->method)(']', utils);
             return;
-        default: //is a primitive, just return
+        default: /* is a primitive, just return */
             return;
         }
     }
@@ -195,7 +195,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
     size_t first_index=0;
     while (first_index < item->comp->num_branch){
         if (jscon_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
-            _jscon_traverse_preorder(item->comp->branch[first_index], type, utils);
+            _jscon_stringify_preorder(item->comp->branch[first_index], type, utils);
             break;
         }
         ++first_index;
@@ -209,7 +209,7 @@ _jscon_traverse_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_
             continue;
         }
         (*utils->method)(',',utils);
-        _jscon_traverse_preorder(item->comp->branch[j], type, utils);
+        _jscon_stringify_preorder(item->comp->branch[j], type, utils);
     }
 
     /* 7th STEP: write the composite's type item wrapper token */
@@ -238,23 +238,23 @@ jscon_stringify(jscon_item_t *root, enum jscon_type type)
         case that given item isn't already a root (roots donesn't have
         keys or parents) */
     char *hold_key = root->key;
-    root->key = NULL;
     jscon_item_t *hold_parent = root->parent;
+    root->key = NULL;
     root->parent = NULL;
 
     /* 2nd STEP: count how many chars will fill the buffer with
         _jscon_utils_analyze, then allocate the buffer to that amount */
     utils.method = &_jscon_utils_analyze;
-    _jscon_traverse_preorder(root, type, &utils);
-    utils.buffer_base = malloc(utils.buffer_offset+5);//+5 for extra safety
+    _jscon_stringify_preorder(root, type, &utils);
+    utils.buffer_base = malloc(utils.buffer_offset+5);/* 5 for extra safety */
     if (NULL == utils.buffer_base) return NULL;
 
     /* 3rd STEP: reset buffer_offset and proceed with
         _jscon_utils_encode to fill allocated buffer */
     utils.buffer_offset = 0;
     utils.method = &_jscon_utils_encode;
-    _jscon_traverse_preorder(root, type, &utils);
-    utils.buffer_base[utils.buffer_offset] = 0; //end of buffer token
+    _jscon_stringify_preorder(root, type, &utils);
+    utils.buffer_base[utils.buffer_offset] = 0; /* end of buffer token */
 
     /* 4th STEP: reattach key and parents from step 1 */
     root->key = hold_key;

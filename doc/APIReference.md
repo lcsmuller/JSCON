@@ -34,7 +34,7 @@ This document describes the public C API.
 * [`jscon_boolean(key, boolean);`](api/jscon_boolean.md)
 * [`jscon_integer(key, i_number);`](api/jscon_integer.md)
 * [`jscon_double(key, d_number);`](api/jscon_double.md)
-* [`jscon_number(key, d_number);`](api/jscon_number.md)
+* [`jscon_number(key, number);`](api/jscon_number.md)
 * [`jscon_string(key, string);`](api/jscon_string.md)
 
 * [`jscon_object(key);`](api/jscon_object.md)
@@ -73,7 +73,7 @@ This document describes the public C API.
 
 * [`jscon_get_root(item);`](api/jscon_get_root.md)
 * [`jscon_get_branch(item, key);`](api/jscon_get_branch.md)
-* [`jscon_get_sibling(origin, relative_index);`](api/jscon_get_sibling.md)
+* [`jscon_get_sibling(item, relative_index);`](api/jscon_get_sibling.md)
 * [`jscon_get_parent(item);`](api/jscon_get_parent.md)
 * [`jscon_get_byindex(item, index);`](api/jscon_get_byindex.md)
 * [`jscon_get_index(item, key);`](api/jscon_get_key_index.md)

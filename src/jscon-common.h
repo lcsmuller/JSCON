@@ -25,7 +25,7 @@
 
 #include <limits.h>
 
-//#include <libjscon.h> (implicit)
+/* #include <libjscon.h> (implicit) */
 #include "hashtable.h"
 
 

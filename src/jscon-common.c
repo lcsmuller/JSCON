@@ -41,7 +41,7 @@ Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_c
 
     jscon_composite_t *last_accessed_comp = *p_last_accessed_comp;
     if (NULL != last_accessed_comp){
-        last_accessed_comp->next = item->comp; //item is not root
+        last_accessed_comp->next = item->comp; /* item is not root */
         item->comp->prev = last_accessed_comp;
     }
 
@@ -55,7 +55,7 @@ Jscon_composite_build(jscon_item_t *item)
 {
     ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
 
-    hashtable_build(item->comp->hashtable, 2 + (1.3 * item->comp->num_branch)); //30% size increase to account for future expansions, and a default bucket size of 2
+    hashtable_build(item->comp->hashtable, 2 + (1.3 * item->comp->num_branch)); /* 30% size increase to account for future expansions, and a default bucket size of 2 */
 
     item->comp->p_item = item;
 
@@ -105,7 +105,7 @@ Jscon_decode_composite(char **p_buffer, size_t n_branch){
     new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_t*));
     ASSERT_S(NULL != new_comp->branch, "Out of memory");
 
-    ++*p_buffer; //skips composite's '{' or '[' delim
+    ++*p_buffer; /* skips composite's '{' or '[' delim */
 
     return new_comp;
 }
@@ -114,17 +114,17 @@ char*
 Jscon_decode_string(char **p_buffer)
 {
     char *start = *p_buffer;
-    ASSERT_S('\"' == *start, "Not a string"); //makes sure a string is given
+    ASSERT_S('\"' == *start, "Not a string"); /* makes sure a string is given */
 
     char *end = ++start;
     while (('\0' != *end) && ('\"' != *end)){
-        if ('\\' == *end++){ //skips escaped characters
+        if ('\\' == *end++){ /* skips escaped characters */
             ++end;
         }
     }
-    ASSERT_S('\"' == *end, "Not a string"); //makes sure end of string exists
+    ASSERT_S('\"' == *end, "Not a string"); /* makes sure end of string exists */
 
-    *p_buffer = end + 1; //skips double quotes buffer position
+    *p_buffer = end + 1; /* skips double quotes buffer position */
 
     char *set_str = strndup(start, end-start);
     ASSERT_S(NULL != set_str, "Out of memory");
@@ -140,13 +140,13 @@ Jscon_decode_double(char **p_buffer)
 
     /* 1st STEP: check for a minus sign and skip it */
     if ('-' == *end){
-        ++end; //skips minus sign
+        ++end; /* skips minus sign */
     }
 
     /* 2nd STEP: skips until a non digit char found */
-    ASSERT_S(isdigit(*end), "Not a number"); //interrupt if char isn't digit
+    ASSERT_S(isdigit(*end), "Not a number"); /* interrupt if char isn't digit */
     while (isdigit(*++end))
-        continue; //skips while char is digit
+        continue; /* skips while char is digit */
 
     /* 3rd STEP: if non-digit char is not a comma then it must be
         an integer*/
@@ -173,7 +173,7 @@ Jscon_decode_double(char **p_buffer)
     double set_double;
     sscanf(numstr,"%lf",&set_double);
 
-    *p_buffer = end; //skips entire length of number
+    *p_buffer = end; /* skips entire length of number */
 
     return set_double;
 }
@@ -182,14 +182,14 @@ bool
 Jscon_decode_boolean(char **p_buffer)
 {
     if ('t' == **p_buffer){
-        *p_buffer += 4; //skips length of "true"
+        *p_buffer += 4; /* skips length of "true" */
         return true;
     }
-    *p_buffer += 5; //skips length of "false"
+    *p_buffer += 5; /* skips length of "false" */
     return false;
 }
 
 void
 Jscon_decode_null(char **p_buffer){
-    *p_buffer += 4; //skips length of "null"
+    *p_buffer += 4; /* skips length of "null" */
 }
