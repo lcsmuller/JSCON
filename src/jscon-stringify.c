@@ -80,26 +80,32 @@ _jscon_double_tostr(const double d_number, char *p_str)
 
     sprintf(p_str, "%.*e", DBL_DECIMAL_DIG-1, d_number);
 
-    if (isfinite(d_number)){
-        int digit;
-        if ('0' == p_str[strlen(p_str)-1]) /* 00 terminating exp */
-            digit = strlen(p_str)-1; /* address of last digit, including exp */
-        else if (d_number < 0) /* account for minus sign */
-            digit = DBL_DECIMAL_DIG+1; /* address of last significand digit */
-        else /* no minus sign */
-            digit = DBL_DECIMAL_DIG; /* address of last significand digit */
+    if (isfinite(d_number))
+    {
+        char *p_last;
+        char *tmp;
 
-        char *p_last = &p_str[digit];
+        if ('0' == p_str[strlen(p_str)-1]){ /* 00 terminating exp */
+            p_last = &p_str[strlen(p_str)-1]; /* address of last digit, including exp */
+            tmp = p_last;
 
-        char *tmp = p_last;
-        while ('0' == *tmp){ /* trim exponent 0 and consecutive zeroes */
-            --tmp;
-            if ('+' == *tmp || '-' == *tmp){
+            while ('0' == *tmp) /* trim trailing zeroes */
                 --tmp;
-                if ('e' == *tmp || 'E' == *tmp){
-                    --tmp;
-                }
-            }
+
+            /* trim exp related characters */
+            if ('+' == *tmp || '-' == *tmp)
+                --tmp;
+            if ('e' == *tmp || 'E' == *tmp)
+                --tmp;
+        } else { /* get address of last significand digit */
+            p_last = (d_number < 0)
+                        ? &p_str[DBL_DECIMAL_DIG+1] /* account for minus sign */
+                        : &p_str[DBL_DECIMAL_DIG];
+            tmp = p_last;
+        }
+
+        while ('0' == *tmp){ /* trim trailing zeroes */
+            --tmp;
         }
 
         memmove(tmp+1, p_last+1, strlen(p_last+1)+1);
