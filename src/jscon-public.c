@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <float.h> /* for DBL_DECIMAL_DIG */
 
 #include <libjscon.h>
 
@@ -209,8 +210,8 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
      {
         hold_key = new_branch->key; 
 
-        char numerical_key[MAX_DIGITS];
-        snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
+        char numerical_key[DBL_DECIMAL_DIG];
+        snprintf(numerical_key, DBL_DECIMAL_DIG-1, "%ld", item->comp->num_branch);
 
         new_branch->key = strdup(numerical_key);
         if (NULL == new_branch->key) goto free_numkey; /* Out of memory, reattach its old key and return NULL */
@@ -438,7 +439,7 @@ jscon_typeof(const jscon_item_t *item)
 /* if case matches, return token as string */
 #define CASE_RETURN_STR(type) case type: return #type
 
-    if (NULL == item) return "NaN";
+    if (NULL == item) return "JSCON_UNDEFINED";
 
     switch (item->type){
     CASE_RETURN_STR(JSCON_DOUBLE);
@@ -450,7 +451,7 @@ jscon_typeof(const jscon_item_t *item)
     CASE_RETURN_STR(JSCON_ARRAY);
     CASE_RETURN_STR(JSCON_UNDEFINED);
 
-    default: return "NaN";
+    default: return "JSCON_UNDEFINED";
     }
 }
 
