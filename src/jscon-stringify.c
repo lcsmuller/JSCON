@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <float.h> /* for DBL_DECIMAL_DIG */
+#include <math.h> /* for isfinite() */
 
 #include <libjscon.h>
 
@@ -67,39 +69,40 @@ _jscon_utils_apply_string(char *string, struct jscon_utils_s *utils)
 }
 
 /* converts double to string and store it in p_str */
-/* @todo make this more readable */
 static void 
-_jscon_double_tostr(const double d_number, char *p_str, const int digits)
+_jscon_double_tostr(const double d_number, char *p_str)
 {
     if (DOUBLE_IS_INTEGER(d_number)){
-        sprintf(p_str,"%.lf",d_number); /* convert integer to string */
+        /* convert integer to string */
+        sprintf(p_str,"%.lf",d_number);
         return;
     }
 
-    int decimal=0, sign=0;
-    char *tmp_str = fcvt(d_number,digits-1,&decimal,&sign);
+    sprintf(p_str, "%.*e", DBL_DECIMAL_DIG-1, d_number);
 
-    int i=0;
-    if (0 > sign){ /* negative sign detected */
-        p_str[i++] = '-';
-    }
+    if (isfinite(d_number)){
+        int digit;
+        if ('0' == p_str[strlen(p_str)-1]) /* 00 terminating exp */
+            digit = strlen(p_str)-1; /* address of last digit, including exp */
+        else if (d_number < 0) /* account for minus sign */
+            digit = DBL_DECIMAL_DIG+1; /* address of last significand digit */
+        else /* no minus sign */
+            digit = DBL_DECIMAL_DIG; /* address of last significand digit */
 
-    if (IN_RANGE(decimal,-7,17)){
-        /* print scientific notation */
-        sprintf(p_str+i,"%c.%.7se%d",*tmp_str,tmp_str+1,decimal-1);
-        return;
-    }
+        char *p_last = &p_str[digit];
 
-    char format[100];
-    if (0 < decimal){
-        sprintf(format,"%%.%ds.%%.7s",decimal);
-        sprintf(i + p_str, format, tmp_str, tmp_str + decimal);
-    } else if (0 > decimal) {
-        sprintf(format, "0.%0*d%%.7s", abs(decimal), 0);
-        sprintf(i + p_str, format, tmp_str);
-    } else {
-        sprintf(format,"0.%%.7s");
-        sprintf(i + p_str, format, tmp_str);
+        char *tmp = p_last;
+        while ('0' == *tmp){ /* trim exponent 0 and consecutive zeroes */
+            --tmp;
+            if ('+' == *tmp || '-' == *tmp){
+                --tmp;
+                if ('e' == *tmp || 'E' == *tmp){
+                    --tmp;
+                }
+            }
+        }
+
+        memmove(tmp+1, p_last+1, strlen(p_last+1)+1);
     }
 }
 
@@ -107,8 +110,10 @@ _jscon_double_tostr(const double d_number, char *p_str, const int digits)
 static void
 _jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
 {
-    char get_strnum[MAX_DIGITS];
-    _jscon_double_tostr(d_number, get_strnum, MAX_DIGITS);
+    /*             sign + digit + dp +       digits        + e + sign + expo + \0 
+         get_strnum[ 1  +  1    + 1  + (DBL_DECIMAL_DIG-1) + 1 +  1   +  5   +  1] */
+    char get_strnum[11 + (DBL_DECIMAL_DIG-1)];
+    _jscon_double_tostr(d_number, get_strnum);
 
     _jscon_utils_apply_string(get_strnum,utils); /* store value in utils */
 }
@@ -117,8 +122,8 @@ _jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
 static void
 _jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
 {
-    char get_strnum[MAX_DIGITS];
-    snprintf(get_strnum, MAX_DIGITS-1, "%lld", i_number);
+    char get_strnum[DBL_DECIMAL_DIG];
+    snprintf(get_strnum, DBL_DECIMAL_DIG-1, "%lld", i_number);
 
     _jscon_utils_apply_string(get_strnum,utils); /* store value in utils */
 }

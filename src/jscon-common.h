@@ -31,10 +31,8 @@
 
 #define DEBUG_MODE 1
 
-
 #define JSCON_VERSION "0.0"
 
-#define MAX_DIGITS 17
 
 #define STRLT(s,t) (strcmp(s,t) < 0)
 #define STREQ(s,t) (0 == strcmp(s,t))

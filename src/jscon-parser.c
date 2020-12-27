@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <float.h> /* for DBL_DECIMAL_DIG */
 
 #include <libjscon.h>
 
@@ -361,8 +362,8 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
     default:
      {
         /* creates numerical key for the array element */
-        char numerical_key[MAX_DIGITS];
-        snprintf(numerical_key, MAX_DIGITS-1, "%ld", item->comp->num_branch);
+        char numerical_key[DBL_DECIMAL_DIG];
+        snprintf(numerical_key, DBL_DECIMAL_DIG-1, "%ld", item->comp->num_branch);
 
         ASSERT_S(NULL == utils->key, "utils->key wasn't freed");
         utils->key = strdup(numerical_key);
