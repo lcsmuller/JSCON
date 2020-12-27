@@ -4,9 +4,8 @@ This document describes features to be incorporated in the future.
 
 ## HIGH
 
-- `jscon_composite()`
-  - Inner function `jscon_htwrap_link_preorder()` is uneccessarily linking htwraps that are already linked, this does nothing, but decreases performance. Instead of doing it recursively I could try to do it iteratively instead, which would grant higher control of conditional breaks, but is harder to implement.
 - Organize APIReference.md in a more intuitive manner.
+- Add Unicode support
 
 ## MEDIUM
 
@@ -14,7 +13,6 @@ This document describes features to be incorporated in the future.
 - Turn `jscon_scanf()` into a `jscon_vscanf()` wrapper
 - Create a `jscon_printf()` functions following `jscon_scanf()` format rules
 - Create a jscon function that open a json text file and converts it to a string automatically.
-- Add Unicode support
 - Add more example codes
 - Add stringify formatting options
 
