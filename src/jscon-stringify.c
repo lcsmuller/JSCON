@@ -32,19 +32,19 @@
 #include "jscon-common.h"
 #include "debug.h"
 
-struct jscon_utils_s {
+struct _jscon_utils_s {
     char *buffer_base; /* buffer's base (first position) */
     size_t buffer_offset; /* current distance to buffer's base (aka length) */
     /*a setter method that can be either _jscon_utils_analyze or
        _jscon_utils_encode*/
-    void (*method)(char get_char, struct jscon_utils_s* utils);
+    void (*method)(char get_char, struct _jscon_utils_s* utils);
 };
 
 /* every time its called, it adds one position to buffer_offset,
       so that it can be used for counting how many position to be expected
       for buffer */ 
 static void
-_jscon_utils_analyze(char get_char, struct jscon_utils_s *utils){
+_jscon_utils_analyze(char get_char, struct _jscon_utils_s *utils){
     ++utils->buffer_offset;
     (void)get_char;
 }
@@ -52,7 +52,7 @@ _jscon_utils_analyze(char get_char, struct jscon_utils_s *utils){
 /* fills allocated buffer (with its length calculated by
       _jscon_utils_analyze) with string converted jscon items */
 static void
-_jscon_utils_encode(char get_char, struct jscon_utils_s *utils)
+_jscon_utils_encode(char get_char, struct _jscon_utils_s *utils)
 {
     utils->buffer_base[utils->buffer_offset] = get_char;
     ++utils->buffer_offset;
@@ -60,7 +60,7 @@ _jscon_utils_encode(char get_char, struct jscon_utils_s *utils)
 
 /* get string value to perform buffer method calls */
 static void
-_jscon_utils_apply_string(char *string, struct jscon_utils_s *utils)
+_jscon_utils_apply_string(char *string, struct _jscon_utils_s *utils)
 {
     while ('\0' != *string){
         (*utils->method)(*string,utils);
@@ -114,7 +114,7 @@ _jscon_double_tostr(const double d_number, char *p_str)
 
 /* get double converted to string and then perform buffer method calls */
 static void
-_jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
+_jscon_utils_apply_double(double d_number, struct _jscon_utils_s *utils)
 {
     /*             sign + digit + dp +       digits        + e + sign + expo + \0 
          get_strnum[ 1  +  1    + 1  + (DBL_DECIMAL_DIG-1) + 1 +  1   +  5   +  1] */
@@ -126,7 +126,7 @@ _jscon_utils_apply_double(double d_number, struct jscon_utils_s *utils)
 
 /* get int converted to string and then perform buffer method calls */
 static void
-_jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
+_jscon_utils_apply_integer(long long i_number, struct _jscon_utils_s *utils)
 {
     char get_strnum[DBL_DECIMAL_DIG];
     snprintf(get_strnum, DBL_DECIMAL_DIG-1, "%lld", i_number);
@@ -137,7 +137,7 @@ _jscon_utils_apply_integer(long long i_number, struct jscon_utils_s *utils)
 /* walk jscon item, by traversing its branches recursively,
       and perform buffer_method callback on each branch */
 static void
-_jscon_stringify_preorder(jscon_item_t *item, enum jscon_type type, struct jscon_utils_s *utils)
+_jscon_stringify_preorder(jscon_item_t *item, enum jscon_type type, struct _jscon_utils_s *utils)
 {
     /* 1st STEP: stringify jscon item only if it match the type
         given as parameter or is a composite type item */
@@ -242,7 +242,7 @@ jscon_stringify(jscon_item_t *root, enum jscon_type type)
 {
     ASSERT_S(NULL != root, "Item is NULL");
 
-    struct jscon_utils_s utils = {0};
+    struct _jscon_utils_s utils = {0};
 
     /* 1st STEP: remove root->key and root->parent temporarily to make
         sure the given item is treated as a root when printing, in the

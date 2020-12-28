@@ -52,20 +52,21 @@ int main(int argc, char *argv[])
                 "%s[t]" \
                 "%d[s]" \
                 "%d[op]" \
-                "%ji[d]",
+                "%ji[d][user]",
                  str1,
                  &integer1,
                  &integer2,
                  &item[0]);
     
-    for (size_t i=0; i<3; ++i){
+    for (size_t i=0; i < 3; ++i){
         if (NULL == item[i])
-        continue;
+            continue;
 
         buffer = jscon_stringify(item[i], JSCON_ANY);
         assert(NULL != buffer);
 
-        //fprintf(stdout, "%s: %s\n", jscon_get_key(item[i]), buffer);
+        fprintf(stdout, "%s: %s\n", jscon_get_key(item[i]), buffer);
+
         free(buffer);
         jscon_destroy(item[i]);
     }
@@ -73,7 +74,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "s: %d\n", integer1);
     fprintf(stdout, "op: %d\n", integer2);
     fprintf(stdout, "t: %s\n", str1);
-    fprintf(stdout, "d: %p\n", (void*)item[0]);
+    fprintf(stdout, "user: %p\n", (void*)item[0]);
 
     //jscon_parse_cb(&callback_test);
     jscon_item_t *root = jscon_parse(json_text);
@@ -90,9 +91,9 @@ int main(int argc, char *argv[])
         jscon_destroy(property1);
     }
 
-    fprintf(stdout, "key: meta, index: %ld\n", jscon_get_index(root, "meta"));
-    fprintf(stdout, "key: data, index: %ld\n", jscon_get_index(root, "data"));
-    fprintf(stdout, "key: string, index: %ld\n", jscon_get_index(root, "string"));
+    fprintf(stdout, "key: s, index: %ld\n", jscon_get_index(root, "s"));
+    fprintf(stdout, "key: op, index: %ld\n", jscon_get_index(root, "op"));
+    fprintf(stdout, "key: d, index: %ld\n", jscon_get_index(root, "d"));
 
     jscon_item_t *current_item = NULL, *tmp;
     jscon_item_t *walk = jscon_iter_composite_r(root, &current_item);
