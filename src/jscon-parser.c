@@ -33,7 +33,7 @@
 #include "debug.h"
 
 
-struct jscon_utils_s {
+struct _jscon_utils_s {
     char *buffer;
     char *key; /* holds key ptr to be received by item */
     jscon_composite_t *last_accessed_comp; /* holds last composite accessed */
@@ -43,8 +43,8 @@ struct jscon_utils_s {
 /* function pointers used while building json items, 
     jscon_create_value points to functions prefixed by "_jscon_value_set_"
     jscon_create_item points to functions prefixed by "jscon_decode" */
-typedef void (jscon_create_value)(jscon_item_t *item, struct jscon_utils_s *utils);
-typedef jscon_item_t* (jscon_create_item)(jscon_item_t*, struct jscon_utils_s*, jscon_create_value*);
+typedef void (jscon_create_value)(jscon_item_t *item, struct _jscon_utils_s *utils);
+typedef jscon_item_t* (jscon_create_item)(jscon_item_t*, struct _jscon_utils_s*, jscon_create_value*);
 
 static jscon_item_t*
 _jscon_item_init()
@@ -100,8 +100,10 @@ _jscon_destroy_preorder(jscon_item_t *item)
         break;
     }
 
-    free(item->key);
-    item->key = NULL;
+    if (NULL != item->key){
+        free(item->key);
+        item->key = NULL;
+    }
 
     free(item);
     item = NULL;
@@ -115,7 +117,7 @@ jscon_destroy(jscon_item_t *item){
 
 /* fetch string type jscon and return allocated string */
 static void
-_jscon_value_set_string(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_string(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     item->type = JSCON_STRING;
     item->string = Jscon_decode_string(&utils->buffer);
@@ -124,7 +126,7 @@ _jscon_value_set_string(jscon_item_t *item, struct jscon_utils_s *utils)
 /* fetch number jscon type by parsing string,
     find out whether its a integer or double and assign*/
 static void
-_jscon_value_set_number(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_number(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     double set_double = Jscon_decode_double(&utils->buffer);
     if (DOUBLE_IS_INTEGER(set_double)){
@@ -137,14 +139,14 @@ _jscon_value_set_number(jscon_item_t *item, struct jscon_utils_s *utils)
 }
 
 static void
-_jscon_value_set_boolean(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_boolean(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     item->type = JSCON_BOOLEAN;
     item->boolean = Jscon_decode_boolean(&utils->buffer);
 }
 
 static void
-_jscon_value_set_null(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_null(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     item->type = JSCON_NULL;
     Jscon_decode_null(&utils->buffer);
@@ -193,7 +195,7 @@ _jscon_count_property(char *buffer)
 }
 
 static void
-_jscon_value_set_object(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_object(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     item->type = JSCON_OBJECT;
 
@@ -244,7 +246,7 @@ _jscon_count_element(char *buffer)
 }
 
 static void
-_jscon_value_set_array(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_value_set_array(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     item->type = JSCON_ARRAY;
 
@@ -255,7 +257,7 @@ _jscon_value_set_array(jscon_item_t *item, struct jscon_utils_s *utils)
 /* create nested composite type (object/array) and return 
       the address. */
 static jscon_item_t*
-_jscon_composite_init(jscon_item_t *item, struct jscon_utils_s *utils, jscon_create_value *value_setter)
+_jscon_composite_init(jscon_item_t *item, struct _jscon_utils_s *utils, jscon_create_value *value_setter)
 {
     item = _jscon_branch_init(item);
     item->key = utils->key;
@@ -270,7 +272,7 @@ _jscon_composite_init(jscon_item_t *item, struct jscon_utils_s *utils, jscon_cre
 /* wrap array or object type jscon, which means
       all of its branches have been created */
 static jscon_item_t*
-_jscon_wrap_composite(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_wrap_composite(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     ++utils->buffer; /* skips '}' or ']' */
     Jscon_composite_build(item);
@@ -279,7 +281,7 @@ _jscon_wrap_composite(jscon_item_t *item, struct jscon_utils_s *utils)
 
 /* create a primitive data type branch. */
 static jscon_item_t*
-_jscon_append_primitive(jscon_item_t *item, struct jscon_utils_s *utils, jscon_create_value *value_setter)
+_jscon_append_primitive(jscon_item_t *item, struct _jscon_utils_s *utils, jscon_create_value *value_setter)
 {
     item = _jscon_branch_init(item);
     item->key = utils->key;
@@ -294,7 +296,7 @@ _jscon_append_primitive(jscon_item_t *item, struct jscon_utils_s *utils, jscon_c
 /* this routine is called when setting a branch of a composite type
       (object and array) item. */
 static jscon_item_t*
-_jscon_branch_build(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_branch_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     jscon_create_item *item_setter;
     jscon_create_value *value_setter;
@@ -349,7 +351,7 @@ token_error:
     whatever item is created here will be this array's property.
     if a ']' token is found then the array is wrapped up */
 static jscon_item_t*
-_jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_array_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     CONSUME_BLANK_CHARS(utils->buffer);
     switch (*utils->buffer){
@@ -380,7 +382,7 @@ _jscon_array_build(jscon_item_t *item, struct jscon_utils_s *utils)
     whatever item is created here will be this object's property.
     if a '}' token is found then the object is wrapped up */
 static jscon_item_t*
-_jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_object_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     CONSUME_BLANK_CHARS(utils->buffer);
     switch (*utils->buffer){
@@ -410,7 +412,7 @@ _jscon_object_build(jscon_item_t *item, struct jscon_utils_s *utils)
     it also allows the creation of a jscon that's not part of an
     array or object. ex: jscon_item_parse("10") */
 static jscon_item_t*
-_jscon_entity_build(jscon_item_t *item, struct jscon_utils_s *utils)
+_jscon_entity_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
     switch (*utils->buffer){
     case '{':/*OBJECT DETECTED*/
@@ -477,7 +479,7 @@ jscon_parse(char *buffer)
     jscon_item_t *root = calloc(1, sizeof *root);
     if (NULL == root) return NULL;
 
-    struct jscon_utils_s utils = {
+    struct _jscon_utils_s utils = {
         .buffer = buffer,
         .parse_cb = jscon_parse_cb(NULL),
     };
