@@ -133,6 +133,29 @@ Jscon_decode_string(char **p_buffer)
     return set_str;
 }
 
+char*
+Jscon_decode_static_string(char **p_buffer, const long len, char set_str[])
+{
+    char *start = *p_buffer;
+    ASSERT_S('\"' == *start, "Not a string"); /* makes sure a string is given */
+
+    char *end = ++start;
+    while (('\0' != *end) && ('\"' != *end)){
+        if ('\\' == *end++){ /* skips escaped characters */
+            ++end;
+        }
+    }
+    ASSERT_S('\"' == *end, "Not a string"); /* makes sure end of string exists */
+
+    *p_buffer = end + 1; /* skips double quotes buffer position */
+
+    ASSERT_S(len > (end-start), "Buffer Overflow");
+
+    strscpy(set_str, start, (end-start)+1);
+
+    return set_str;
+}
+
 double
 Jscon_decode_double(char **p_buffer)
 {
