@@ -14,7 +14,7 @@
 
 A format specifier for `jscon_scanf` follow this prototype:
 
-`%specifier[key]`
+`%specifier[key][nested_key][nested_key]`
 
 Where the 'key' should be replaced by the name of the key to be matched, and 'specifier' its expected type.
 'null' type items can't be specified, but in such case that the expected key is assigned to one, the value will be converted.
@@ -32,7 +32,7 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 
 ### Description
 
-The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JSON string, and have the matched input be parsed directly to its aligned argument. In opposite to C library's scanf, this implementation doesn't require that the given arguments are in the same order as of the keys from the string, the only requirement is that the arguments are aligned with the format specifiers. This function ignore nests, it only considers keys which are members of the same root element. In other words, only keys exactly one level below root are searched for.
+The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JSON string, and have the matched input be parsed directly to its aligned argument. In opposite to C library's scanf, this implementation doesn't require that the given arguments are in the same order as of the keys from the string, the only requirement is that the arguments are aligned with the format specifiers.
 
 ### Example
 
@@ -40,10 +40,11 @@ The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JS
 jscon_item_t *item;
 char *string;
 bool boolean;
+int nested_number;
 
-char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true}";
+char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true, \"omega\":{\"nest\":1}}";
 /* order of arguments doesn't have to be the same as the json string */
-jscon_scanf(buffer, "%s[beta] %b[gamma] %ji[alpha]", string, &boolean, &item);
+jscon_scanf(buffer, "%s[beta] %b[gamma] %ji[alpha] %d[omega][nest]", string, &boolean, &item, &number);
 ```
 
 ### See Also
