@@ -74,10 +74,10 @@ _jscon_skip_composite(int ldelim, int rdelim, struct _jscon_utils_s *utils)
         } else if (rdelim == *utils->buffer) {
             --depth;
             ++utils->buffer; /* skips rdelim char */
-        } else if ('\"' == *utils->buffer) { /* treat string separetely */
+        } else if ('\"' == *utils->buffer) { /* treat string separately */
             _jscon_skip_string(utils);
         } else {
-            ++utils->buffer; /* skips whatever char */
+            ++utils->buffer; /* skips whatever token */
         }
 
         if (0 == depth) return; /* entire item has been skipped, return */
@@ -110,12 +110,8 @@ _jscon_skip(struct _jscon_utils_s *utils)
 static char*
 _jscon_format_info(char *specifier, size_t *p_tmp)
 {
-    size_t *n_bytes;
     size_t discard; /* throw values here if p_tmp is NULL */
-    if (p_tmp != NULL)
-        n_bytes = p_tmp;
-    else
-        n_bytes = &discard;
+    size_t *n_bytes = (p_tmp != NULL) ? p_tmp : &discard;
 
     if (STREQ(specifier, "s") || STREQ(specifier, "c")){
         *n_bytes = sizeof(char);
@@ -146,14 +142,12 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
         return "bool*";
     }
     if (STREQ(specifier, "ji")){
-        /* this will never get validated at _jscon_apply(),
-          but it doesn't matter, a JSCON_NULL item is created either way */
         *n_bytes = sizeof(jscon_item_t*);
         return "jscon_item_t**";
     }
 
     *n_bytes = 0;
-    return "NaN";
+    return "";
 }
 
 static void
@@ -323,7 +317,8 @@ _jscon_format_analyze(char *format)
                 if (*++format != '[')
                     break;
 
-                /* we've got a nested object */
+                /* we've got a parent of a nested object. */
+
                 ++format;
                 ++num_keys;
 
@@ -341,14 +336,14 @@ _jscon_format_analyze(char *format)
 }
 
 static void
-_jscon_store_pair(char str[], dictionary_t *dict, va_list ap)
+_jscon_store_pair(char buf[], dictionary_t *dict, va_list ap)
 {
     struct _jscon_pair_s *new_pair = malloc(sizeof *new_pair);
     ASSERT_S(new_pair != NULL, "Out of memory");
 
-    strscpy(new_pair->specifier, str, sizeof(new_pair->specifier)); /* get specifier string */
+    strscpy(new_pair->specifier, buf, sizeof(new_pair->specifier)); /* get specifier string */
 
-    if (STREQ("NaN", _jscon_format_info(new_pair->specifier, NULL)))
+    if (STREQ("", _jscon_format_info(new_pair->specifier, NULL)))
         ERROR("Unknown type specifier %%%s", new_pair->specifier);
 
     if (NULL != ap)
@@ -356,7 +351,7 @@ _jscon_store_pair(char str[], dictionary_t *dict, va_list ap)
     else
         new_pair->value = NULL;
 
-    dictionary_set(dict, &str[strlen(str)+1], new_pair, &free);
+    dictionary_set(dict, &buf[strlen(buf)+1], new_pair, &free);
 }
 
 static void
@@ -365,10 +360,10 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
     /* Can't decode empty string */
     ASSERT_S('\0' != *format, "Empty format");
 
-    char str[256];
+    char buf[256];
 
     /* split keys from its type specifier */
-    size_t i; /* str char index */
+    size_t i; /* buf char index */
     while (true) /* run until end of string found */
     {
         /* 1st STEP: find % occurrence */
@@ -388,15 +383,15 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
         /* 2nd STEP: fetch type specifier */
         while (true){
             ++i;
-            ASSERT_S(i <= sizeof(str), "Buffer overflow");
+            ASSERT_S(i <= sizeof(buf), "Buffer overflow");
 
             if ('[' == *format){
                 ++format;
-                str[i-1] = '\0';
+                buf[i-1] = '\0';
                 break;
             }
 
-            str[i-1] = *format++;
+            buf[i-1] = *format++;
         }
 
         /* 3rd STEP: type specifier is formed, proceed to fetch the key and store
@@ -405,27 +400,30 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
         {
             if (']' == *format)
             {
-                str[i] = '\0';
+                buf[i] = '\0';
 
                 if (*++format != '['){
                     /* most significand key */
-                    _jscon_store_pair(str, dict, ap);
+                    _jscon_store_pair(buf, dict, ap);
 
                     break;
                 }
-                /* we've got a nested object */
 
-                _jscon_store_pair(str, dict, NULL);
+                /* we've got a parent of a nested object.
+                 *  it will be identified by its pair->value
+                 *  being NULL */
+
+                _jscon_store_pair(buf, dict, NULL);
 
                 ++format; /* skips '[' token */
 
                 continue;
             }
 
-            str[i] = *format++;
+            buf[i] = *format++;
 
             ++i;
-            ASSERT_S(i <= sizeof(str), "Buffer overflow");
+            ASSERT_S(i <= sizeof(buf), "Buffer overflow");
         }
     }
 }
