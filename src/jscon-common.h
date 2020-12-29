@@ -35,7 +35,33 @@
 
 #define MAX_INTEGER_DIG 20 /* ULLONG_MAX maximum amt of digits possible */
 
-#define STRLT(s,t) (strcmp(s,t) < 0)
+typedef enum jscon_errcode
+{
+/* JSCON EXTERNAL ERRORS */
+
+    JSCON_EXT__OUT_MEM              = 0,
+    JSCON_EXT__INVALID_TOKEN        = 50,
+    JSCON_EXT__INVALID_STRING,
+    JSCON_EXT__INVALID_BOOLEAN,
+    JSCON_EXT__INVALID_NUMBER,
+    JSCON_EXT__INVALID_COMPOSITE,
+    JSCON_EXT__NOT_STRING           = 100,
+    JSCON_EXT__NOT_BOOLEAN,
+    JSCON_EXT__NOT_NUMBER,
+    JSCON_EXT__NOT_COMPOSITE,
+    JSCON_EXT__EMPTY_FIELD          = 200,
+
+/* JSCON INTERNAL ERRORS */
+
+    JSCON_INT__NOT_FREED        = -1,
+    JSCON_INT__OVERFLOW         = -50,
+} jscon_errcode;
+
+/* this allocates memory dynamically, should only be used for printing
+ *  exception error messages */
+char *__jscon_strerror(jscon_errcode code, char codetag[], void *where, char entity[]);
+#define jscon_strerror(code, where) __jscon_strerror(code, #code, where, #where)
+
 #define STREQ(s,t) (0 == strcmp(s,t))
 #define STRNEQ(s,t,n) (0 == strncmp(s,t,n))
 
@@ -57,15 +83,15 @@
 
 
 /* JSCON COMPOSITE STRUCTURE
- * if jscon_item type is of composite type (object or array) it will
- * include a jscon_composite_t struct with the following attributes:
+ *  if jscon_item type is of composite type (object or array) it will
+ *  include a jscon_composite_t struct with the following attributes:
  *      branch: for sorting through object's properties/array elements
  *      num_branch: amount of enumerable properties/elements contained
  *      last_accessed_branch: simulate stack trace by storing the last
- *              accessed branch address. this is used for movement 
- *              functions that require state to be preserved between 
- *              calls, while also adhering to tree traversal rules. 
- *              (check public.c jscon_iter_next() for example)
+ *          accessed branch address. this is used for movement 
+ *          functions that require state to be preserved between 
+ *          calls, while also adhering to tree traversal rules. 
+ *          (check public.c jscon_iter_next() for example)
  *      hashtable: easy reference to its key-value pairs
  *      p_item: reference to the item the composite is part of
  *      next: points to next composite
@@ -90,10 +116,10 @@ void Jscon_composite_remake(jscon_item_t *item);
 
 
 /* JSCON ITEM STRUCTURE
- * key: item's jscon key (NULL if root)
- * parent: object or array that its part of (NULL if root)
- * type: item's jscon datatype (check enum jscon_type_e for flags) 
- * union {string, d_number, i_number, boolean, comp}:
+ *  key: item's jscon key (NULL if root)
+ *  parent: object or array that its part of (NULL if root)
+ *  type: item's jscon datatype (check enum jscon_type_e for flags) 
+ *  union {string, d_number, i_number, boolean, comp}:
  *      string,d_number,i_number,boolean: item literal value, denoted 
  *      by its type.  */
 typedef struct jscon_item_s {

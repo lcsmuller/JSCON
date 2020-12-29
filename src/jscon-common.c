@@ -37,7 +37,7 @@
 void
 Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_comp)
 {
-    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), jscon_strerror(JSCON_EXT__NOT_COMPOSITE, item));
 
     jscon_composite_t *last_accessed_comp = *p_last_accessed_comp;
     if (NULL != last_accessed_comp){
@@ -53,7 +53,7 @@ Jscon_composite_link_r(jscon_item_t *item, jscon_composite_t **p_last_accessed_c
 void
 Jscon_composite_build(jscon_item_t *item)
 {
-    ASSERT_S(IS_COMPOSITE(item), "Item is not an Object or Array");
+    ASSERT_S(IS_COMPOSITE(item), jscon_strerror(JSCON_EXT__NOT_COMPOSITE, item));
 
     hashtable_build(item->comp->hashtable, 2 + (1.3 * item->comp->num_branch)); /* 30% size increase to account for future expansions, and a default bucket size of 2 */
 
@@ -89,7 +89,7 @@ Jscon_composite_remake(jscon_item_t *item)
     hashtable_destroy(item->comp->hashtable);
 
     item->comp->hashtable = hashtable_init();
-    ASSERT_S(NULL != item->comp->hashtable, "Out of memory");
+    ASSERT_S(NULL != item->comp->hashtable, jscon_strerror(JSCON_EXT__OUT_MEM, item->comp->hashtable));
 
     Jscon_composite_build(item);
 }
@@ -97,13 +97,13 @@ Jscon_composite_remake(jscon_item_t *item)
 jscon_composite_t*
 Jscon_decode_composite(char **p_buffer, size_t n_branch){
     jscon_composite_t *new_comp = calloc(1, sizeof *new_comp);
-    ASSERT_S(NULL != new_comp, "Out of memory");
+    ASSERT_S(NULL != new_comp, jscon_strerror(JSCON_EXT__OUT_MEM, new_comp));
 
     new_comp->hashtable = hashtable_init(); 
-    ASSERT_S(NULL != new_comp->hashtable, "Out of memory");
+    ASSERT_S(NULL != new_comp->hashtable, jscon_strerror(JSCON_EXT__OUT_MEM, new_comp->hashtable));
 
     new_comp->branch = malloc((1+n_branch) * sizeof(jscon_item_t*));
-    ASSERT_S(NULL != new_comp->branch, "Out of memory");
+    ASSERT_S(NULL != new_comp->branch, jscon_strerror(JSCON_EXT__OUT_MEM, new_comp->branch));
 
     ++*p_buffer; /* skips composite's '{' or '[' delim */
 
@@ -114,7 +114,7 @@ char*
 Jscon_decode_string(char **p_buffer)
 {
     char *start = *p_buffer;
-    ASSERT_S('\"' == *start, "Not a string"); /* makes sure a string is given */
+    ASSERT_S('\"' == *start, jscon_strerror(JSCON_EXT__INVALID_STRING, start)); /* makes sure a string is given */
 
     char *end = ++start;
     while (('\0' != *end) && ('\"' != *end)){
@@ -122,12 +122,12 @@ Jscon_decode_string(char **p_buffer)
             ++end;
         }
     }
-    ASSERT_S('\"' == *end, "Not a string"); /* makes sure end of string exists */
+    ASSERT_S('\"' == *end, jscon_strerror(JSCON_EXT__INVALID_STRING, end)); /* makes sure a string is given */
 
     *p_buffer = end + 1; /* skips double quotes buffer position */
 
     char *set_str = strndup(start, end-start);
-    ASSERT_S(NULL != set_str, "Out of memory");
+    ASSERT_S(NULL != set_str, jscon_strerror(JSCON_EXT__OUT_MEM, set_str));
 
     return set_str;
 }
@@ -136,7 +136,7 @@ void
 Jscon_decode_static_string(char **p_buffer, const long len, const long offset, char set_str[])
 {
     char *start = *p_buffer;
-    ASSERT_S('\"' == *start, "Not a string"); /* makes sure a string is given */
+    ASSERT_S('\"' == *start, jscon_strerror(JSCON_EXT__INVALID_STRING, start)); /* makes sure a string is given */
 
     char *end = ++start;
     while (('\0' != *end) && ('\"' != *end)){
@@ -144,11 +144,11 @@ Jscon_decode_static_string(char **p_buffer, const long len, const long offset, c
             ++end;
         }
     }
-    ASSERT_S('\"' == *end, "Not a string"); /* makes sure end of string exists */
+    ASSERT_S('\"' == *end, jscon_strerror(JSCON_EXT__INVALID_STRING, end)); /* makes sure a string is given */
 
     *p_buffer = end + 1; /* skips double quotes buffer position */
 
-    ASSERT_S(len > (strlen(set_str) + end-start), "Buffer Overflow");
+    ASSERT_S(len > (strlen(set_str) + end-start), jscon_strerror(JSCON_INT__OVERFLOW, set_str));
 
     strscpy(set_str + offset, start, (end-start)+1);
 }
@@ -165,7 +165,7 @@ Jscon_decode_double(char **p_buffer)
     }
 
     /* 2nd STEP: skips until a non digit char found */
-    ASSERT_S(isdigit(*end), "Not a number"); /* interrupt if char isn't digit */
+    ASSERT_S(isdigit(*end), jscon_strerror(JSCON_EXT__INVALID_NUMBER, end)); /* interrupt if char isn't digit */
     while (isdigit(*++end))
         continue; /* skips while char is digit */
 
@@ -182,7 +182,7 @@ Jscon_decode_double(char **p_buffer)
         if (('+' == *end) || ('-' == *end)){ 
             ++end;
         }
-        ASSERT_S(isdigit(*end), "Not a number");
+        ASSERT_S(isdigit(*end), jscon_strerror(JSCON_EXT__INVALID_NUMBER, end)); /* interrupt if char isn't digit */
         while (isdigit(*++end))
             continue;
     }
@@ -213,4 +213,64 @@ Jscon_decode_boolean(char **p_buffer)
 void
 Jscon_decode_null(char **p_buffer){
     *p_buffer += 4; /* skips length of "null" */
+}
+
+char*
+__jscon_strerror(jscon_errcode code, char codetag[], void *where, char entity[])
+{
+    char err_is[128];
+    switch (code){
+    case JSCON_EXT__OUT_MEM:
+        snprintf(err_is, sizeof(err_is)-1, "Out of Memory");
+        break;
+    case JSCON_EXT__INVALID_TOKEN:
+        snprintf(err_is, sizeof(err_is)-1, "Invalid Token: '%c'", *((char*)where));
+        break;
+    case JSCON_EXT__INVALID_STRING:
+        snprintf(err_is, sizeof(err_is)-1, "Missing string token: ' \" '");
+        break;
+    case JSCON_EXT__INVALID_BOOLEAN:
+        snprintf(err_is, sizeof(err_is)-1, "Missing boolean token: 't' or 'f'");
+        break;
+    case JSCON_EXT__INVALID_NUMBER:
+        snprintf(err_is, sizeof(err_is)-1, "Missing number tokens: '+-.0-9e'");
+        break;
+    case JSCON_EXT__INVALID_COMPOSITE:
+        snprintf(err_is, sizeof(err_is)-1, "Missing Object or Array tokens: '{}[]'");
+        break;
+    case JSCON_EXT__NOT_STRING:
+        snprintf(err_is, sizeof(err_is)-1, "Item is not a string");
+        break;
+    case JSCON_EXT__NOT_BOOLEAN:
+        snprintf(err_is, sizeof(err_is)-1, "Item is not a boolean");
+        break;
+    case JSCON_EXT__NOT_NUMBER:
+        snprintf(err_is, sizeof(err_is)-1, "Item is not a number");
+        break;
+    case JSCON_EXT__NOT_COMPOSITE:
+        snprintf(err_is, sizeof(err_is)-1, "Item is not a Object or Array");
+        break;
+    case JSCON_EXT__EMPTY_FIELD:
+        snprintf(err_is, sizeof(err_is)-1, "Field is missing");
+        break;
+    case JSCON_INT__NOT_FREED:
+        snprintf(err_is, sizeof(err_is)-1, "JSCON couldn't free memory");
+        break;
+    case JSCON_INT__OVERFLOW:
+        snprintf(err_is, sizeof(err_is)-1, "JSCON tried to access forbidden memory (Overflow)");
+        break;
+    default:
+        snprintf(err_is, sizeof(err_is)-1, "Unknown Error");
+        break;
+    }
+
+    char errbuf[512];
+    snprintf(errbuf, sizeof(errbuf)-1, "%s (Code: %d)\n\t%s\n\tAt '%s' (addr: %p)", codetag, code, err_is, entity, where);
+
+    char *errdynm = strdup(errbuf);
+    if (NULL == errdynm){
+        ERROR("%s", errbuf);
+    }
+
+    return  errdynm;
 }
