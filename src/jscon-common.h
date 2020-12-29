@@ -113,7 +113,7 @@ typedef struct jscon_item_s {
  * jscon-common.c
  */
 char* Jscon_decode_string(char **p_buffer);
-char* Jscon_decode_static_string(char **p_buffer, const long len, char set_str[]);
+void Jscon_decode_static_string(char **p_buffer, const long len, const long offset, char set_str[]);
 double Jscon_decode_double(char **p_buffer);
 bool Jscon_decode_boolean(char **p_buffer);
 void Jscon_decode_null(char **p_buffer);

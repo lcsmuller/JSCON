@@ -133,8 +133,8 @@ Jscon_decode_string(char **p_buffer)
     return set_str;
 }
 
-char*
-Jscon_decode_static_string(char **p_buffer, const long len, char set_str[])
+void
+Jscon_decode_static_string(char **p_buffer, const long len, const long offset, char set_str[])
 {
     char *start = *p_buffer;
     ASSERT_S('\"' == *start, "Not a string"); /* makes sure a string is given */
@@ -149,11 +149,9 @@ Jscon_decode_static_string(char **p_buffer, const long len, char set_str[])
 
     *p_buffer = end + 1; /* skips double quotes buffer position */
 
-    ASSERT_S(len > (end-start), "Buffer Overflow");
+    ASSERT_S(len > (strlen(set_str) + end-start), "Buffer Overflow");
 
-    strscpy(set_str, start, (end-start)+1);
-
-    return set_str;
+    strscpy(set_str + offset, start, (end-start)+1);
 }
 
 double

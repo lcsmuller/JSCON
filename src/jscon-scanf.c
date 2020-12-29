@@ -34,9 +34,10 @@
 
 
 struct _jscon_utils_s {
-    char *buffer;
-    char key[256]; /* holds key ptr to be received by item */
-    bool is_nest; /* condition to form nested keys */
+    char *buffer;   /* the json string to be parsed */
+    char key[256];  /* holds key ptr to be received by item */
+    long offset;    /* key offset used for concatenating unique keys for nested objects */
+    bool is_nest;   /* condition to form nested keys */
 };
 
 /* temp struct that will be stored at jscon_scanf dictionary */
@@ -164,6 +165,8 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
         return;
     }
 
+    /* is not nest or reached last item from nest that can be fetched */
+
     utils->is_nest = false;
 
     /* if specifier is item, simply call jscon_parse at current buffer token */
@@ -171,7 +174,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
         jscon_item_t **item = pair->value;
         *item = jscon_parse(utils->buffer);
 
-        (*item)->key = strdup(utils->key);
+        (*item)->key = strdup(&utils->key[utils->offset]);
         ASSERT_S(NULL != (*item)->key, "Out of memory");
 
         _jscon_skip(utils); /* skip characters parsed by jscon_parse */
@@ -445,8 +448,7 @@ jscon_scanf(char *buffer, char *format, ...)
 
     struct _jscon_utils_s utils = {
         .key     = "",
-        .buffer  = buffer,
-        .is_nest = false
+        .buffer  = buffer
     };
 
     va_list ap;
@@ -461,18 +463,18 @@ jscon_scanf(char *buffer, char *format, ...)
     _jscon_format_decode(format, dict, ap);
     ASSERT_S(num_key == dict->len, "Number of keys encountered is different than allocated");
 
-    long key_len;
     while (*utils.buffer != '\0')
     {
         if ('\"' == *utils.buffer)
         {
-            /* is key token, check if key has a match from given format */
-            key_len = strlen(utils.key);
-            if (false == utils.is_nest)
-                Jscon_decode_static_string(&utils.buffer, sizeof(utils.key), utils.key);
+            if (true == utils.is_nest)
+                utils.offset = strlen(utils.key);
             else
-                Jscon_decode_static_string(&utils.buffer, sizeof(utils.key), &utils.key[key_len]);
+                utils.offset = 0;
 
+            Jscon_decode_static_string(&utils.buffer, sizeof(utils.key), utils.offset, utils.key);
+
+            /* is key token, check if key has a match from given format */
             ASSERT_S(':' == *utils.buffer, "Missing ':' token after key"); /* check for key's assign token  */
             ++utils.buffer; /* consume ':' */
 
@@ -484,7 +486,7 @@ jscon_scanf(char *buffer, char *format, ...)
                 _jscon_apply(&utils, pair); /* match, fetch value and apply to corresponding arg */
             } else {
                 _jscon_skip(&utils); /* doesn't match, skip tokens until different key is detected */
-                utils.key[key_len] = '\0'; /* resets unmatched key */
+                utils.key[utils.offset] = '\0'; /* resets unmatched key */
             }
         }
         else {
