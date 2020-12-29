@@ -33,6 +33,7 @@
 
 #define JSCON_VERSION "0.0"
 
+#define MAX_INTEGER_DIG 20 /* ULLONG_MAX maximum amt of digits possible */
 
 #define STRLT(s,t) (strcmp(s,t) < 0)
 #define STREQ(s,t) (0 == strcmp(s,t))

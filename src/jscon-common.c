@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include <float.h> /* for DBL_DECIMAL_DIG */
 
 #include <libjscon.h>
 #include "jscon-common.h"
@@ -189,7 +188,7 @@ Jscon_decode_double(char **p_buffer)
     }
 
     /* 5th STEP: convert string to double and return its value */
-    char numstr[DBL_DECIMAL_DIG];
+    char numstr[MAX_INTEGER_DIG];
     strscpy(numstr, start, ((size_t)(end-start+1) < sizeof(numstr)) ? (size_t)(end-start+1) : sizeof(numstr));
 
     double set_double;

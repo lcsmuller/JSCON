@@ -128,8 +128,8 @@ _jscon_utils_apply_double(double d_number, struct _jscon_utils_s *utils)
 static void
 _jscon_utils_apply_integer(long long i_number, struct _jscon_utils_s *utils)
 {
-    char get_strnum[DBL_DECIMAL_DIG];
-    snprintf(get_strnum, DBL_DECIMAL_DIG-1, "%lld", i_number);
+    char get_strnum[MAX_INTEGER_DIG];
+    snprintf(get_strnum, MAX_INTEGER_DIG-1, "%lld", i_number);
 
     _jscon_utils_apply_string(get_strnum,utils); /* store value in utils */
 }
