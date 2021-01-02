@@ -210,7 +210,7 @@ jscon_append(jscon_item_t *item, jscon_item_t *new_branch)
         hold_key = new_branch->key; 
 
         char numkey[MAX_INTEGER_DIG];
-        snprintf(numkey, MAX_INTEGER_DIG-1, "%ld", item->comp->num_branch);
+        snprintf(numkey, MAX_INTEGER_DIG-1, "%zu", item->comp->num_branch);
 
         new_branch->key = strdup(numkey);
         if (NULL == new_branch->key) goto cleanupA; /* Out of memory, reattach its old key and return NULL */

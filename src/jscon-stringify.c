@@ -24,8 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <float.h> /* for DBL_DECIMAL_DIG */
 #include <math.h> /* for isfinite() */
+#include <float.h> /* for DBL_DECIMAL_DIG */
+#ifndef DBL_DECIMAL_DIG
+#define DBL_DECIMAL_DIG 17
+#endif
 
 #include <libjscon.h>
 
@@ -242,7 +245,7 @@ jscon_stringify(jscon_item_t *root, enum jscon_type type)
 {
     ASSERT_S(NULL != root, jscon_strerror(JSCON_EXT__EMPTY_FIELD, root));
 
-    struct _jscon_utils_s utils = {0};
+    struct _jscon_utils_s utils = {.buffer_offset = 0};
 
     /* 1st STEP: remove root->key and root->parent temporarily to make
         sure the given item is treated as a root when printing, in the

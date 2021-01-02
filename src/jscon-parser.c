@@ -364,7 +364,7 @@ _jscon_array_build(jscon_item_t *item, struct _jscon_utils_s *utils)
      {
         /* creates numerical key for the array element */
         char numkey[MAX_INTEGER_DIG];
-        snprintf(numkey, MAX_INTEGER_DIG-1, "%ld", item->comp->num_branch);
+        snprintf(numkey, MAX_INTEGER_DIG-1, "%zu", item->comp->num_branch);
 
         ASSERT_S(NULL == utils->key, jscon_strerror(JSCON_INT__NOT_FREED, utils->key));
         utils->key = strdup(numkey);
