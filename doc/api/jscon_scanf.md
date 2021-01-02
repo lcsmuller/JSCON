@@ -40,11 +40,11 @@ The `jscon_scanf(buffer, format, ...);` function reads formatted input from a JS
 jscon_item_t *item;
 char *string;
 bool boolean;
-int nested_number;
+int number;
 
-char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true, \"omega\":{\"nest\":1}}";
+char buffer[] = "{\"alpha\":[1,2,3,4], \"beta\":\"This is a string.", \"gamma\":true, \"omega\":{\"number\":1}}";
 /* order of arguments doesn't have to be the same as the json string */
-jscon_scanf(buffer, "%s[beta] %b[gamma] %ji[alpha] %d[omega][nest]", string, &boolean, &item, &number);
+jscon_scanf(buffer, "%s[beta] %b[gamma] %ji[alpha] %d[omega][number]", string, &boolean, &item, &number);
 ```
 
 ### See Also
