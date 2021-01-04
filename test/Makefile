@@ -31,13 +31,13 @@ LIBJSCON_LDFLAGS	:= "-Wl,-rpath,$(LIBDIR)" -L$(LIBDIR) -ljscon
 LIBS_CFLAGS	:= $(LIBJSCON_CFLAGS)
 LIBS_LDFLAGS	:= $(LIBJSCON_LDFLAGS)
 
-CFLAGS	:= -Wall -Werror -Wextra -pedantic -g
+CFLAGS	:= -Wall -Wextra -pedantic -g
 
 .PHONY : clean purge
 
 test : test.c $(LIBDIR) Makefile
 	$(CC) $(CFLAGS) $(LIBS_CFLAGS) \
-	      test.c -o $@ $(LIBS_LDFLAGS)
+		test.c -o $@ $(LIBS_LDFLAGS)
 
 $(LIBDIR) :
 	$(MAKE) -C $(TOP)

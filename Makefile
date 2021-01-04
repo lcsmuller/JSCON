@@ -20,13 +20,13 @@
 # SOFTWARE.
 #
 
-CC	:= gcc
+CC			:= gcc
 SRCDIR	:= src
 OBJDIR	:= obj
 INCLDIR	:= include
 LIBDIR	:= lib
 
-SRC	:= $(wildcard src/*.c)
+SRC		:= $(wildcard src/*.c)
 _OBJS	:= $(patsubst src/%.c, %.o, $(SRC))
 OBJS	:= $(addprefix $(OBJDIR)/, $(_OBJS))
 
@@ -37,7 +37,8 @@ LIBJSCON_CFLAGS	:= -I$(INCLDIR)
 
 LIBS_CFLAGS	:= $(LIBJSCON_CFLAGS)
 
-CFLAGS	:= -Wall -Werror -Wextra -pedantic -fPIC -O2 -g
+CFLAGS	:= -Wall -Wextra -pedantic \
+	-fPIC -std=c11 -O0 -g -D_XOPEN_SOURCE=700
 
 .PHONY : all clean purge
 
@@ -55,7 +56,7 @@ $(JSCON_DLIB) :
 	      $(OBJS) -shared -o $(JSCON_DLIB)
 
 $(JSCON_SLIB) :
-	ar rcs $@ $(OBJS)
+	$(AR) -cvq $@ $(OBJS)
 
 install : all
 	cp $(INCLDIR)/* /usr/local/include
