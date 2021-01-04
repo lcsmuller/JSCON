@@ -40,10 +40,11 @@ struct _jscon_utils_s {
     bool is_nest;   /* condition to form nested keys */
 };
 
-/* temp struct that will be stored at jscon_scanf dictionary */
 struct _jscon_pair_s {
     char specifier[5];
-    void *value; /* NULL value means its a parent */
+
+    void *key;
+    void *value; /* value being NULL means its a parent */
 };
 
 inline static void
@@ -273,10 +274,9 @@ token_error:
 }
 
 /* count amount of keys and check for formatting errors */
-static size_t
-_jscon_format_analyze(char *format)
+static void
+_jscon_format_analyze(char *format, int *num_keys)
 {
-    size_t num_keys = 0;
     while (true) /* run until end of string found */
     {
         /* 1st STEP: find % occurrence */
@@ -287,8 +287,8 @@ _jscon_format_analyze(char *format)
                 break;
             }
             if ('\0' == *format){
-                ASSERT_S(num_keys != 0, "Format missing type specifiers");
-                return num_keys;
+                ASSERT_S(*num_keys != 0, "Format missing type specifiers");
+                return;
             }
             ASSERT_S(']' != *format, "Found extra ']' in key specifier");
 
@@ -322,7 +322,7 @@ _jscon_format_analyze(char *format)
                 /* we've got a parent of a nested object. */
 
                 ++format;
-                ++num_keys;
+                ++*num_keys;
 
                 continue;
             }
@@ -333,12 +333,12 @@ _jscon_format_analyze(char *format)
             ++format;
         }
 
-        ++num_keys;
+        ++*num_keys;
     }
 }
 
 static void
-_jscon_store_pair(char buf[], dictionary_t *dict, va_list ap)
+_jscon_store_pair(char buf[], struct _jscon_pair_s **pairs, int *num_pairs, va_list ap)
 {
     struct _jscon_pair_s *new_pair = malloc(sizeof *new_pair);
     ASSERT_S(new_pair != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair));
@@ -353,11 +353,15 @@ _jscon_store_pair(char buf[], dictionary_t *dict, va_list ap)
     else
         new_pair->value = NULL;
 
-    dictionary_set(dict, &buf[strlen(buf)+1], new_pair, &free);
+    new_pair->key = strdup(&buf[strlen(buf)+1]);
+    ASSERT_S(new_pair->key != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair->key));
+
+    pairs[*num_pairs] = new_pair;
+    ++*num_pairs;
 }
 
 static void
-_jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
+_jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs, va_list ap)
 {
     char buf[256];
 
@@ -394,7 +398,7 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
         }
 
         /* 3rd STEP: type specifier is formed, proceed to fetch the key and store
-         *  it in a dictionary */
+         *  it in an array */
         while (true)
         {
             if (']' == *format)
@@ -403,7 +407,7 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
 
                 if (*++format != '['){
                     /* most significand key */
-                    _jscon_store_pair(buf, dict, ap);
+                    _jscon_store_pair(buf, pairs, num_pairs, ap);
 
                     break;
                 }
@@ -412,7 +416,7 @@ _jscon_format_decode(char *format, dictionary_t *dict, va_list ap)
                  *  it will be identified by its pair->value
                  *  being NULL */
 
-                _jscon_store_pair(buf, dict, NULL);
+                _jscon_store_pair(buf, pairs, num_pairs, NULL);
 
                 ++format; /* skips '[' token */
 
@@ -440,7 +444,6 @@ jscon_scanf(char *buffer, char *format, ...)
     ASSERT_S(format != NULL, jscon_strerror(JSCON_EXT__EMPTY_FIELD, format));
 
     CONSUME_BLANK_CHARS(buffer);
-
     ASSERT_S(*buffer == '{', "Missing Object token '{'");
 
     struct _jscon_utils_s utils = {
@@ -451,14 +454,16 @@ jscon_scanf(char *buffer, char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    size_t num_key = _jscon_format_analyze(format);
+    int num_keys = 0;
+    _jscon_format_analyze(format, &num_keys);
+    ASSERT_S(num_keys > 0, "No keys are given in format");
 
-    /* key/value dictionary fetched from format */
-    dictionary_t *dict = dictionary_init();
-    dictionary_build(dict, num_key);
+    int num_pairs = 0;
+    struct _jscon_pair_s **pairs = malloc(num_keys * sizeof *pairs);
+    ASSERT_S(NULL != pairs, jscon_strerror(JSCON_EXT__OUT_MEM, pairs));
 
-    _jscon_format_decode(format, dict, ap);
-    ASSERT_S(num_key == dict->len, "Number of keys encountered is different than allocated");
+    _jscon_format_decode(format, pairs, &num_pairs, ap);
+    ASSERT_S(num_keys == num_pairs, "Number of keys encountered is different than allocated");
 
     while (*utils.buffer != '\0')
     {
@@ -477,12 +482,18 @@ jscon_scanf(char *buffer, char *format, ...)
 
             CONSUME_BLANK_CHARS(utils.buffer);
 
-            /* check if key found has a match in dictionary */
-            struct _jscon_pair_s *pair = dictionary_get(dict, utils.key);
-            if (pair != NULL){
-                _jscon_apply(&utils, pair); /* match, fetch value and apply to corresponding arg */
-            } else {
-                _jscon_skip(&utils); /* doesn't match, skip tokens until different key is detected */
+            struct _jscon_pair_s *tmp = NULL;
+            for (int i=0; i < num_pairs; ++i){
+                if (STREQ(utils.key, pairs[i]->key)){
+                    tmp = pairs[i];
+                    break;
+                }
+            }
+
+            if (tmp != NULL) { /* match, fetch value and apply to corresponding arg */
+                _jscon_apply(&utils, tmp);
+            } else { /* doesn't match, skip tokens until different key is detected */
+                _jscon_skip(&utils);
                 utils.key[utils.offset] = '\0'; /* resets unmatched key */
             }
         }
@@ -492,7 +503,12 @@ jscon_scanf(char *buffer, char *format, ...)
         }
     }
 
-    dictionary_destroy(dict);
-
     va_end(ap);
+
+    for (int i=0; i < num_pairs; ++i){
+        free(pairs[i]->key);
+        free(pairs[i]);
+    }
+    free(pairs);
+
 }
