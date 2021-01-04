@@ -20,6 +20,9 @@
  * SOFTWARE.
  */
 
+#include <stdio.h>
+#include <limits.h>
+
 #include "strscpy.h"
 
 size_t strscpy(char *dest, const char *src, size_t n)
@@ -27,12 +30,12 @@ size_t strscpy(char *dest, const char *src, size_t n)
     size_t i;
     for (i = 0; i < n; ++i){
         if ('\0' == (dest[i] = src[i])) 
-            return i > SSIZE_MAX ? -1 : i;
+            return i > SSIZE_MAX ? 0 : i;
     }
 
     if (0 == i) return 0;
 
     dest[i-1] = '\0';
 
-    return -1;
+    return 0;
 }

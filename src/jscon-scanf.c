@@ -181,12 +181,14 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
     switch (*utils->buffer){
     case '\"':/*STRING DETECTED*/
         if (STREQ(pair->specifier, "c")){
+            char *dest = pair->value;
             char *string = Jscon_decode_string(&utils->buffer);
-            strscpy(pair->value, string, sizeof(char));
+            *dest = *string;
             free(string);
         } else if (STREQ(pair->specifier, "s")){
+            char *dest = pair->value;
             char *string = Jscon_decode_string(&utils->buffer);
-            strscpy(pair->value, string, strlen(string)+1);
+            strscpy(dest, string, strlen(string)+1);
             free(string);
         } else {
             strscpy(err_typeis, "char* or jscon_item_t**", sizeof(err_typeis));

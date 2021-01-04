@@ -23,11 +23,6 @@
 #ifndef STRSCPY_H_
 #define STRSCPY_H_
 
-#include <stddef.h>
-#include <inttypes.h>
-#include <stdint.h>
-#include <limits.h>
-
 size_t strscpy(char *dest, const char *src, size_t n);
 
 #endif
