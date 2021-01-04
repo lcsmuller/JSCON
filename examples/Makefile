@@ -35,14 +35,18 @@ CFLAGS	:= -Wall -Werror -Wextra -pedantic -g
 
 .PHONY : clean purge
 
-all : run
+all : run-append run-scanf
 
-run : append.c $(LIBDIR) Makefile
+run-append : append.c $(LIBDIR) Makefile
 	$(CC) $(CFLAGS) $(LIBS_CFLAGS) \
 	      append.c -o $@ $(LIBS_LDFLAGS)
+
+run-scanf : scanf.c $(LIBDIR) Makefile
+	$(CC) $(CFLAGS) $(LIBS_CFLAGS) \
+	      scanf.c -o $@ $(LIBS_LDFLAGS)
 
 $(LIBDIR) :
 	$(MAKE) -C $(TOP)
 
 clean :
-	rm -rf run *.txt
+	rm -rf run-append run-scanf *.txt

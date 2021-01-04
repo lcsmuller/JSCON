@@ -482,16 +482,17 @@ jscon_scanf(char *buffer, char *format, ...)
 
             CONSUME_BLANK_CHARS(utils.buffer);
 
-            struct _jscon_pair_s *tmp = NULL;
+            /* linear search to try and find matching key */
+            struct _jscon_pair_s *p_pair = NULL;
             for (int i=0; i < num_pairs; ++i){
                 if (STREQ(utils.key, pairs[i]->key)){
-                    tmp = pairs[i];
+                    p_pair = pairs[i];
                     break;
                 }
             }
 
-            if (tmp != NULL) { /* match, fetch value and apply to corresponding arg */
-                _jscon_apply(&utils, tmp);
+            if (p_pair != NULL) { /* match, fetch value and apply to corresponding arg */
+                _jscon_apply(&utils, p_pair);
             } else { /* doesn't match, skip tokens until different key is detected */
                 _jscon_skip(&utils);
                 utils.key[utils.offset] = '\0'; /* resets unmatched key */
@@ -505,6 +506,7 @@ jscon_scanf(char *buffer, char *format, ...)
 
     va_end(ap);
 
+    /* clean resources */
     for (int i=0; i < num_pairs; ++i){
         free(pairs[i]->key);
         free(pairs[i]);
