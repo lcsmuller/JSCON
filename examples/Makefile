@@ -21,7 +21,7 @@
 #
 
 TOP	:= ..
-CC	:= gcc
+CC	?= gcc
 
 LIBDIR	:= $(TOP)/lib
 

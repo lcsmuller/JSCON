@@ -20,7 +20,7 @@
 # SOFTWARE.
 #
 
-CC			:= gcc
+CC			?= gcc
 SRCDIR	:= src
 OBJDIR	:= obj
 INCLDIR	:= include

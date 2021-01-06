@@ -37,7 +37,6 @@ struct _jscon_utils_s {
     char *buffer;   /* the json string to be parsed */
     char key[256];  /* holds key ptr to be received by item */
     long offset;    /* key offset used for concatenating unique keys for nested objects */
-    bool is_nest;   /* condition to form nested keys */
 };
 
 struct _jscon_pair_s {
@@ -67,19 +66,18 @@ _jscon_skip_composite(int ldelim, int rdelim, struct _jscon_utils_s *utils)
     /* skips the item and all of its nests, special care is taken for any
      *  inner string is found, as it might contain a delim character that
      *  if not treated as a string will incorrectly trigger depth action*/
-    size_t depth = 0;
+    int depth = 0;
     do {
-        if (ldelim == *utils->buffer){
+        if ('\"' == *utils->buffer){ /* treat string separately */
+            _jscon_skip_string(utils);
+            continue; /* all necessary tokens skipped, and doesn't impact depth */
+        } else if (ldelim == *utils->buffer) {
             ++depth;
-            ++utils->buffer; /* skips ldelim char */
         } else if (rdelim == *utils->buffer) {
             --depth;
-            ++utils->buffer; /* skips rdelim char */
-        } else if ('\"' == *utils->buffer) { /* treat string separately */
-            _jscon_skip_string(utils);
-        } else {
-            ++utils->buffer; /* skips whatever token */
         }
+
+        ++utils->buffer; /* skips token */
 
         if (0 == depth) return; /* entire item has been skipped, return */
 
@@ -152,17 +150,17 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
 }
 
 static void
-_jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
+_jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_nest)
 {
     /* first thing, we check if this pair has no value assigned to */
     if (NULL == pair->value){
-        utils->is_nest = true;
+        *is_nest = true;
         return;
     }
 
     /* is not nest or reached last item from nest that can be fetched */
 
-    utils->is_nest = false;
+    *is_nest = false;
 
     /* if specifier is item, simply call jscon_parse at current buffer token */
     if (STREQ(pair->specifier, "ji")){
@@ -172,7 +170,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
         (*item)->key = strdup(&utils->key[utils->offset]);
         ASSERT_S(NULL != (*item)->key, jscon_strerror(JSCON_EXT__OUT_MEM, (*item)->key));
 
-        _jscon_skip(utils); /* skip characters parsed by jscon_parse */
+        _jscon_skip(utils); /* skip deserialized token */
 
         return;
     }
@@ -191,20 +189,17 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
        return;
     }
 
-    /* specifier must be a primitive */
-    char err_typeis[50];
+    char err_typeis[50]; /* specifier must be a primitive */
+
     switch (*utils->buffer){
     case '\"':/*STRING DETECTED*/
         if (STREQ(pair->specifier, "c")){
-            char *dest = pair->value;
-            char *string = Jscon_decode_string(&utils->buffer);
-            *dest = *string;
-            free(string);
+            *(char *)pair->value = utils->buffer[1];
+            _jscon_skip_string(utils);
         } else if (STREQ(pair->specifier, "s")){
-            char *dest = pair->value;
-            char *string = Jscon_decode_string(&utils->buffer);
-            strscpy(dest, string, strlen(string)+1);
-            free(string);
+            char *src = Jscon_decode_string(&utils->buffer);
+            strscpy((char *)pair->value, src, strlen(src)+1);
+            free(src);
         } else {
             strscpy(err_typeis, "char* or jscon_item_t**", sizeof(err_typeis));
             goto type_error;
@@ -217,8 +212,16 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
             goto token_error;
 
         if (STREQ(pair->specifier, "b")){
-            bool *boolean = pair->value;
-            *boolean = Jscon_decode_boolean(&utils->buffer);
+            switch (sizeof(bool)){
+            case sizeof(char):
+                *(char *) pair->value = Jscon_decode_boolean(&utils->buffer);
+                break;
+            case sizeof(int):
+                *(int *) pair->value = Jscon_decode_boolean(&utils->buffer);
+                break;
+            default:
+                ERROR("Incompatible bool size (%u bytes)", (unsigned int)sizeof(bool));
+            }
         } else {
             strscpy(err_typeis, "bool* or jscon_item_t**", sizeof(err_typeis));
             goto type_error;
@@ -233,7 +236,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
         Jscon_decode_null(&utils->buffer);
 
         /* null conversion */
-        size_t n_bytes; /* get amount of bytes that should be set to 0 */
+        size_t n_bytes; /* get amount of bytes to be set to 0 */
         _jscon_format_info(pair->specifier, &n_bytes);
         memset(pair->value, 0, n_bytes);
         return;
@@ -242,33 +245,27 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
     case '[':/*ARRAY DETECTED*/
         strscpy(err_typeis, "jscon_item_t**", sizeof(err_typeis));
         goto type_error;
-    default:
-     { /*CHECK FOR NUMBER*/
-        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer))
-            goto token_error;
-
-        double tmp = Jscon_decode_double(&utils->buffer);
-        if (DOUBLE_IS_INTEGER(tmp)){
+    case '-': case '0': case '1': case '2':
+    case '3': case '4': case '5': case '6':
+    case '7': case '8': case '9':
+     {
+        double num = Jscon_decode_double(&utils->buffer);
+        if (DOUBLE_IS_INTEGER(num)){
             if (STREQ(pair->specifier, "d")){
-                int *number_i = pair->value;
-                *number_i = (int)tmp;
+                *(int *)pair->value = (int)num;
             } else if (STREQ(pair->specifier, "ld")){
-                long *number_i = pair->value;
-                *number_i = (long)tmp;
+                *(long *)pair->value = (long)num;
             } else if (STREQ(pair->specifier, "lld")){
-                long long *number_i = pair->value;
-                *number_i = (long long)tmp;
+                *(long long *)pair->value = (long long)num;
             } else {
                 strscpy(err_typeis, "short*, int*, long*, long long* or jscon_item_t**", sizeof(err_typeis));
                 goto type_error;
             }
         } else {
             if (STREQ(pair->specifier, "f")){
-                float *number_d = pair->value; 
-                *number_d = (float)tmp;
+                *(float *)pair->value = (float)num;
             } else if (STREQ(pair->specifier, "lf")){
-                double *number_d = pair->value; 
-                *number_d = tmp;
+                *(double *)pair->value = num;
             } else {
                 strscpy(err_typeis, "float*, double* or jscon_item_t**", sizeof(err_typeis));
                 goto type_error;
@@ -277,6 +274,8 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
 
         return;
      }
+    default: 
+        goto token_error;
     }
 
 
@@ -479,16 +478,25 @@ jscon_scanf(char *buffer, char *format, ...)
     _jscon_format_decode(format, pairs, &num_pairs, ap);
     ASSERT_S(num_keys == num_pairs, "Number of keys encountered is different than allocated");
 
+    bool is_nest = false; /* condition to form nested keys */
     while (*utils.buffer != '\0')
     {
         if ('\"' == *utils.buffer)
         {
-            if (true == utils.is_nest)
+            /* for nests we use offset position in order to
+             *  concatenate keys, which will guarantee that
+             *  its unique */
+            if (true == is_nest)
                 utils.offset = strlen(utils.key);
             else
                 utils.offset = 0;
 
-            Jscon_decode_static_string(&utils.buffer, sizeof(utils.key), utils.offset, utils.key);
+            /* decode key string */
+            Jscon_decode_static_string(
+                &utils.buffer,
+                sizeof(utils.key),
+                utils.offset, 
+                utils.key);
 
             /* is key token, check if key has a match from given format */
             ASSERT_S(':' == *utils.buffer, jscon_strerror(JSCON_EXT__INVALID_TOKEN, utils.buffer)); /* check for key's assign token  */
@@ -506,7 +514,7 @@ jscon_scanf(char *buffer, char *format, ...)
             }
 
             if (p_pair != NULL) { /* match, fetch value and apply to corresponding arg */
-                _jscon_apply(&utils, p_pair);
+                _jscon_apply(&utils, p_pair, &is_nest);
             } else { /* doesn't match, skip tokens until different key is detected */
                 _jscon_skip(&utils);
                 utils.key[utils.offset] = '\0'; /* resets unmatched key */

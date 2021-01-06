@@ -328,14 +328,14 @@ _jscon_branch_build(jscon_item_t *item, struct _jscon_utils_s *utils)
         item_setter = &_jscon_append_primitive;
         value_setter = &_jscon_value_set_null;
         break;
-    default:
-        /*CHECK FOR NUMBER*/
-        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer))
-            goto token_error;
-        
+    case '-': case '0': case '1': case '2': 
+    case '3': case '4': case '5': case '6': 
+    case '7': case '8': case '9':
         item_setter = &_jscon_append_primitive;
         value_setter = &_jscon_value_set_number;
         break;
+    default:
+        goto token_error;
     }
 
     return (*item_setter)(item, utils, value_setter);
@@ -413,6 +413,8 @@ _jscon_object_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 static jscon_item_t*
 _jscon_entity_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 {
+    CONSUME_BLANK_CHARS(utils->buffer);
+
     switch (*utils->buffer){
     case '{':/*OBJECT DETECTED*/
         _jscon_value_set_object(item, utils);
@@ -436,13 +438,14 @@ _jscon_entity_build(jscon_item_t *item, struct _jscon_utils_s *utils)
 
         _jscon_value_set_null(item, utils);
         break;
-    default:/*CHECK FOR NUMBER*/
-        CONSUME_BLANK_CHARS(utils->buffer);
-        if (!isdigit(*utils->buffer) && ('-' != *utils->buffer))
-            goto token_error;
-
+    case '-': case '1': case '2': case '3': 
+    case '4': case '5': case '6': case '7': 
+    case '8': case '9':
         _jscon_value_set_number(item, utils);
         break;
+    default:
+        goto token_error;
+
     }
 
     return item;
