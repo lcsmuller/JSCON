@@ -25,8 +25,9 @@ Where the 'key' should be replaced by the name of the key to be matched, and 'sp
 |**`lld`**|`long long*`| Decimal integer. |`0`|
 |**`f`**|`float*`| Floating point: Decimal number containing a decimal point. |`0.0`|
 |**`lf`**|`double*`| Floating point: Decimal number containing a decimal point. |`0.0`|
-|**`c`**|`char*`| The next character. |`char '\0'`|
+|**`c`**|`char*`| Single character. |`char '\0'`|
 |**`s`**|`char*`| String of characters. |`empty string "\0"`|
+|**`S`**|`char*`| Contents of key as string |`string "null"`|
 |**`b`**|`bool*`| True or false. |`false`|
 |**`ji`**|`jscon_item_t**`| A [`jscon_item_t`](jscon_item_t.md) structure. |`item with type set to `[`JSCON_NULL`](enum jscon_type.md)|
 

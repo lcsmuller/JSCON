@@ -29,8 +29,8 @@
 
 #include "libjscon.h"
 
-/* { "a": 1, "b": 3000000000, "c": "hello" } */
-#define JSON_TEXT "{\"a\":1,\"b\":3000000000,\"c\":\"hello\"}"
+/* { "a": 1, "b": 3000000000, "c": "hello", "d": {"e": "nest"}} */
+#define JSON_TEXT "{\"a\":1,\"b\":3000000000,\"c\":\"hello\",\"d\":{\"e\":\"nest\"}}"
 
 
 int main(void)
@@ -38,11 +38,12 @@ int main(void)
     int a = 0;
     long b = 0;
     char c[25];
+    char d[100];
 
-    jscon_scanf(JSON_TEXT, "%d[a]%ld[b]%s[c]", &a, &b, c);
+    jscon_scanf(JSON_TEXT, "%d[a]%ld[b]%s[c]%S[d]", &a, &b, c, d);
 
-    char output[100];
-    snprintf(output, 99, "{\"a\":%d,\"b\":%ld,\"c\":\"%s\"}", a, b, c);
+    char output[256];
+    snprintf(output, 255, "{\"a\":%d,\"b\":%ld,\"c\":\"%s\",\"d\":%s}", a, b, c, d);
 
     printf("Resulting string is:\n%s\n" \
            "Expected string is:\n%s\n", 

@@ -114,7 +114,7 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
     size_t discard; /* throw values here if p_tmp is NULL */
     size_t *n_bytes = (p_tmp != NULL) ? p_tmp : &discard;
 
-    if (STREQ(specifier, "s") || STREQ(specifier, "c")){
+    if (STREQ(specifier, "s") || STREQ(specifier, "S") || STREQ(specifier, "c")){
         *n_bytes = sizeof(char);
         return "char*";
     }
@@ -175,6 +175,20 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair)
         _jscon_skip(utils); /* skip characters parsed by jscon_parse */
 
         return;
+    }
+
+    /* if specifier is S, we will retrieve the json text from the key
+     *  without parsing it */
+    if (STREQ(pair->specifier, "S")){
+       char *dest = pair->value;
+
+       char *start = utils->buffer; 
+       _jscon_skip(utils);
+       char *offset = utils->buffer;
+
+       strscpy(dest, start, offset - start + 1);
+
+       return;
     }
 
     /* specifier must be a primitive */
