@@ -42,7 +42,7 @@ struct _jscon_utils_s {
 struct _jscon_pair_s {
     char specifier[5];
 
-    void *key;
+    char *key;
     void *value; /* value being NULL means its a parent */
 };
 
@@ -351,7 +351,7 @@ _jscon_format_analyze(char *format, int *num_keys)
 }
 
 static void
-_jscon_store_pair(char buf[], struct _jscon_pair_s **pairs, int *num_pairs, va_list ap)
+_jscon_store_pair(char buf[], struct _jscon_pair_s **pairs, int *num_pairs, va_list *ap)
 {
     struct _jscon_pair_s *new_pair = malloc(sizeof *new_pair);
     ASSERT_S(new_pair != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair));
@@ -361,20 +361,20 @@ _jscon_store_pair(char buf[], struct _jscon_pair_s **pairs, int *num_pairs, va_l
     if (STREQ("", _jscon_format_info(new_pair->specifier, NULL)))
         ERROR("Unknown type specifier token %%%s", new_pair->specifier);
 
-    if (NULL != ap)
-        new_pair->value = va_arg(ap, void*);
-    else
-        new_pair->value = NULL;
-
     new_pair->key = strdup(&buf[strlen(buf)+1]);
     ASSERT_S(new_pair->key != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair->key));
+
+    if (NULL != *ap)
+        new_pair->value = va_arg(*ap, void*);
+    else
+        new_pair->value = NULL;
 
     pairs[*num_pairs] = new_pair;
     ++*num_pairs;
 }
 
 static void
-_jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs, va_list ap)
+_jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs, va_list *ap)
 {
     char buf[256];
 
@@ -475,7 +475,7 @@ jscon_scanf(char *buffer, char *format, ...)
     struct _jscon_pair_s **pairs = malloc(num_keys * sizeof *pairs);
     ASSERT_S(NULL != pairs, jscon_strerror(JSCON_EXT__OUT_MEM, pairs));
 
-    _jscon_format_decode(format, pairs, &num_pairs, ap);
+    _jscon_format_decode(format, pairs, &num_pairs, &ap);
     ASSERT_S(num_keys == num_pairs, "Number of keys encountered is different than allocated");
 
     bool is_nest = false; /* condition to form nested keys */
