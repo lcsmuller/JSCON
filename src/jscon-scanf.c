@@ -178,13 +178,11 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
     /* if specifier is S, we will retrieve the json text from the key
      *  without parsing it */
     if (STREQ(pair->specifier, "S")){
-       char *dest = pair->value;
-
        char *start = utils->buffer; 
        _jscon_skip(utils);
        char *offset = utils->buffer;
 
-       strscpy(dest, start, offset - start + 1);
+       strscpy((char *)pair->value, start, 1 + (offset - start));
 
        return;
     }
