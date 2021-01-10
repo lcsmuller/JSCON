@@ -33,13 +33,13 @@
 #include "strscpy.h"
 
 
-struct _jscon_utils_s {
+struct utils_s {
     char *buffer;   /* the json string to be parsed */
     char key[256];  /* holds key ptr to be received by item */
     long offset;    /* key offset used for concatenating unique keys for nested objects */
 };
 
-struct _jscon_pair_s {
+struct pair_s {
     char specifier[5];
 
     char *key;
@@ -47,7 +47,7 @@ struct _jscon_pair_s {
 };
 
 inline static void
-_jscon_skip_string(struct _jscon_utils_s *utils)
+skip_string(struct utils_s *utils)
 {
     /* loops until null terminator or end of string are found */
     do {
@@ -61,7 +61,7 @@ _jscon_skip_string(struct _jscon_utils_s *utils)
 }
 
 inline static void
-_jscon_skip_composite(int ldelim, int rdelim, struct _jscon_utils_s *utils)
+skip_composite(int ldelim, int rdelim, struct utils_s *utils)
 {
     /* skips the item and all of its nests, special care is taken for any
      *  inner string is found, as it might contain a delim character that
@@ -69,7 +69,7 @@ _jscon_skip_composite(int ldelim, int rdelim, struct _jscon_utils_s *utils)
     int depth = 0;
     do {
         if ('\"' == *utils->buffer){ /* treat string separately */
-            _jscon_skip_string(utils);
+            skip_string(utils);
             continue; /* all necessary tokens skipped, and doesn't impact depth */
         } else if (ldelim == *utils->buffer) {
             ++depth;
@@ -85,17 +85,17 @@ _jscon_skip_composite(int ldelim, int rdelim, struct _jscon_utils_s *utils)
 }
 
 static void
-_jscon_skip(struct _jscon_utils_s *utils)
+skip(struct utils_s *utils)
 {
     switch (*utils->buffer){
     case '{':/*OBJECT DETECTED*/
-        _jscon_skip_composite('{', '}', utils);
+        skip_composite('{', '}', utils);
         return;
     case '[':/*ARRAY DETECTED*/
-        _jscon_skip_composite('[', ']', utils);
+        skip_composite('[', ']', utils);
         return;
     case '\"':/*STRING DETECTED*/
-        _jscon_skip_string(utils);
+        skip_string(utils);
         return;
     default:
         /* skip tokens while not end of string or not new key */
@@ -107,7 +107,7 @@ _jscon_skip(struct _jscon_utils_s *utils)
 }
 
 static char*
-_jscon_format_info(char *specifier, size_t *p_tmp)
+format_info(char *specifier, size_t *p_tmp)
 {
     size_t discard; /* throw values here if p_tmp is NULL */
     size_t *n_bytes = (p_tmp != NULL) ? p_tmp : &discard;
@@ -150,7 +150,7 @@ _jscon_format_info(char *specifier, size_t *p_tmp)
 }
 
 static void
-_jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_nest)
+apply(struct utils_s *utils, struct pair_s *pair, bool *is_nest)
 {
     /* first thing, we check if this pair has no value assigned to */
     if (NULL == pair->value){
@@ -170,7 +170,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
         (*item)->key = strdup(&utils->key[utils->offset]);
         ASSERT_S(NULL != (*item)->key, jscon_strerror(JSCON_EXT__OUT_MEM, (*item)->key));
 
-        _jscon_skip(utils); /* skip deserialized token */
+        skip(utils); /* skip deserialized token */
 
         return;
     }
@@ -179,7 +179,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
      *  without parsing it */
     if (STREQ(pair->specifier, "S")){
        char *start = utils->buffer; 
-       _jscon_skip(utils);
+       skip(utils);
        char *offset = utils->buffer;
 
        strscpy((char *)pair->value, start, 1 + (offset - start));
@@ -193,7 +193,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
     case '\"':/*STRING DETECTED*/
         if (STREQ(pair->specifier, "c")){
             *(char *)pair->value = utils->buffer[1];
-            _jscon_skip_string(utils);
+            skip_string(utils);
         } else if (STREQ(pair->specifier, "s")){
             char *src = Jscon_decode_string(&utils->buffer);
             strscpy((char *)pair->value, src, strlen(src)+1);
@@ -235,7 +235,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
 
         /* null conversion */
         size_t n_bytes; /* get amount of bytes to be set to 0 */
-        _jscon_format_info(pair->specifier, &n_bytes);
+        format_info(pair->specifier, &n_bytes);
         memset(pair->value, 0, n_bytes);
         return;
      }
@@ -278,7 +278,7 @@ _jscon_apply(struct _jscon_utils_s *utils, struct _jscon_pair_s *pair, bool *is_
 
 
 type_error:
-    ERROR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, _jscon_format_info(pair->specifier, NULL), pair->specifier);
+    ERROR("Expected specifier %s but specifier is %s( found: \"%s\" )\n", err_typeis, format_info(pair->specifier, NULL), pair->specifier);
 
 token_error:
     ERROR("Invalid JSON Token: %c", *utils->buffer);
@@ -286,7 +286,7 @@ token_error:
 
 /* count amount of keys and check for formatting errors */
 static void
-_jscon_format_analyze(char *format, int *num_keys)
+format_analyze(char *format, int *num_keys)
 {
     while (true) /* run until end of string found */
     {
@@ -349,30 +349,32 @@ _jscon_format_analyze(char *format, int *num_keys)
 }
 
 static void
-_jscon_store_pair(char buf[], struct _jscon_pair_s **pairs, int *num_pairs, va_list *ap)
+store_pair(char buf[], struct pair_s **pairs, int *num_pairs, va_list *ap)
 {
-    struct _jscon_pair_s *new_pair = malloc(sizeof *new_pair);
+    struct pair_s *new_pair = malloc(sizeof *new_pair);
     ASSERT_S(new_pair != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair));
 
     strscpy(new_pair->specifier, buf, sizeof(new_pair->specifier)); /* get specifier string */
 
-    if (STREQ("", _jscon_format_info(new_pair->specifier, NULL)))
+    if (STREQ("", format_info(new_pair->specifier, NULL)))
         ERROR("Unknown type specifier token %%%s", new_pair->specifier);
 
     new_pair->key = strdup(&buf[strlen(buf)+1]);
     ASSERT_S(new_pair->key != NULL, jscon_strerror(JSCON_EXT__OUT_MEM, new_pair->key));
 
-    if (NULL != *ap)
+    if (NULL != *ap) {
         new_pair->value = va_arg(*ap, void*);
-    else
+        ASSERT_S(NULL != new_pair->value, "NULL pointer given as argument parameter");
+    } else {
         new_pair->value = NULL;
+    }
 
     pairs[*num_pairs] = new_pair;
     ++*num_pairs;
 }
 
 static void
-_jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs, va_list *ap)
+format_decode(char *format, struct pair_s **pairs, int *num_pairs, va_list *ap)
 {
     char buf[256];
 
@@ -418,7 +420,7 @@ _jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs,
 
                 if (*++format != '['){
                     /* most significand key */
-                    _jscon_store_pair(buf, pairs, num_pairs, ap);
+                    store_pair(buf, pairs, num_pairs, ap);
 
                     break;
                 }
@@ -427,7 +429,7 @@ _jscon_format_decode(char *format, struct _jscon_pair_s **pairs, int *num_pairs,
                  *  it will be identified by its pair->value
                  *  being NULL */
 
-                _jscon_store_pair(buf, pairs, num_pairs, NULL);
+                store_pair(buf, pairs, num_pairs, NULL);
 
                 ++format; /* skips '[' token */
 
@@ -457,7 +459,7 @@ jscon_scanf(char *buffer, char *format, ...)
     CONSUME_BLANK_CHARS(buffer);
     ASSERT_S(*buffer == '{', "Missing Object token '{'");
 
-    struct _jscon_utils_s utils = {
+    struct utils_s utils = {
         .key     = "",
         .buffer  = buffer
     };
@@ -466,14 +468,14 @@ jscon_scanf(char *buffer, char *format, ...)
     va_start(ap, format);
 
     int num_keys = 0;
-    _jscon_format_analyze(format, &num_keys);
+    format_analyze(format, &num_keys);
     ASSERT_S(num_keys > 0, "No keys are given in format");
 
     int num_pairs = 0;
-    struct _jscon_pair_s **pairs = malloc(num_keys * sizeof *pairs);
+    struct pair_s **pairs = malloc(num_keys * sizeof *pairs);
     ASSERT_S(NULL != pairs, jscon_strerror(JSCON_EXT__OUT_MEM, pairs));
 
-    _jscon_format_decode(format, pairs, &num_pairs, &ap);
+    format_decode(format, pairs, &num_pairs, &ap);
     ASSERT_S(num_keys == num_pairs, "Number of keys encountered is different than allocated");
 
     bool is_nest = false; /* condition to form nested keys */
@@ -503,7 +505,7 @@ jscon_scanf(char *buffer, char *format, ...)
             CONSUME_BLANK_CHARS(utils.buffer);
 
             /* linear search to try and find matching key */
-            struct _jscon_pair_s *p_pair = NULL;
+            struct pair_s *p_pair = NULL;
             for (int i=0; i < num_pairs; ++i){
                 if (STREQ(utils.key, pairs[i]->key)){
                     p_pair = pairs[i];
@@ -512,9 +514,9 @@ jscon_scanf(char *buffer, char *format, ...)
             }
 
             if (p_pair != NULL) { /* match, fetch value and apply to corresponding arg */
-                _jscon_apply(&utils, p_pair, &is_nest);
+                apply(&utils, p_pair, &is_nest);
             } else { /* doesn't match, skip tokens until different key is detected */
-                _jscon_skip(&utils);
+                skip(&utils);
                 utils.key[utils.offset] = '\0'; /* resets unmatched key */
             }
         }
