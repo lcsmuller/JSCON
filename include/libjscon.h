@@ -51,6 +51,10 @@ typedef struct jscon_item_s jscon_item_t;
 typedef jscon_item_t* (jscon_cb)(jscon_item_t*);
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* JSCON INIT */
 jscon_item_t *jscon_object(const char *key);
 jscon_item_t *jscon_array(const char *key);
@@ -110,5 +114,9 @@ bool jscon_set_boolean(jscon_item_t* item, bool boolean);
 char* jscon_set_string(jscon_item_t* item, char *string);
 double jscon_set_double(jscon_item_t* item, double d_number);
 long long jscon_set_integer(jscon_item_t* item, long long i_number);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
