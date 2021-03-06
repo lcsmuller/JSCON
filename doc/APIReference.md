@@ -82,3 +82,10 @@ This document describes the public C API.
 * [`jscon_get_string(item);`](api/jscon_get_string.md)
 * [`jscon_get_double(item);`](api/jscon_get_double.md)
 * [`jscon_get_integer(item);`](api/jscon_get_integer.md)
+
+#### Setter Functions
+
+* [`jscon_set_boolean(item, boolean);`](api/jscon_set_boolean.md)
+* [`jscon_set_string(item, string);`](api/jscon_set_string.md)
+* [`jscon_set_double(item, double);`](api/jscon_set_double.md)
+* [`jscon_set_integer(item, int);`](api/jscon_set_integer.md)
