@@ -620,30 +620,34 @@ jscon_get_integer(const jscon_item_t *item)
     return item->i_number;
 }
 
-bool
+jscon_item_t*
 jscon_set_boolean(jscon_item_t *item, bool boolean)
 {
-    return item->boolean = boolean;
+    item->boolean = boolean;
+    return item;
 }
 
-char*
+jscon_item_t*
 jscon_set_string(jscon_item_t *item, char *string)
 {
     if (item->string){
       free(item->string);
     }
 
-    return item->string = strdup(string);
+    item->string = strdup(string);
+    return item;
 }
 
-double
+jscon_item_t*
 jscon_set_double(jscon_item_t *item, double d_number)
 {
-    return item->d_number = d_number;
+    item->d_number = d_number;
+    return item;
 }
 
-long long
+jscon_item_t*
 jscon_set_integer(jscon_item_t *item, long long i_number)
 {
-    return item->i_number = i_number;
+    item->i_number = i_number;
+    return item;
 }

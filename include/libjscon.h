@@ -110,10 +110,10 @@ double jscon_get_double(const jscon_item_t* item);
 long long jscon_get_integer(const jscon_item_t* item);
 
 /* JSCON SETTERS */
-bool jscon_set_boolean(jscon_item_t* item, bool boolean);
-char* jscon_set_string(jscon_item_t* item, char *string);
-double jscon_set_double(jscon_item_t* item, double d_number);
-long long jscon_set_integer(jscon_item_t* item, long long i_number);
+jscon_item_t* jscon_set_boolean(jscon_item_t* item, bool boolean);
+jscon_item_t* jscon_set_string(jscon_item_t* item, char *string);
+jscon_item_t* jscon_set_double(jscon_item_t* item, double d_number);
+jscon_item_t* jscon_set_integer(jscon_item_t* item, long long i_number);
 
 #ifdef __cplusplus
 }
